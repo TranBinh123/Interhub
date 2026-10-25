@@ -470,3 +470,186 @@ Có thể ẩn thông tin cá nhân hoặc thay bằng dữ liệu giả, nhưng
 path = Path("/mnt/data/README_InternHub.md")
 path.write_text(content, encoding="utf-8")
 print(f"Đã tạo: {path}\nDung lượng: {path.stat().st_size:,} bytes")
+## Trạng thái dự án và kết quả Chặng 1
+
+### 1. Tổng quan tiến độ
+
+Dự án InternHub được triển khai theo 5 chặng:
+
+1. **Chặng 1 – Chuẩn hóa yêu cầu nghiệp vụ:** Đã hoàn thành bước thống nhất phạm vi, vai trò, quy trình đánh giá và nguyên tắc tính điểm ở mức yêu cầu nghiệp vụ.
+2. **Chặng 2 – Dựng prototype:** Bước tiếp theo. Xây dựng Web App mẫu có thể tương tác để kiểm tra giao diện và quy trình sử dụng.
+3. **Chặng 3 – Phát triển MVP:** Xây dựng phiên bản có chức năng thực tế, cơ sở dữ liệu, phân quyền và xử lý nghiệp vụ.
+4. **Chặng 4 – Pilot:** Thử nghiệm với người dùng và dữ liệu được lựa chọn, ghi nhận vấn đề và điều chỉnh.
+5. **Chặng 5 – Vận hành và cải tiến:** Hoàn thiện hướng dẫn, triển khai chính thức, theo dõi và cải tiến.
+
+**Lưu ý về trạng thái:** Hoàn thành Chặng 1 không có nghĩa là mọi chi tiết kỹ thuật và nghiệp vụ đã được xác nhận. Những nội dung đã thống nhất phải được giữ nguyên; những nội dung còn chờ xác nhận phải được ghi nhận riêng, không tự suy diễn thành yêu cầu chính thức.
+
+### 2. Kết quả Chặng 1 – Những nội dung đã thống nhất
+
+#### 2.1. Bối cảnh và mục tiêu
+
+InternHub là Web App nội bộ phục vụ quản lý quá trình đánh giá sinh viên thực tập tại Sun World Ba Na Hills.
+
+Hệ thống hướng đến việc thay thế cách gửi biểu mẫu riêng lẻ và tổng hợp thủ công, giúp:
+
+- Quản lý tập trung danh sách sinh viên thực tập và các kỳ đánh giá.
+- Theo dõi tiến độ đánh giá của các bộ phận.
+- Chuẩn hóa việc nhập điểm, nhận xét và góp ý cải thiện.
+- Cho phép Đào tạo kiểm tra, trả phiếu để bổ sung hoặc xác nhận chốt kết quả.
+- Xuất báo cáo Excel phục vụ tổng hợp và đối soát.
+
+Quy mô dự kiến: trên 500 sinh viên trong một tháng.
+
+#### 2.2. Chu kỳ và đối tượng sử dụng
+
+- Đánh giá theo tháng.
+- Người đánh giá là Trưởng bộ phận hoặc người được phân công/người hướng dẫn.
+- Bộ phận Đào tạo theo dõi, kiểm tra và xác nhận chốt kết quả.
+- Tài khoản đăng nhập sử dụng email và mật khẩu riêng.
+- Biểu mẫu đánh giá và mẫu Excel đầu ra hiện hành của công ty là căn cứ nghiệp vụ cần tuân thủ.
+
+Các vai trò và quyền chi tiết phải được thể hiện rõ trong prototype. Không mặc định rằng mọi người dùng thuộc cùng một vai trò có quyền giống nhau.
+
+#### 2.3. Cấu trúc biểu mẫu đánh giá
+
+Thông tin chung:
+
+- Họ tên sinh viên thực tập.
+- Bộ phận thực tập.
+- Thời gian/kỳ đánh giá.
+
+Ba phần được tính điểm:
+
+**I. Thái độ & Tinh thần thực tập – 5 hạng mục**
+
+1. Hình ảnh chỉn chu: trang phục, đầu tóc, khuôn mặt, phụ kiện và vệ sinh.
+2. Ý thức giữ gìn vệ sinh chung và vệ sinh vị trí/khu vực thực tập.
+3. Ý thức kỷ luật, chấp hành nội quy giờ giấc và lịch làm việc.
+4. Không làm việc riêng ngoài phạm vi thực tập trong quá trình thực tập.
+5. Không có phản ánh từ khách hàng/đối tác trong quá trình thực tập.
+
+**II. Tinh thần phối hợp – 4 hạng mục**
+
+1. Ý thức tổ chức và tinh thần phối hợp với đồng nghiệp.
+2. Khả năng lắng nghe, tiếp thu và phản hồi kịp thời, đầy đủ, rõ ràng.
+3. Khả năng thích nghi, linh hoạt và điều chỉnh cách làm việc theo tình huống, yêu cầu công việc.
+4. Mối quan hệ với đồng nghiệp, góp phần tạo môi trường hỗ trợ và cùng tiến bộ.
+
+**III. Chuyên môn nghiệp vụ – 6 hạng mục**
+
+1. Khả năng nắm vững kiến thức lý thuyết, công thức, quy trình và nguyên tắc cơ bản của lĩnh vực thực tập.
+2. Khả năng sử dụng các công cụ, phương pháp và kỹ thuật chuyên môn đã được trang bị.
+3. Khả năng phân tích dữ liệu, thông tin và tình huống để đưa ra kết luận hoặc quyết định hợp lý trong phạm vi được giao.
+4. Khả năng làm việc độc lập.
+5. Khả năng làm việc nhóm.
+6. Tính sáng tạo và đề xuất cải tiến.
+
+**IV. Nhận xét chung của Trưởng bộ phận/người hướng dẫn**
+
+Trường nhập nội dung nhận xét bằng văn bản.
+
+**V. Góp ý cải thiện cho sinh viên thực tập**
+
+Trường nhập nội dung góp ý bằng văn bản.
+
+Thang điểm của mỗi hạng mục thuộc ba phần I, II và III là thang điểm 10.
+
+#### 2.4. Quy tắc tính điểm đã thống nhất
+
+Gọi:
+
+- A là điểm trung bình phần I.
+- B là điểm trung bình phần II.
+- C là điểm trung bình phần III.
+
+Công thức:
+
+- Điểm phần I = Tổng điểm 5 hạng mục / 5.
+- Điểm phần II = Tổng điểm 4 hạng mục / 4.
+- Điểm phần III = Tổng điểm 6 hạng mục / 6.
+- Điểm đánh giá cuối cùng = (A + B + C) / 3.
+
+**Nguyên tắc bắt buộc:**
+
+- Ba phần I, II và III có trọng số bằng nhau.
+- Điểm từng phần được tính bằng trung bình cộng các hạng mục thuộc phần đó.
+- Không tính điểm cuối cùng bằng cách lấy trung bình trực tiếp của cả 15 hạng mục.
+- Phần IV và phần V là nội dung văn bản, không tham gia tính điểm.
+- Hệ thống phải lưu được điểm của từng hạng mục để phục vụ kiểm tra, đối soát và tính lại.
+- Chưa tự ý làm tròn điểm ở từng bước nếu quy tắc làm tròn chính thức chưa được xác nhận.
+
+Ví dụ: nếu điểm A = 8,00; B = 9,00; C = 7,50 thì điểm cuối cùng trước khi áp dụng quy tắc làm tròn là 8,1666...
+
+#### 2.5. Quy trình nghiệp vụ định hướng
+
+Quy trình đánh giá được định hướng như sau:
+
+1. Đào tạo thiết lập kỳ đánh giá và dữ liệu sinh viên liên quan.
+2. Người có trách nhiệm được phân công thực hiện đánh giá.
+3. Người đánh giá nhập điểm cho các hạng mục và điền nhận xét, góp ý.
+4. Người đánh giá gửi phiếu đến Đào tạo.
+5. Đào tạo kiểm tra nội dung, trả phiếu để bổ sung nếu cần hoặc xác nhận chốt.
+6. Hệ thống lưu trạng thái và lịch sử xử lý, hỗ trợ tổng hợp và xuất báo cáo.
+
+Các trạng thái dự kiến gồm: Chưa bắt đầu, Đang thực hiện, Chờ Đào tạo xác nhận, Trả về bổ sung và Đã chốt.
+
+Tên trạng thái, điều kiện chuyển trạng thái và quyền thao tác cần được kiểm tra qua prototype trước khi triển khai chính thức.
+
+### 3. Những nguyên tắc phải được giữ trong Chặng 2
+
+Prototype phải phản ánh đúng các yêu cầu đã thống nhất:
+
+1. Có phân biệt vai trò và quyền thao tác.
+2. Thể hiện được danh sách sinh viên và kỳ đánh giá theo tháng.
+3. Có biểu mẫu gồm đúng 15 hạng mục tính điểm, chia theo ba phần như trên.
+4. Tự tính điểm từng phần và điểm cuối cùng theo đúng công thức.
+5. Có trường nhận xét chung và góp ý cải thiện.
+6. Thể hiện được quy trình gửi, trả về và chốt phiếu.
+7. Có màn hình giúp Đào tạo theo dõi tiến độ và kiểm tra kết quả.
+8. Có định hướng xuất Excel theo mẫu hiện hành.
+9. Không cho phép việc chốt phiếu diễn ra âm thầm hoặc làm mất lịch sử.
+10. Nếu dùng dữ liệu minh họa, phải ghi rõ đó là dữ liệu giả lập; không trình bày dữ liệu giả lập như dữ liệu thật.
+
+### 4. Các nội dung còn chờ xác nhận
+
+Những vấn đề sau chưa được xem là đã chốt chỉ vì Chặng 1 hoàn thành:
+
+- Đối chiếu biểu mẫu đánh giá hiện hành với danh sách tiêu chí trong README.
+- Đối chiếu file Excel tổng hợp hiện hành để xác định chính xác cấu trúc cột, định dạng, công thức và cách xuất dữ liệu.
+- Quy tắc phân công người đánh giá; trường hợp một sinh viên có nhiều người đánh giá.
+- Cách xử lý sinh viên bắt đầu hoặc kết thúc thực tập giữa tháng.
+- Cách xử lý sinh viên chuyển bộ phận hoặc thay đổi người đánh giá.
+- Quy tắc bắt buộc nhập điểm và xử lý trường hợp thiếu điểm.
+- Số chữ số thập phân và quy tắc làm tròn điểm.
+- Quyền mở lại phiếu đã chốt hoặc mở lại kỳ đã khóa.
+- Các điều kiện khóa kỳ và xử lý ngoại lệ.
+- Công nghệ, môi trường triển khai, phương án lưu trữ và yêu cầu bảo mật cần được rà soát trước khi phát triển MVP.
+
+Không tự đặt ra quy tắc chính thức cho các trường hợp trên. Nếu prototype cần mô phỏng một quy tắc để minh họa, phải đánh dấu rõ đó là giả định chờ xác nhận.
+
+### 5. Mục tiêu và đầu ra Chặng 2
+
+Chặng 2 cần tạo ra một prototype có thể thao tác thử, bao gồm tối thiểu:
+
+- Màn hình đăng nhập minh họa.
+- Dashboard theo dõi tình hình đánh giá.
+- Màn hình quản lý sinh viên và kỳ thực tập.
+- Màn hình quản lý kỳ đánh giá.
+- Biểu mẫu chấm điểm và nhập nhận xét.
+- Màn hình Đào tạo kiểm tra, trả phiếu và chốt phiếu.
+- Màn hình báo cáo và mô phỏng xuất Excel.
+
+Prototype cần có dữ liệu giả lập đủ lớn để kiểm tra trải nghiệm sử dụng ở quy mô trên 500 sinh viên. Các thao tác chính phải phản hồi nhất quán; nếu dữ liệu hoặc chức năng chỉ được mô phỏng ở phía giao diện, cần ghi rõ giới hạn đó.
+
+**Tiêu chí hoàn thành Chặng 2:** Các bên liên quan có thể thao tác thử các luồng nghiệp vụ chính, kiểm tra công thức tính điểm, đánh giá mức độ dễ sử dụng và thống nhất các điểm cần điều chỉnh trước khi bước sang Chặng 3 – Phát triển MVP.
+
+### 6. Hướng dẫn dành cho AI tiếp tục dự án
+
+Khi đọc README và tiếp tục công việc:
+
+- Giữ nguyên các quyết định đã được xác nhận trong mục trạng thái dự án.
+- Phân biệt rõ yêu cầu đã chốt, đề xuất kỹ thuật và giả định cần xác nhận.
+- Không tự thêm tiêu chí đánh giá, thay đổi công thức hoặc sửa quy trình nghiệp vụ.
+- Không coi prototype là hệ thống đã có xác thực, phân quyền hoặc lưu trữ dữ liệu an toàn nếu các chức năng đó chưa được triển khai và kiểm thử.
+- Ưu tiên hoàn thiện prototype để lấy phản hồi trước khi khóa thiết kế dữ liệu và phát triển MVP.
+- Ghi lại các quyết định mới, lý do thay đổi và ảnh hưởng đến các phần liên quan.
