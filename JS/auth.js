@@ -207,7 +207,7 @@ export async function approveUser(userId, role) {
       role: role,
       isActive: true,
       approvedAt: serverTimestamp(),
-      approvedBy: currentUser.uid
+      approvedBy: currentUser?.uid || "admin"
     });
     console.log("User approved:", userId);
     return true;
@@ -224,7 +224,8 @@ export async function rejectUser(userId, reason) {
       status: USER_STATUS.REJECTED,
       isActive: false,
       approvedAt: serverTimestamp(),
-      approvedBy: currentUser.uid
+      approvedBy: currentUser?.uid || "admin",
+      rejectionReason: reason || "Không nêu lý do"
     });
     console.log("User rejected:", userId);
     return true;
