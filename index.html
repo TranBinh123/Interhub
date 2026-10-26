@@ -6,18 +6,14 @@
   <meta name="description" content="InternHub - Hệ thống đánh giá thực tập sinh">
   <title>InternHub - Đăng nhập</title>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
       --primary: #0A6A73;
       --primary-light: #12343B;
       --accent: #D4A574;
-      --accent-hover: #C29560;
       --surface: #FFFFFF;
       --surface-2: #F3F6F9;
       --text: #12212F;
@@ -25,7 +21,6 @@
       --border: #D3DCE4;
       --error: #A82E28;
       --success: #16694A;
-      --shadow-sm: 0 1px 2px rgba(16, 32, 46, 0.06);
       --shadow-md: 0 4px 12px rgba(16, 32, 46, 0.1);
     }
 
@@ -40,7 +35,7 @@
     }
 
     body {
-      font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+      font-family: 'Be Vietnam Pro', system-ui, sans-serif;
       background: var(--surface-2);
       color: var(--text);
       line-height: 1.6;
@@ -60,42 +55,7 @@
       align-items: center;
     }
 
-    @media (max-width: 768px) {
-      .login-shell {
-        grid-template-columns: 1fr;
-        gap: 32px;
-      }
-      .brand {
-        order: -1;
-        padding-right: 0;
-        padding-bottom: 20px;
-        border-bottom: 1px solid var(--border);
-      }
-      .brand h1 {
-        font-size: 24px;
-      }
-      .brand p {
-        margin-bottom: 16px;
-      }
-      .brand-feature {
-        margin-bottom: 16px;
-        padding-bottom: 16px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .brand h1 {
-        font-size: 20px;
-      }
-      .brand p {
-        font-size: 14px;
-      }
-    }
-
-    /* Brand section */
-    .brand {
-      padding-right: 20px;
-    }
+    .brand { padding-right: 20px; }
 
     .logo {
       display: flex;
@@ -107,11 +67,7 @@
       letter-spacing: -0.02em;
     }
 
-    .logo svg {
-      width: 32px;
-      height: 32px;
-      fill: var(--primary);
-    }
+    .logo svg { width: 32px; height: 32px; fill: var(--primary); }
 
     .brand h1 {
       font-size: 32px;
@@ -120,7 +76,7 @@
       font-weight: 700;
     }
 
-    .brand p {
+    .brand > p {
       font-size: 16px;
       color: var(--text-muted);
       margin-bottom: 32px;
@@ -151,23 +107,16 @@
       margin: 0;
     }
 
-    /* Login panel */
     .login-panel {
       background: var(--surface);
       border-radius: 12px;
       padding: 32px;
       box-shadow: var(--shadow-md);
-    }
-
-    @media (max-width: 480px) {
-      .login-panel {
-        padding: 24px;
-      }
+      min-width: 0;
     }
 
     .tabs {
       display: flex;
-      gap: 0;
       margin-bottom: 28px;
       border-bottom: 2px solid var(--border);
     }
@@ -178,45 +127,31 @@
       border: none;
       background: transparent;
       color: var(--text-muted);
+      font-family: inherit;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
       border-bottom: 2px solid transparent;
       margin-bottom: -2px;
     }
 
-    .tab-button:hover {
-      color: var(--text);
-    }
+    .tab-button:hover { color: var(--text); }
 
     .tab-button.active {
       color: var(--primary);
       border-bottom-color: var(--primary);
     }
 
-    .tab-content {
-      display: none;
-    }
+    .tab-content { display: none; }
 
-    .tab-content.active {
-      display: block;
-      animation: fadeIn 0.2s ease-in;
-    }
+    .tab-content.active { display: block; animation: fadeIn .2s ease-in; }
 
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
-    /* Form elements */
-    .form-group {
-      margin-bottom: 16px;
-    }
+    .form-group { margin-bottom: 16px; }
 
     .form-group label {
       display: block;
@@ -232,40 +167,37 @@
       padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      font-family: 'Be Vietnam Pro', system-ui;
+      font-family: inherit;
       font-size: 14px;
       color: var(--text);
       background: var(--surface);
-      transition: border-color 0.2s;
     }
 
     .form-group input:focus,
     .form-group select:focus {
       outline: none;
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(10, 106, 115, 0.1);
+      box-shadow: 0 0 0 3px rgba(10, 106, 115, .1);
     }
 
-    .form-group input::placeholder {
-      color: var(--text-muted);
-    }
+    .form-group input::placeholder { color: var(--text-muted); }
 
-    /* Google Sign-in */
     .google-signin {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       width: 100%;
-      padding: 10px 12px;
+      padding: 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--surface);
       color: var(--text);
+      font-family: inherit;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background .2s, border-color .2s;
       margin-bottom: 16px;
     }
 
@@ -274,9 +206,57 @@
       border-color: var(--primary);
     }
 
-    .google-signin svg {
-      width: 18px;
-      height: 18px;
+    .google-signin svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    .btn {
+      width: 100%;
+      padding: 11px 16px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-light); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+    .error-message,
+    .success-message {
+      display: none;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      overflow-wrap: anywhere;
+    }
+
+    .error-message {
+      background: rgba(168, 46, 40, .1);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .success-message {
+      background: rgba(22, 105, 74, .1);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    .error-message.show,
+    .success-message.show { display: block; }
+
+    .helper-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+      text-align: center;
     }
 
     .divider {
@@ -284,7 +264,7 @@
       align-items: center;
       gap: 12px;
       margin: 20px 0;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-muted);
     }
 
@@ -296,184 +276,76 @@
       background: var(--border);
     }
 
-    /* Buttons */
-    .btn {
-      width: 100%;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 6px;
-      font-family: 'Be Vietnam Pro', system-ui;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: center;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+    @media (max-width: 768px) {
+      .login-shell { grid-template-columns: 1fr; gap: 24px; max-width: 480px; }
+      .brand { order: -1; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
+      .brand h1 { font-size: 24px; }
+      .brand > p { margin-bottom: 16px; }
+      .brand-feature { margin-bottom: 12px; padding-bottom: 12px; }
     }
 
-    .btn-primary {
-      background: var(--primary);
-      color: white;
+    @media (max-width: 480px) {
+      .brand h1 { font-size: 21px; }
+      .brand > p { font-size: 14px; }
+      .login-panel { padding: 22px; }
     }
 
-    .btn-primary:hover {
-      background: var(--primary-light);
-    }
-
-    .btn-primary:active {
-      transform: scale(0.98);
-    }
-
-    .btn-primary:disabled {
-      background: var(--text-muted);
-      cursor: not-allowed;
-    }
-
-    .btn-secondary {
-      background: var(--surface-2);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      background: var(--border);
-    }
-
-    /* Messages */
-    .error-message {
-      display: none;
-      padding: 10px 12px;
-      background: rgba(168, 46, 40, 0.1);
-      border: 1px solid var(--error);
-      border-radius: 6px;
-      color: var(--error);
-      font-size: 13px;
-      margin-bottom: 16px;
-    }
-
-    .error-message.show {
-      display: block;
-      animation: slideIn 0.2s ease-out;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-4px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .success-message {
-      display: none;
-      padding: 10px 12px;
-      background: rgba(22, 105, 74, 0.1);
-      border: 1px solid var(--success);
-      border-radius: 6px;
-      color: var(--success);
-      font-size: 13px;
-      margin-bottom: 16px;
-    }
-
-    .success-message.show {
-      display: block;
-      animation: slideIn 0.2s ease-out;
-    }
-
-    /* Loading state */
-    .loading {
-      display: inline-block;
-      width: 4px;
-      height: 4px;
-      margin: 0 2px;
-      background: currentColor;
-      border-radius: 50%;
-      opacity: 0.4;
-      animation: pulse 1s infinite;
-    }
-
-    .loading:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    .loading:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 0.4;
-      }
-      50% {
-        opacity: 1;
-      }
-    }
-
-    /* Accessibility */
     @media (prefers-reduced-motion: reduce) {
-      * {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
       }
-    }
-
-    :focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
     }
   </style>
 </head>
+
 <body>
   <div class="login-shell">
-    <!-- Brand section -->
-    <div class="brand">
+    <section class="brand">
       <div class="logo">
-        <svg viewBox="0 0 24 24" fill="currentColor">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
         </svg>
         InternHub
       </div>
+
       <h1>Quản lý đánh giá thực tập sinh</h1>
-      <p>Hệ thống tập trung cho phòng Nhân sự Sun World</p>
+      <p>Hệ thống tập trung cho công tác quản lý và đánh giá thực tập sinh Sun World.</p>
 
       <div class="brand-feature">
         <strong>📋 Quản lý phiếu đánh giá</strong>
-        <p>Theo dõi từng sinh viên, từ bắt đầu đến chốt kết quả</p>
+        <p>Theo dõi từng sinh viên, từ bắt đầu đến chốt kết quả.</p>
       </div>
 
       <div class="brand-feature">
-        <strong>👥 Phân quyền linh hoạt</strong>
-        <p>Từng Trưởng bộ phận quản lý phòng/bộ phận mình</p>
+        <strong>👥 Phân quyền theo vai trò</strong>
+        <p>Người dùng được cấp quyền sau khi Admin kiểm tra thông tin đăng ký.</p>
       </div>
 
       <div class="brand-feature">
-        <strong>📊 Báo cáo toàn diện</strong>
-        <p>Tổng hợp, phân tích dữ liệu đánh giá theo kỳ</p>
+        <strong>📊 Theo dõi kết quả</strong>
+        <p>Tổng hợp dữ liệu đánh giá theo từng kỳ thực tập.</p>
       </div>
-    </div>
+    </section>
 
-    <!-- Login panel -->
-    <div class="login-panel">
-      <div class="tabs">
-        <button class="tab-button active" data-tab="user">USER</button>
-        <button class="tab-button" data-tab="admin">ADMIN</button>
+    <section class="login-panel">
+      <div class="tabs" role="tablist" aria-label="Loại đăng nhập">
+        <button class="tab-button active" type="button" data-tab="user"
+                role="tab" aria-selected="true">NGƯỜI DÙNG</button>
+        <button class="tab-button" type="button" data-tab="admin"
+                role="tab" aria-selected="false">ADMIN</button>
       </div>
 
-      <!-- User login tab -->
-      <div class="tab-content active" id="user">
-        <div class="error-message" id="userError"></div>
-        <div class="success-message" id="userSuccess"></div>
+      <!-- Đăng ký người dùng -->
+      <section class="tab-content active" id="user" role="tabpanel">
+        <div class="error-message" id="userError" role="alert"></div>
+        <div class="success-message" id="userSuccess" role="status"></div>
 
-        <!-- Step 1: Google Sign-in (initial) -->
         <div id="googleSigninStep">
-          <button class="google-signin" id="googleSigninBtn">
-            <svg viewBox="0 0 24 24">
+          <button class="google-signin" id="googleSigninBtn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
               <path fill="#EA4335" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -481,23 +353,20 @@
             </svg>
             Đăng nhập bằng Google
           </button>
+          <p class="helper-text">Đăng nhập Google để đăng ký hoặc truy cập tài khoản đã được duyệt.</p>
         </div>
 
-        <!-- Step 2: User info form (after Google login) -->
-        <form id="userSignupForm" style="display: none;">
+        <form id="userSignupForm" style="display:none">
           <div class="form-group">
-            <label for="userEmail">Email (từ Google)</label>
-            <input type="email" id="userEmail" readonly style="background: var(--surface-2); cursor: not-allowed;">
+            <label for="userEmail">Email từ tài khoản Google</label>
+            <input type="email" id="userEmail" readonly
+                   style="background:var(--surface-2);cursor:not-allowed">
           </div>
 
           <div class="form-group">
             <label for="fullName">Họ và tên</label>
-            <input type="text" id="fullName" placeholder="Ví dụ: Nguyễn Văn A" required>
-          </div>
-
-          <div class="form-group">
-            <label for="position">Chức danh</label>
-            <input type="text" id="position" placeholder="Ví dụ: Chuyên viên Phòng Nhân sự" required>
+            <input type="text" id="fullName" maxlength="120"
+                   autocomplete="name" placeholder="Ví dụ: Nguyễn Văn A" required>
           </div>
 
           <div class="form-group">
@@ -515,137 +384,116 @@
             </select>
           </div>
 
-          <button type="submit" class="btn btn-primary">
-            Xác nhận thông tin
-          </button>
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px; text-align: center;">
-            Thông tin sẽ được Admin kiểm tra và phê duyệt
-          </p>
-        </form>
-      </div>
-
-      <!-- Admin login tab -->
-      <div class="tab-content" id="admin">
-        <div class="error-message" id="adminError"></div>
-
-        <form id="adminLoginForm">
-          <div class="form-group">
-            <label for="adminUsername">Tên đăng nhập Admin</label>
-            <input type="text" id="adminUsername" placeholder="Nhập tên đăng nhập" required>
-          </div>
-
-          <div class="form-group">
-            <label for="adminPassword">Mật khẩu</label>
-            <input type="password" id="adminPassword" placeholder="Nhập mật khẩu" required>
-          </div>
-
-          <button type="submit" class="btn btn-primary">
-            Đăng nhập Admin
+          <button type="submit" class="btn btn-primary" id="signupSubmitBtn">
+            Gửi thông tin đăng ký
           </button>
 
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 16px;">
-            ⚠️ Tài khoản Admin cho quản trị viên hệ thống
+          <p class="helper-text">
+            Tài khoản chỉ được sử dụng sau khi Admin kiểm tra và phê duyệt.
           </p>
         </form>
-      </div>
-    </div>
+      </section>
+
+      <!-- Đăng nhập Admin -->
+      <section class="tab-content" id="admin" role="tabpanel">
+        <div class="error-message" id="adminError" role="alert"></div>
+
+        <p style="font-size:14px;margin-bottom:16px">
+          Dành riêng cho quản trị viên hệ thống. Vui lòng đăng nhập bằng tài khoản Google được cấp quyền Admin.
+        </p>
+
+        <button class="google-signin" id="adminGoogleSigninBtn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#EA4335" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84H2.18C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#4285F4" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Đăng nhập Admin bằng Google
+        </button>
+
+        <p class="helper-text">
+          Email Admin được cấp quyền: dptbinh193@gmail.com
+        </p>
+      </section>
+    </section>
   </div>
 
   <script type="module">
-    import { Auth } from './JS/auth.js';
+    import { Auth } from "./JS/auth.js";
 
-    // ============================================
-    // Initialize Auth
-    // ============================================
     Auth.init();
 
-    // ============================================
-    // Tab switching
-    // ============================================
-    document.querySelectorAll('.tab-button').forEach(button => {
-      button.addEventListener('click', () => {
+    // Chuyển tab đăng nhập
+    document.querySelectorAll(".tab-button").forEach(button => {
+      button.addEventListener("click", () => {
         const tabName = button.dataset.tab;
 
-        // Update buttons
-        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-        button.classList.add('active');
+        document.querySelectorAll(".tab-button").forEach(item => {
+          const active = item === button;
+          item.classList.toggle("active", active);
+          item.setAttribute("aria-selected", String(active));
+        });
 
-        // Update content
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.getElementById(tabName).classList.add('active');
+        document.querySelectorAll(".tab-content").forEach(content => {
+          content.classList.toggle("active", content.id === tabName);
+        });
       });
     });
 
-    // ============================================
-    // User signup form submission
-    // ============================================
-    document.getElementById('userSignupForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    // Đăng nhập Google dành cho người dùng
+    document.getElementById("googleSigninBtn").addEventListener("click", async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+
+      try {
+        await Auth.googleSignIn();
+      } catch (error) {
+        console.error("User Google sign-in error:", error);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    // Gửi hồ sơ đăng ký: chỉ họ tên và bộ phận
+    document.getElementById("userSignupForm").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const button = document.getElementById("signupSubmitBtn");
+      button.disabled = true;
 
       const formData = {
-        fullName: document.getElementById('fullName').value,
-        position: document.getElementById('position').value,
-        department: document.getElementById('department').value
+        fullName: document.getElementById("fullName").value.trim(),
+        department: document.getElementById("department").value
       };
 
       try {
-        const result = await Auth.userSubmit(formData);
-        if (result) {
-          // Clear form
-          e.target.reset();
-          // Success message shown by auth module
+        const success = await Auth.userSubmit(formData);
+
+        if (success) {
+          document.getElementById("fullName").value = "";
+          document.getElementById("department").value = "";
         }
       } catch (error) {
-        console.error('Signup error:', error);
+        console.error("Signup error:", error);
+      } finally {
+        button.disabled = false;
       }
     });
 
-    // ============================================
-    // Admin login form submission
-    // ============================================
-    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const username = document.getElementById('adminUsername').value;
-      const password = document.getElementById('adminPassword').value;
+    // Đăng nhập Admin bằng Google
+    document.getElementById("adminGoogleSigninBtn").addEventListener("click", async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
 
       try {
-        const result = await Auth.adminLogin(username, password);
-        if (result) {
-          // Admin logged in, auth module handles redirect
-          console.log('Admin login successful');
-        }
+        await Auth.adminLogin();
       } catch (error) {
-        console.error('Admin login error:', error);
+        console.error("Admin Google sign-in error:", error);
+      } finally {
+        button.disabled = false;
       }
     });
-
-    // ============================================
-    // Google Sign-in button
-    // ============================================
-    document.getElementById('googleSigninBtn').addEventListener('click', async () => {
-      try {
-        const user = await Auth.googleSignIn();
-        console.log('Google Sign-in successful:', user.email);
-      } catch (error) {
-        console.error('Google Sign-in error:', error);
-      }
-    });
-
-    // ============================================
-    // UI Helper Functions
-    // ============================================
-    function showMessage(elementId, message, duration = 5000) {
-      const el = document.getElementById(elementId);
-      if (el) {
-        el.textContent = message;
-        el.classList.add('show');
-        if (duration) setTimeout(() => el.classList.remove('show'), duration);
-      }
-    }
-
-    // Expose for global use
-    window.showMessage = showMessage;
   </script>
 </body>
 </html>
