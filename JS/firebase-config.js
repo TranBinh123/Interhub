@@ -1,45 +1,47 @@
-// ============================================
-// Firebase Configuration & Constants
-// ============================================
 
-// JS/firebase-config.js
-export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
+ // ============================================
+ // Firebase Configuration & Constants
+ // ============================================
 
-// Admin credentials
-export const ADMIN_CREDENTIALS = {
-  username: "admin",
-  passwordHash: null // Will be set during first login setup
-};
+ // Điền giá trị lấy từ Firebase Console
+ // Project settings > General > Your apps > SDK setup and configuration
+ export const firebaseConfig = {
+  apiKey: "AIzaSyCawDFnIgAWa8lE9ArBA3s0Zmcileyx_zU",
+  authDomain: "bnc-interhub.firebaseapp.com",
+  projectId: "bnc-interhub",
+  storageBucket: "bnc-interhub.firebasestorage.app",
+  messagingSenderId: "889463162947",
+  appId: "1:889463162947:web:7625ec797d2dabb8062cf6"
+ };
 
-// Firestore Collections (Đầy đủ theo yêu cầu hệ thống đánh giá thực tập sinh)
-export const COLLECTIONS = {
-  USERS: "users",             // Registered users
-  TICKETS: "tickets",         // Evaluation tickets
-  PERIODS: "periods",         // Evaluation periods
-  DEPARTMENTS: "departments",
-  ITEMS: "evaluation_items",  // Criteria items
-  LOGS: "activity_logs"
-};
+ // Admin credentials
+ export const ADMIN_CREDENTIALS = {
+   username: "admin",
+   passwordHash: null
+ };
 
-// User roles (Mở rộng đầy đủ các cấp độ quyền)
-export const ROLES = {
-  ADMIN: "admin",
-  HR: "hr",                   // Phòng Nhân sự
-  SUPERVISOR: "supervisor",   // Trưởng bộ phận
-  INTERN: "intern",
-  USER: "user"                // Dự phòng tương thích
-};
+ // Firestore Collections
+ export const COLLECTIONS = {
+   USERS: "users",
+   TICKETS: "tickets",
+   PERIODS: "periods",
+   DEPARTMENTS: "departments",
+   ITEMS: "evaluation_items",
+   LOGS: "activity_logs"
+ };
 
-// User approval statuses
-export const USER_STATUS = {
-  PENDING: "pending",         // Chờ phê duyệt
-  APPROVED: "approved",       // Đã phê duyệt
-  REJECTED: "rejected"        // Từ chối
-};
+ // User roles
+ export const ROLES = {
+   ADMIN: "admin",
+   HR: "hr",
+   SUPERVISOR: "supervisor",
+   INTERN: "intern",
+   USER: "user"
+ };
+
+ // User approval statuses
+ export const USER_STATUS = {
+   PENDING: "pending",
+   APPROVED: "approved",
+   REJECTED: "rejected"
+ };
