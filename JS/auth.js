@@ -1,299 +1,406 @@
-// ============================================
-// Authentication Module - Firebase + Google Sign-in
-// ============================================
+import { initializeApp, getApp, getApps } from
+  "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import {
   getAuth,
-  signInWithPopup,
   GoogleAuthProvider,
+  signInWithPopup,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
 import {
   getFirestore,
   collection,
-  addDoc,
+  doc,
+  getDoc,
+  getDocs,
   query,
   where,
-  getDocs,
-  doc,
+  setDoc,
   updateDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-import { firebaseConfig, COLLECTIONS, USER_STATUS, ROLES } from "./firebase-config.js";
 
-// ============================================
-// Initialize Firebase
-// ============================================
-const app = initializeApp(firebaseConfig);
+import {
+  firebaseConfig,
+  COLLECTIONS,
+  USER_STATUS,
+  ROLES
+} from "./firebase-config.js";
+
+const ADMIN_EMAIL = "dptbinh193@gmail.com";
+
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
-// ============================================
-// Global State
-// ============================================
 let currentUser = null;
-let currentUserEmail = null;
+let authInitialized = false;
+let authReadyPromise;
 
-// ============================================
-// Initialize Auth
-// ============================================
-export function initializeAuth() {
-  // Listen for auth state changes
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      currentUser = user;
-      currentUserEmail = user.email;
-      console.log("User logged in:", user.email);
+const authReady = new Promise(resolve => {
+  authReadyPromise = resolve;
+});
 
-      // Show user form after Google login
-      simulateGoogleLoginSuccess(user.email);
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
 
-      // Check if user already registered
-      checkUserRegistration(user.email);
+function isAdminEmail(user) {
+  return normalizeEmail(user?.email) === ADMIN_EMAIL;
+}
+
+function showMessage(elementId, message, type = "error") {
+  const el = document.getElementById(elementId);
+  if (!el) {
+    console.info(message);
+    return;
+  }
+
+  el.textContent = message;
+  el.classList.remove("show");
+  el.classList.add("show");
+  el.dataset.type = type;
+}
+
+function clearMessage(elementId) {
+  const el = document.getElementById(elementId);
+  if (el) {
+    el.textContent = "";
+    el.classList.remove("show");
+  }
+}
+
+function showSignupForm(user) {
+  const loginStep = document.getElementById("googleSigninStep");
+  const signupForm = document.getElementById("userSignupForm");
+  const emailInput = document.getElementById("userEmail");
+
+  if (loginStep) loginStep.style.display = "none";
+  if (signupForm) signupForm.style.display = "block";
+  if (emailInput) emailInput.value = user.email || "";
+
+  clearMessage("userError");
+}
+
+function showGoogleLogin() {
+  const loginStep = document.getElementById("googleSigninStep");
+  const signupForm = document.getElementById("userSignupForm");
+
+  if (loginStep) loginStep.style.display = "block";
+  if (signupForm) signupForm.style.display = "none";
+}
+
+function redirectToApp(role) {
+  if (role === ROLES.ADMIN) {
+    window.location.replace("./admin.html");
+    return;
+  }
+
+  // Chưa tự chuyển các vai trò khác sang trang đánh giá
+  // cho đến khi xác định được trang ứng dụng chính thức.
+  console.info("Tài khoản đã được duyệt với vai trò:", role);
+}
+
+async function getUserProfile(uid) {
+  const userRef = doc(db, COLLECTIONS.USERS, uid);
+  const snapshot = await getDoc(userRef);
+
+  if (!snapshot.exists()) return null;
+
+  return {
+    id: snapshot.id,
+    ...snapshot.data()
+  };
+}
+
+async function processSignedInUser(user) {
+  if (!user) return;
+
+  if (isAdminEmail(user)) {
+    const adminTab = document.getElementById("admin");
+    if (adminTab) {
+      window.location.replace("./admin.html");
+    }
+    return;
+  }
+
+  try {
+    const profile = await getUserProfile(user.uid);
+
+    if (!profile) {
+      showSignupForm(user);
+      return;
+    }
+
+    if (profile.status === USER_STATUS.APPROVED && profile.isActive === true) {
+      redirectToApp(profile.role);
+    } else if (profile.status === USER_STATUS.PENDING) {
+      showMessage(
+        "userSuccess",
+        "Thông tin của bạn đang chờ Admin phê duyệt.",
+        "success"
+      );
+      showGoogleLogin();
+    } else if (profile.status === USER_STATUS.REJECTED) {
+      showMessage(
+        "userError",
+        "Tài khoản đã bị từ chối. Vui lòng liên hệ quản trị viên."
+      );
+      showGoogleLogin();
     } else {
-      currentUser = null;
-      currentUserEmail = null;
-      console.log("User logged out");
+      showSignupForm(user);
+    }
+  } catch (error) {
+    console.error("Không thể kiểm tra hồ sơ:", error);
+    showMessage(
+      "userError",
+      "Không thể kiểm tra tài khoản. Vui lòng kiểm tra Firestore Rules rồi thử lại."
+    );
+  }
+}
+
+export function initializeAuth() {
+  if (authInitialized) return;
+  authInitialized = true;
+
+  onAuthStateChanged(auth, async user => {
+    currentUser = user;
+
+    if (!authReadySettled) {
+      authReadySettled = true;
+      authReadyResolve(user);
+    }
+
+    if (user && window.location.pathname.endsWith("/admin.html")) {
+      return;
+    }
+
+    if (user) {
+      await processSignedInUser(user);
     }
   });
 }
 
-// ============================================
-// Google Sign-in
-// ============================================
+let authReadySettled = false;
+let authReadyResolve;
+
+const readyPromise = new Promise(resolve => {
+  authReadyResolve = resolve;
+});
+
+export async function waitForUser() {
+  initializeAuth();
+
+  if (auth.currentUser) {
+    currentUser = auth.currentUser;
+    return currentUser;
+  }
+
+  return await readyPromise;
+}
+
 export async function handleGoogleSignIn() {
+  clearMessage("userError");
+  clearMessage("userSuccess");
+
   try {
     const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    console.log("Google Sign-in successful:", user.email);
-    return user;
+    currentUser = result.user;
+
+    if (isAdminEmail(currentUser)) {
+      window.location.replace("./admin.html");
+      return currentUser;
+    }
+
+    await processSignedInUser(currentUser);
+    return currentUser;
   } catch (error) {
     console.error("Google Sign-in error:", error);
-    showError("googleSigninBtn", "Đăng nhập Google thất bại: " + error.message);
+
+    showMessage(
+      "userError",
+      error.code === "auth/popup-closed-by-user"
+        ? "Bạn đã đóng cửa sổ đăng nhập Google."
+        : "Đăng nhập Google thất bại. Vui lòng thử lại."
+    );
+
     throw error;
   }
 }
 
-// ============================================
-// Simulate Google Login Success (for UI)
-// ============================================
-function simulateGoogleLoginSuccess(email) {
-  document.getElementById('googleSigninStep').style.display = 'none';
-  document.getElementById('userSignupForm').style.display = 'block';
-  document.getElementById('userEmail').value = email;
-}
-
-// ============================================
-// User Registration (Submit Form)
-// ============================================
 export async function handleUserSubmit(formData) {
   if (!currentUser) {
-    showError('userError', 'Vui lòng đăng nhập bằng Google trước');
+    showMessage("userError", "Vui lòng đăng nhập bằng Google trước.");
+    return false;
+  }
+
+  if (isAdminEmail(currentUser)) {
+    window.location.replace("./admin.html");
+    return false;
+  }
+
+  const fullName = String(formData.fullName || "").trim();
+  const department = String(formData.department || "").trim();
+
+  if (!fullName || !department) {
+    showMessage("userError", "Vui lòng nhập họ tên và chọn bộ phận.");
     return false;
   }
 
   try {
-    // Check if user already exists
-    const existingUser = await getUserByEmail(currentUserEmail);
-    if (existingUser) {
-      showError('userError', 'Tài khoản đã được đăng ký. Chờ Admin phê duyệt.');
+    const userRef = doc(db, COLLECTIONS.USERS, currentUser.uid);
+    const existing = await getDoc(userRef);
+
+    if (existing.exists()) {
+      showMessage(
+        "userError",
+        "Tài khoản đã được đăng ký. Nếu đang chờ duyệt, vui lòng liên hệ Admin."
+      );
       return false;
     }
 
-    // Create user document
-    const userData = {
+    await setDoc(userRef, {
       uid: currentUser.uid,
-      email: currentUserEmail,
-      fullName: formData.fullName,
-      position: formData.position,
-      department: formData.department,
-      role: null,  // Will be set by admin
+      email: normalizeEmail(currentUser.email),
+      fullName,
+      department,
+      role: null,
       status: USER_STATUS.PENDING,
+      isActive: false,
       createdAt: serverTimestamp(),
       approvedAt: null,
       approvedBy: null,
-      lastLogin: serverTimestamp(),
-      isActive: false  // Not active until admin approves
-    };
+      lastLogin: serverTimestamp()
+    });
 
-    const docRef = await addDoc(collection(db, COLLECTIONS.USERS), userData);
-    console.log("User registered:", docRef.id);
+    showMessage(
+      "userSuccess",
+      "Đã gửi thông tin đăng ký. Vui lòng chờ Admin kiểm tra và phê duyệt.",
+      "success"
+    );
 
-    showSuccess('userSuccess', 'Thông tin đã được gửi. Admin sẽ kiểm tra và phê duyệt trong vòng 24 giờ.');
+    const form = document.getElementById("userSignupForm");
+    if (form) {
+      for (const element of form.elements) {
+        if (element.id !== "userEmail") element.disabled = true;
+      }
+    }
+
     return true;
   } catch (error) {
     console.error("User registration error:", error);
-    showError('userError', 'Lỗi đăng ký: ' + error.message);
+
+    showMessage(
+      "userError",
+      "Không thể gửi đăng ký. Vui lòng kiểm tra Firestore Rules rồi thử lại."
+    );
     return false;
   }
 }
 
-// ============================================
-// Check User Registration Status
-// ============================================
-export async function checkUserRegistration(email) {
+export async function handleAdminLogin() {
+  clearMessage("adminError");
+
   try {
-    const user = await getUserByEmail(email);
-    if (user) {
-      if (user.status === USER_STATUS.APPROVED) {
-        console.log("User is approved:", user.role);
-        // Redirect to main app
-        redirectToApp(user.role);
-      } else if (user.status === USER_STATUS.PENDING) {
-        showMessage('userSuccess', 'Tài khoản đang chờ Admin phê duyệt...');
-      } else if (user.status === USER_STATUS.REJECTED) {
-        showError('userError', 'Tài khoản của bạn đã bị từ chối.');
-      }
-    }
-  } catch (error) {
-    console.error("Error checking registration:", error);
-  }
-}
+    const result = await signInWithPopup(auth, googleProvider);
+    currentUser = result.user;
 
-// ============================================
-// Get User by Email
-// ============================================
-async function getUserByEmail(email) {
-  try {
-    const q = query(collection(db, COLLECTIONS.USERS), where("email", "==", email));
-    const querySnapshot = await getDocs(q);
+    if (!isAdminEmail(currentUser)) {
+      await signOut(auth);
+      currentUser = null;
 
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      return { id: doc.id, ...doc.data() };
-    }
-    return null;
-  } catch (error) {
-    console.error("Error getting user:", error);
-    return null;
-  }
-}
-
-// ============================================
-// Admin Login (Username + Password)
-// ============================================
-export async function handleAdminLogin(username, password) {
-  try {
-    // TODO: Implement admin authentication
-    // For now, validate against hardcoded credentials
-    // In production, use a secure backend endpoint
-
-    if (username === "admin" && password === "admin123") {
-      console.log("Admin logged in");
-      redirectToApp(ROLES.ADMIN);
-      return true;
-    } else {
-      showError('adminError', 'Tên đăng nhập hoặc mật khẩu không đúng');
+      showMessage(
+        "adminError",
+        "Không có quyền Admin. Hãy đăng nhập bằng email được cấp quyền."
+      );
       return false;
     }
+
+    window.location.replace("./admin.html");
+    return true;
   } catch (error) {
-    console.error("Admin login error:", error);
-    showError('adminError', 'Lỗi đăng nhập: ' + error.message);
+    console.error("Admin sign-in error:", error);
+
+    showMessage(
+      "adminError",
+      "Không thể đăng nhập Admin bằng Google. Vui lòng thử lại."
+    );
     return false;
   }
 }
 
-// ============================================
-// Approve/Reject User (Admin Function)
-// ============================================
 export async function approveUser(userId, role) {
+  if (!isAdminEmail(currentUser)) {
+    showMessage("adminError", "Bạn không có quyền duyệt tài khoản.");
+    return false;
+  }
+
+  if (![ROLES.HR, ROLES.SUPERVISOR].includes(role)) {
+    showMessage("adminError", "Vai trò được chọn không hợp lệ.");
+    return false;
+  }
+
   try {
-    const userRef = doc(db, COLLECTIONS.USERS, userId);
-    await updateDoc(userRef, {
+    await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+      role,
       status: USER_STATUS.APPROVED,
-      role: role,
       isActive: true,
       approvedAt: serverTimestamp(),
-      approvedBy: currentUser?.uid || "admin"
+      approvedBy: currentUser.uid
     });
-    console.log("User approved:", userId);
+
     return true;
   } catch (error) {
-    console.error("Error approving user:", error);
+    console.error("Approve user error:", error);
     return false;
   }
 }
 
 export async function rejectUser(userId, reason) {
+  if (!isAdminEmail(currentUser)) {
+    showMessage("adminError", "Bạn không có quyền từ chối tài khoản.");
+    return false;
+  }
+
   try {
-    const userRef = doc(db, COLLECTIONS.USERS, userId);
-    await updateDoc(userRef, {
+    await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
       status: USER_STATUS.REJECTED,
       isActive: false,
       approvedAt: serverTimestamp(),
-      approvedBy: currentUser?.uid || "admin",
-      rejectionReason: reason || "Không nêu lý do"
+      approvedBy: currentUser.uid,
+      rejectionReason: String(reason || "Không nêu lý do").trim()
     });
-    console.log("User rejected:", userId);
+
     return true;
   } catch (error) {
-    console.error("Error rejecting user:", error);
+    console.error("Reject user error:", error);
     return false;
   }
 }
 
-// ============================================
-// Sign Out
-// ============================================
 export async function handleSignOut() {
   try {
     await signOut(auth);
     currentUser = null;
-    currentUserEmail = null;
-    console.log("User signed out");
   } catch (error) {
     console.error("Sign out error:", error);
   }
 }
 
-// ============================================
-// UI Helpers
-// ============================================
-function showError(elementId, message) {
-  const el = document.getElementById(elementId);
-  if (el) {
-    el.textContent = message;
-    el.classList.add('show');
-  }
-}
-
-function showSuccess(elementId, message) {
-  const el = document.getElementById(elementId);
-  if (el) {
-    el.textContent = message;
-    el.classList.add('show');
-  }
-}
-
-function showMessage(elementId, message) {
-  const el = document.getElementById(elementId);
-  if (el) {
-    el.textContent = message;
-    el.classList.add('show');
-  }
-}
-
-function redirectToApp(role) {
-  // Redirect to main app based on role
-  // TODO: Implement routing logic
-  console.log("Redirect to app with role:", role);
-  // window.location.href = '/app.html?role=' + role;
-}
-
-// ============================================
-// Export public API
-// ============================================
 export const Auth = {
   init: initializeAuth,
+  waitForUser,
   googleSignIn: handleGoogleSignIn,
   userSubmit: handleUserSubmit,
   adminLogin: handleAdminLogin,
-  approveUser: approveUser,
-  rejectUser: rejectUser,
+  approveUser,
+  rejectUser,
   signOut: handleSignOut,
   getCurrentUser: () => currentUser,
-  getCurrentEmail: () => currentUserEmail
+  getCurrentEmail: () => currentUser?.email || null
 };
