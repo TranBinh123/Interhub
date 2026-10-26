@@ -552,7 +552,16 @@
   </div>
 
   <script type="module">
+    import { Auth } from './auth.js';
+
+    // ============================================
+    // Initialize Auth
+    // ============================================
+    Auth.init();
+
+    // ============================================
     // Tab switching
+    // ============================================
     document.querySelectorAll('.tab-button').forEach(button => {
       button.addEventListener('click', () => {
         const tabName = button.dataset.tab;
@@ -567,50 +576,76 @@
       });
     });
 
-    // User signup form
-    document.getElementById('userSignupForm').addEventListener('submit', (e) => {
+    // ============================================
+    // User signup form submission
+    // ============================================
+    document.getElementById('userSignupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fullName = document.getElementById('fullName').value;
-      const position = document.getElementById('position').value;
-      const department = document.getElementById('department').value;
 
-      console.log('User signup:', { fullName, position, department });
-      // TODO: Connect to Firebase
-      showMessage('userSuccess', 'Thông tin đã được gửi. Admin sẽ kiểm tra và phê duyệt trong vòng 24 giờ.');
+      const formData = {
+        fullName: document.getElementById('fullName').value,
+        position: document.getElementById('position').value,
+        department: document.getElementById('department').value
+      };
+
+      try {
+        const result = await Auth.userSubmit(formData);
+        if (result) {
+          // Clear form
+          e.target.reset();
+          // Success message shown by auth module
+        }
+      } catch (error) {
+        console.error('Signup error:', error);
+      }
     });
 
-    // Admin login form
-    document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+    // ============================================
+    // Admin login form submission
+    // ============================================
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+
       const username = document.getElementById('adminUsername').value;
       const password = document.getElementById('adminPassword').value;
 
-      console.log('Admin login:', { username });
-      // TODO: Connect to Firebase Admin authentication
-      showMessage('adminError', 'Chức năng Admin sẽ khởi động sau Firebase setup');
+      try {
+        const result = await Auth.adminLogin(username, password);
+        if (result) {
+          // Admin logged in, auth module handles redirect
+          console.log('Admin login successful');
+        }
+      } catch (error) {
+        console.error('Admin login error:', error);
+      }
     });
 
+    // ============================================
     // Google Sign-in button
-    document.getElementById('googleSigninBtn').addEventListener('click', () => {
-      console.log('Google Sign-in clicked');
-      // TODO: Connect to Firebase Google Sign-in
-      // For now, simulate successful login
-      simulateGoogleLogin('user@example.com');
+    // ============================================
+    document.getElementById('googleSigninBtn').addEventListener('click', async () => {
+      try {
+        const user = await Auth.googleSignIn();
+        console.log('Google Sign-in successful:', user.email);
+      } catch (error) {
+        console.error('Google Sign-in error:', error);
+      }
     });
 
-    function simulateGoogleLogin(email) {
-      // Hide Google button step, show form step
-      document.getElementById('googleSigninStep').style.display = 'none';
-      document.getElementById('userSignupForm').style.display = 'block';
-      document.getElementById('userEmail').value = email;
-    }
-
+    // ============================================
+    // UI Helper Functions
+    // ============================================
     function showMessage(elementId, message, duration = 5000) {
       const el = document.getElementById(elementId);
-      el.textContent = message;
-      el.classList.add('show');
-      if (duration) setTimeout(() => el.classList.remove('show'), duration);
+      if (el) {
+        el.textContent = message;
+        el.classList.add('show');
+        if (duration) setTimeout(() => el.classList.remove('show'), duration);
+      }
     }
+
+    // Expose for global use
+    window.showMessage = showMessage;
   </script>
 </body>
 </html>
