@@ -2,15 +2,17 @@
 // Firebase Configuration
 // ============================================
 
-// Firebase config từ Console
-export const firebaseConfig = {
-  apiKey: "AIzaSyCawDFnIgAWa8lE9ArBA3s0Zmcileyx_zU",
-  authDomain: "bnc-interhub.firebaseapp.com",
-  projectId: "bnc-interhub",
-  storageBucket: "bnc-interhub.firebasestorage.app",
-  messagingSenderId: "889463162947",
-  appId: "1:889463162947:web:7625ec797d2dabb8062cf6"
+// JS/firebase-config.js
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
+
+export default firebaseConfig;
 
 // Admin credentials (stored securely on server in production)
 // For now, this will be set during app initialization
