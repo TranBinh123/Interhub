@@ -18,6 +18,19 @@ export const DEMO_BANNER =
   "DỮ LIỆU MÔ PHỎNG — chưa kết nối cơ sở dữ liệu. Dữ liệu chỉ lưu trên trình duyệt này và dùng chung giữa các tab của trình duyệt này.";
 
 const STORAGE_KEY = "internhub-demo-v3";
+
+// Danh mục mặc định: đúng mã mà form đăng ký (index.html) lưu vào hồ sơ user.
+// Phải khớp để Trưởng bộ phận/người hướng dẫn thấy được SVTT của bộ phận mình.
+export const DEFAULT_DEPARTMENTS = [
+  { code: "HR", name: "Nhân sự & Đào tạo" },
+  { code: "IT", name: "Công nghệ Thông tin" },
+  { code: "ENG", name: "Kỹ thuật & Bảo trì" },
+  { code: "SEC", name: "An ninh & An toàn" },
+  { code: "MK", name: "Truyền thông & Quan hệ Công chúng" },
+  { code: "FB", name: "Tiền sảnh & Bar" },
+  { code: "KT", name: "Kế toán" },
+  { code: "MKT", name: "Marketing" }
+];
 const LEGACY_KEY = "internhub-demo-v2";
 
 export const STATUS = {
@@ -100,7 +113,7 @@ export function calcResult(scores) {
 // Lưu trữ (localStorage, đọc lại mỗi lần để các tab luôn thấy dữ liệu mới nhất)
 // ============================================
 function emptyState() {
-  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {} };
+  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {}, defaultsSeeded: true };
 }
 
 function read() {
@@ -114,8 +127,20 @@ function read() {
         interns: p.interns || {},
         tickets: p.tickets || {},
         departments: p.departments || {},
-        members: p.members || {}
+        members: p.members || {},
+        defaultsSeeded: p.defaultsSeeded === true
       };
+      if (!state.defaultsSeeded) {
+        for (const d of DEFAULT_DEPARTMENTS) {
+          if (!state.departments[d.code]) state.departments[d.code] = { ...d };
+        }
+        state.defaultsSeeded = true;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          // storage bị chặn: vẫn dùng danh mục trong bộ nhớ
+        }
+      }
       // Chuyển từ bản cũ: tạo danh mục bộ phận từ dữ liệu SVTT đã nhập
       if (legacy && Object.keys(state.departments).length === 0) {
         for (const intern of Object.values(state.interns)) {
@@ -127,7 +152,10 @@ function read() {
   } catch (error) {
     // Dữ liệu hỏng hoặc storage bị chặn: coi như chưa có dữ liệu
   }
-  return emptyState();
+  const fresh = emptyState();
+  for (const d of DEFAULT_DEPARTMENTS) fresh.departments[d.code] = { ...d };
+  fresh.defaultsSeeded = true;
+  return fresh;
 }
 
 function write(state) {
@@ -182,6 +210,11 @@ function findDepartmentIn(state, value) {
   const hit = Object.values(state.departments)
     .find(d => d.code.toLowerCase() === v || d.name.toLowerCase() === v);
   return hit ? hit.code : null;
+}
+
+// Kiểm tra mã bộ phận của một người có nằm trong danh mục không
+export function departmentKnown(code) {
+  return !!code && !!read().departments[code];
 }
 
 export function departmentName(code) {
@@ -748,12 +781,7 @@ function mulberry32(seed) {
 export function loadSampleData() {
   const rnd = mulberry32(20261027);
   const pick = list => list[Math.floor(rnd() * list.length)];
-  const departments = [
-    { code: "LT", name: "Lễ tân" }, { code: "NH", name: "Nhà hàng" },
-    { code: "BP", name: "Buồng phòng" }, { code: "KT", name: "Kỹ thuật" },
-    { code: "KD", name: "Kinh doanh" }, { code: "MK", name: "Marketing" },
-    { code: "TC", name: "Tài chính" }, { code: "VC", name: "Vui chơi" }
-  ];
+  const departments = DEFAULT_DEPARTMENTS;
   const surnames = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ"];
   const middle = ["Văn", "Thị", "Minh", "Thu", "Hoàng", "Quốc", "Ngọc", "Anh"];
   const given = ["An", "Bình", "Châu", "Dũng", "Hà", "Khang", "Linh", "Nam", "Phương", "Quân", "Trang", "Uyên", "Việt"];
@@ -855,6 +883,7 @@ export const DemoStore = {
   createDepartment,
   deleteDepartment,
   departmentName,
+  departmentKnown,
   listPeriods,
   createPeriod,
   generateTickets,
