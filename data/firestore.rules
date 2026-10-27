@@ -1,0 +1,183 @@
+// ============================================
+// Firestore Security Rules
+// InternHub - Evaluation System
+// ============================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin';
+    }
+
+    function isHR(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'hr';
+    }
+
+    function isSupervisor(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'supervisor';
+    }
+
+    function isApproved(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.status == 'approved';
+    }
+
+    function userDepartment(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.department;
+    }
+
+    // ============================================
+    // Users Collection
+    // ============================================
+    match /users/{userId} {
+      // Users can read their own document
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isAdmin(request.auth.uid)
+      );
+
+      // New users can create their own document (from Google Sign-in)
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.role == null
+      );
+
+      // Only admin can update users (approve/reject/assign roles)
+      allow update, delete: if isSignedIn() && isAdmin(request.auth.uid);
+
+      // Users can update limited fields in their own document
+      allow update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        resource.data.status == 'approved';
+    }
+
+    // ============================================
+    // Tickets Collection (Evaluation Forms)
+    // ============================================
+    match /tickets/{ticketId} {
+      // Admin can read all tickets
+      allow read: if isSignedIn() && isAdmin(request.auth.uid);
+
+      // HR can read all tickets
+      allow read: if isSignedIn() && isHR(request.auth.uid) &&
+        isApproved(request.auth.uid);
+
+      // Supervisor can read tickets from their department
+      allow read: if isSignedIn() &&
+        isSupervisor(request.auth.uid) &&
+        isApproved(request.auth.uid) &&
+        resource.data.department == userDepartment(request.auth.uid);
+
+      // Evaluator can read their own tickets
+      allow read: if isSignedIn() &&
+        resource.data.evaluatorId == request.auth.uid;
+
+      // Admin can create/update all tickets
+      allow create, update: if isSignedIn() &&
+        isAdmin(request.auth.uid);
+
+      // Evaluator can update their own ticket (scores, notes)
+      allow update: if isSignedIn() &&
+        isApproved(request.auth.uid) &&
+        resource.data.evaluatorId == request.auth.uid && (
+          // Can only update scores and notes
+          !request.resource.data.keys().hasAny(['status', 'id', 'createdAt', 'periodId']) &&
+          request.resource.data.updatedAt == request.time
+        );
+
+      // Supervisor can update textPart4
+      allow update: if isSignedIn() &&
+        isSupervisor(request.auth.uid) &&
+        isApproved(request.auth.uid) &&
+        resource.data.department == userDepartment(request.auth.uid) &&
+        request.resource.data.textPart4 != null;
+
+      // HR can finalize tickets (change status to 'da_chot')
+      allow update: if isSignedIn() &&
+        isHR(request.auth.uid) &&
+        isApproved(request.auth.uid) &&
+        request.resource.data.status == 'da_chot' &&
+        resource.data.status != 'da_chot';
+
+      // Admin can delete tickets
+      allow delete: if isSignedIn() && isAdmin(request.auth.uid);
+    }
+
+    // ============================================
+    // Periods Collection (Evaluation Cycles)
+    // ============================================
+    match /periods/{periodId} {
+      // Anyone signed in and approved can read periods
+      allow read: if isSignedIn() &&
+        isApproved(request.auth.uid);
+
+      // Only admin can create/update periods
+      allow create, update, delete: if isSignedIn() &&
+        isAdmin(request.auth.uid);
+    }
+
+    // ============================================
+    // Departments Collection
+    // ============================================
+    match /departments/{departmentId} {
+      // Anyone signed in can read departments
+      allow read: if isSignedIn() &&
+        isApproved(request.auth.uid);
+
+      // Only admin can modify
+      allow write: if isSignedIn() &&
+        isAdmin(request.auth.uid);
+    }
+
+    // ============================================
+    // Evaluation Items Collection (15 Criteria)
+    // ============================================
+    match /evaluation_items/{itemId} {
+      // Anyone signed in can read items
+      allow read: if isSignedIn() &&
+        isApproved(request.auth.uid);
+
+      // Only admin can modify
+      allow write: if isSignedIn() &&
+        isAdmin(request.auth.uid);
+    }
+
+    // ============================================
+    // Activity Logs Collection (Audit Trail)
+    // ============================================
+    match /activity_logs/{logId} {
+      // Admin can read all logs
+      allow read: if isSignedIn() &&
+        isAdmin(request.auth.uid);
+
+      // HR can read logs
+      allow read: if isSignedIn() &&
+        isHR(request.auth.uid) &&
+        isApproved(request.auth.uid);
+
+      // Only backend/admin can write logs
+      allow write: if false;
+    }
+
+    // ============================================
+    // Deny all other access
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
