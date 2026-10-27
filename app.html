@@ -641,8 +641,12 @@
 
       // Logout
       document.getElementById("logoutBtn").addEventListener("click", async () => {
-        if (Auth.handleSignOut) {
-          await Auth.handleSignOut();
+        // Auth export tên là signOut (không phải handleSignOut).
+        // Phải đăng xuất Firebase trước khi về index.html, nếu không index sẽ tự chuyển lại app.html.
+        try {
+          await Auth.signOut();
+        } catch (error) {
+          console.error("Đăng xuất thất bại:", error);
         }
         window.location.replace("./index.html");
       });

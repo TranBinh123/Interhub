@@ -422,6 +422,17 @@
   <script type="module">
     import { Auth } from "./JS/auth.js";
 
+    // Lối thoát khi đang kẹt phiên: mở index.html?logout=1 để đăng xuất rồi hiện form đăng nhập.
+    // Phải đăng xuất TRƯỚC khi bật listener, nếu không listener sẽ tự chuyển trang theo phiên cũ.
+    if (new URLSearchParams(window.location.search).get("logout") === "1") {
+      try {
+        await Auth.signOut();
+      } catch (error) {
+        console.error("Đăng xuất thất bại:", error);
+      }
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+
     Auth.init();
 
     // Chuyển tab đăng nhập
