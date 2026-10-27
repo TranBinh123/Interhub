@@ -95,14 +95,19 @@ function showGoogleLogin() {
   if (signupForm) signupForm.style.display = "none";
 }
 
+// ✅ FIX 1: Update redirectToApp() để redirect HR/Supervisor sang app.html
 function redirectToApp(role) {
   if (role === ROLES.ADMIN) {
     window.location.replace("./admin.html");
     return;
   }
 
-  // Chưa tự chuyển các vai trò khác sang trang đánh giá
-  // cho đến khi xác định được trang ứng dụng chính thức.
+  // HR & Supervisor chuyển sang app.html
+  if (role === ROLES.HR || role === ROLES.SUPERVISOR) {
+    window.location.replace("./app.html");
+    return;
+  }
+
   console.info("Tài khoản đã được duyệt với vai trò:", role);
 }
 
@@ -233,6 +238,7 @@ export async function handleGoogleSignIn() {
   }
 }
 
+// ✅ FIX 2: Thêm auto-check status sau submit
 export async function handleUserSubmit(formData) {
   if (!currentUser) {
     showMessage("userError", "Vui lòng đăng nhập bằng Google trước.");
@@ -280,7 +286,7 @@ export async function handleUserSubmit(formData) {
 
     showMessage(
       "userSuccess",
-      "Đã gửi thông tin đăng ký. Vui lòng chờ Admin kiểm tra và phê duyệt.",
+      "✓ Đã gửi thông tin đăng ký. Vui lòng chờ Admin kiểm tra và phê duyệt.",
       "success"
     );
 
@@ -290,6 +296,18 @@ export async function handleUserSubmit(formData) {
         if (element.id !== "userEmail") element.disabled = true;
       }
     }
+
+    // Auto-check status after 2 seconds (in case admin approved immediately)
+    setTimeout(async () => {
+      try {
+        const profile = await getUserProfile(currentUser.uid);
+        if (profile && profile.status === USER_STATUS.APPROVED && profile.isActive) {
+          redirectToApp(profile.role);
+        }
+      } catch (error) {
+        console.log("Auto-check status done");
+      }
+    }, 2000);
 
     return true;
   } catch (error) {
