@@ -35,6 +35,7 @@
    ADMIN: "admin",
    HR: "hr",
    SUPERVISOR: "supervisor",
+   MENTOR: "mentor",
    INTERN: "intern",
    USER: "user"
  };
