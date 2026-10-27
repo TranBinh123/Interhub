@@ -123,6 +123,20 @@
   <script type="module">
     import { Auth } from "./JS/auth.js";
     import { AdminPanel } from "./JS/admin-panel.js";
+    import { DemoStore } from "./JS/demo-store.js";
+
+    // Admin kỹ thuật theo email; Phòng Nhân sự (hr) đã duyệt được vào với quyền nghiệp vụ
+    async function resolveRole(user) {
+      if ((user.email || "").toLowerCase() === "dptbinh193@gmail.com") return "admin";
+      let profile = null;
+      try {
+        profile = await Auth.getProfile(user.uid);
+      } catch (error) {
+        console.error("Không thể tải hồ sơ:", error);
+      }
+      if (!profile || profile.status !== "approved" || profile.isActive !== true) return null;
+      return DemoStore.effectiveProfile(user.uid, profile).role === "hr" ? "hr" : null;
+    }
 
     const message = document.getElementById("pageMessage");
     const root = document.getElementById("adminPanelRoot");
@@ -141,16 +155,18 @@
     try {
       const user = await Auth.waitForUser();
 
+      const role = user ? await resolveRole(user) : null;
+
       if (!user) {
         window.location.replace("./index.html");
-      } else if ((user.email || "").toLowerCase() !== "dptbinh193@gmail.com") {
-        showMessage("Tài khoản này không được cấp quyền Admin.", true);
+      } else if (!role) {
+        showMessage("Tài khoản này không có quyền truy cập trang quản trị.", true);
         await Auth.signOut();
         setTimeout(() => window.location.replace("./index.html"), 1800);
       } else {
-        showMessage("Đã xác thực tài khoản Admin.");
+        showMessage(role === "admin" ? "Đã xác thực tài khoản Admin." : "Đã xác thực tài khoản Phòng Nhân sự.");
         root.classList.remove("hidden");
-        await AdminPanel.init(root);
+        await AdminPanel.init(root, { role });
         message.classList.add("hidden");
       }
     } catch (error) {

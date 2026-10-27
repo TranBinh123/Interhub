@@ -425,6 +425,11 @@
             📋 Phiếu đánh giá
           </button>
         </li>
+        <li class="nav-item" id="navManage" hidden>
+          <a class="nav-link" href="./admin.html">
+            🗂 Quản lý SVTT & kỳ
+          </a>
+        </li>
         <li class="nav-item" id="navAssignments" hidden>
           <button class="nav-link" data-view="assignments">
             🧭 Phân công đánh giá
@@ -516,10 +521,31 @@
             <h2>Phân công đánh giá</h2>
             <p>Giao từng phiếu của bộ phận cho một người hướng dẫn. Phiếu chưa giao thì bạn tự đánh giá. Chỉ phân công được khi phiếu chưa gửi.</p>
             <p id="assignSummary" style="font-weight:600;"></p>
+
+            <div class="assign-toolbar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0;">
+              <input type="search" id="assignSearch" placeholder="Tìm theo tên hoặc mã SV" style="flex:1 1 220px;">
+              <select id="assignStatusFilter">
+                <option value="all">Tất cả phiếu</option>
+                <option value="unassigned">Chưa giao</option>
+                <option value="assigned">Đã giao</option>
+              </select>
+            </div>
+
+            <div class="assign-bulk" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;background:#f5f7fa;border-radius:8px;margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="assignSelectAll"> Chọn tất cả đang hiển thị
+              </label>
+              <span id="assignSelectedCount" style="font-weight:600;">Đã chọn 0 phiếu</span>
+              <select id="assignBulkMentor"></select>
+              <button type="button" class="btn btn-primary btn-sm" id="assignBulkApply" data-action="assign-bulk">Gán cho các phiếu đã chọn</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="assignBulkClear" data-action="assign-clear">Bỏ chọn</button>
+            </div>
+
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
+                    <th style="width:36px;"></th>
                     <th>Sinh viên</th>
                     <th>Trạng thái</th>
                     <th>Người đánh giá hiện tại</th>
@@ -662,7 +688,10 @@
       }
       document.getElementById("userDisplayEmail").textContent = currentUser.email;
       document.getElementById("navAssignments").hidden = userProfile?.role !== "supervisor";
+      document.getElementById("navManage").hidden = userProfile?.role !== "hr";
       document.getElementById("assignments").addEventListener("click", handleAssignClick);
+      document.getElementById("assignments").addEventListener("change", handleAssignChange);
+      document.getElementById("assignSearch").addEventListener("input", () => { renderAssignments(); });
 
       // Navigation
       document.querySelectorAll(".nav-link").forEach(link => {
@@ -739,33 +768,67 @@
     // ============================================
     // Phân công đánh giá (Trưởng bộ phận)
     // ============================================
+    // Trạng thái chọn phiếu để gán hàng loạt (giữ qua các lần lọc)
+    const assignSelected = new Set();
+
     function renderAssignments() {
       const box = document.getElementById("assignTable");
       if (!box) return;
 
       const period = DemoStore.activePeriod();
       if (!period) {
-        box.innerHTML = `<tr class="empty-state"><td colspan="5">Chưa có kỳ đánh giá đang mở.</td></tr>`;
+        box.innerHTML = `<tr class="empty-state"><td colspan="6">Chưa có kỳ đánh giá đang mở.</td></tr>`;
         return;
       }
 
       const actor = actorInfo();
-      const list = DemoStore.listTickets(actor, period.id);
+      const all = DemoStore.listTickets(actor, period.id);
       const mentors = DemoStore.mentorsOf(actor.department);
-      const summary = `Bộ phận ${actor.department || "—"}: ${list.length} phiếu · ${mentors.length} người hướng dẫn · ${list.filter(t => !t.evaluatorUid).length} phiếu chưa giao.`;
-      document.getElementById("assignSummary").textContent = summary;
-      const mentorNotice = mentors.length ? "" :
-        `<tr><td colspan="5" class="empty-state">Bộ phận chưa có người hướng dẫn nào. Admin cần duyệt tài khoản người hướng dẫn, chọn đúng bộ phận ở tab "Tài khoản", rồi bấm "Làm mới".</td></tr>`;
+      document.getElementById("assignSummary").textContent =
+        `Bộ phận ${actor.department || "—"}: ${all.length} phiếu · ${mentors.length} người hướng dẫn · ${all.filter(t => !t.evaluatorUid).length} phiếu chưa giao.`;
+
+      // Danh sách người hướng dẫn cho ô gán hàng loạt
+      const bulkMentor = document.getElementById("assignBulkMentor");
+      const bulkValue = bulkMentor.value;
+      bulkMentor.innerHTML = [
+        `<option value="">Trưởng bộ phận tự đánh giá</option>`,
+        ...mentors.map(m => `<option value="${escapeHtml(m.uid)}">${escapeHtml(m.fullName)}</option>`)
+      ].join("");
+      if ([...bulkMentor.options].some(o => o.value === bulkValue)) bulkMentor.value = bulkValue;
+
+      // Lọc theo ô tìm kiếm và trạng thái giao
+      const q = (document.getElementById("assignSearch").value || "").trim().toLowerCase();
+      const statusFilter = document.getElementById("assignStatusFilter").value;
+      const list = all.filter(t => {
+        if (statusFilter === "unassigned" && t.evaluatorUid) return false;
+        if (statusFilter === "assigned" && !t.evaluatorUid) return false;
+        if (q && !`${t.internName} ${t.internId}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      // Bỏ chọn những phiếu không còn trong bộ phận hoặc đã không được phép phân công
+      for (const id of [...assignSelected]) {
+        if (!all.some(t => t.id === id)) assignSelected.delete(id);
+      }
+      updateAssignBulkBar(list);
 
       if (!DemoStore.departmentKnown(actor.department)) {
-        box.innerHTML = `<tr class="empty-state"><td colspan="5">Bộ phận của bạn (${escapeHtml(actor.department || "chưa có")}) chưa có trong danh mục. Liên hệ Admin.</td></tr>`;
+        box.innerHTML = `<tr class="empty-state"><td colspan="6">Bộ phận của bạn (${escapeHtml(actor.department || "chưa có")}) chưa có trong danh mục. Liên hệ Admin.</td></tr>`;
+        return;
+      }
+
+      if (!all.length) {
+        box.innerHTML = `<tr class="empty-state"><td colspan="6">Chưa có phiếu nào thuộc bộ phận của bạn.</td></tr>`;
         return;
       }
 
       if (!list.length) {
-        box.innerHTML = `<tr class="empty-state"><td colspan="5">Chưa có phiếu nào thuộc bộ phận của bạn.</td></tr>`;
+        box.innerHTML = `<tr class="empty-state"><td colspan="6">Không có phiếu nào khớp bộ lọc.</td></tr>`;
         return;
       }
+
+      const mentorNotice = mentors.length ? "" :
+        `<tr><td colspan="6" class="empty-state">Bộ phận chưa có người hướng dẫn nào. Admin cần duyệt tài khoản người hướng dẫn, chọn đúng bộ phận ở tab "Tài khoản", rồi bấm "Làm mới".</td></tr>`;
 
       box.innerHTML = mentorNotice + list.map(t => {
         const p = DemoStore.permissionsFor(t, actor);
@@ -774,8 +837,10 @@
           ...mentors.map(m => `<option value="${escapeHtml(m.uid)}" ${t.evaluatorUid === m.uid ? "selected" : ""}>${escapeHtml(m.fullName)}</option>`)
         ].join("");
         const disabled = p.assign ? "" : "disabled";
+        const checked = assignSelected.has(t.id) ? "checked" : "";
         return `
           <tr>
+            <td><input type="checkbox" data-select-ticket="${escapeHtml(t.id)}" ${checked} ${disabled}></td>
             <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
             <td>${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
             <td>${escapeHtml(t.evaluatorName || "—")}</td>
@@ -786,9 +851,68 @@
       }).join("");
     }
 
+    // Cập nhật thanh gán hàng loạt theo danh sách đang hiển thị
+    function updateAssignBulkBar(visibleList) {
+      const editable = visibleList.filter(t => DemoStore.permissionsFor(t, actorInfo()).assign);
+      const selectedCount = [...assignSelected].length;
+      document.getElementById("assignSelectedCount").textContent = `Đã chọn ${selectedCount} phiếu`;
+      const selectAll = document.getElementById("assignSelectAll");
+      selectAll.checked = editable.length > 0 && editable.every(t => assignSelected.has(t.id));
+      selectAll.disabled = editable.length === 0;
+      document.getElementById("assignBulkApply").disabled = selectedCount === 0;
+    }
+
+    function handleAssignChange(event) {
+      const target = event.target;
+
+      if (target.id === "assignStatusFilter") {
+        renderAssignments();
+        return;
+      }
+
+      if (target.id === "assignSelectAll") {
+        const rows = document.querySelectorAll("[data-select-ticket]:not([disabled])");
+        rows.forEach(row => {
+          if (target.checked) assignSelected.add(row.dataset.selectTicket);
+          else assignSelected.delete(row.dataset.selectTicket);
+        });
+        renderAssignments();
+        return;
+      }
+
+      if (target.dataset.selectTicket) {
+        if (target.checked) assignSelected.add(target.dataset.selectTicket);
+        else assignSelected.delete(target.dataset.selectTicket);
+        renderAssignments();
+      }
+    }
+
     function handleAssignClick(event) {
-      const button = event.target.closest("[data-action='assign']");
+      const button = event.target.closest("[data-action]");
       if (!button) return;
+
+      if (button.dataset.action === "assign-clear") {
+        assignSelected.clear();
+        renderAssignments();
+        return;
+      }
+
+      if (button.dataset.action === "assign-bulk") {
+        const ids = [...assignSelected];
+        const mentorUid = document.getElementById("assignBulkMentor").value || null;
+        const result = DemoStore.assignEvaluatorBulk(ids, actorInfo(), mentorUid);
+        if (result.ok) {
+          assignSelected.clear();
+          const note = result.skipped ? ` (bỏ qua ${result.skipped} phiếu không đủ điều kiện)` : "";
+          showMessage("success", `Đã gán ${result.updated} phiếu${note}. (dữ liệu mô phỏng)`);
+        } else {
+          showMessage("error", result.error);
+        }
+        renderAssignments();
+        return;
+      }
+
+      if (button.dataset.action !== "assign") return;
 
       const id = button.dataset.ticketId;
       const select = document.querySelector(`[data-assign-for="${CSS.escape(id)}"]`);
