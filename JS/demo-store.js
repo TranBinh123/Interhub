@@ -19,8 +19,7 @@ export const DEMO_BANNER =
 
 const STORAGE_KEY = "internhub-demo-v3";
 
-// Danh mục mặc định: đúng mã mà form đăng ký (index.html) lưu vào hồ sơ user.
-// Phải khớp để Trưởng bộ phận/người hướng dẫn thấy được SVTT của bộ phận mình.
+// Bộ phận mẫu, CHỈ dùng khi Admin chủ động nạp dữ liệu mẫu. Không tự thêm vào danh mục.
 export const DEFAULT_DEPARTMENTS = [
   { code: "HR", name: "Nhân sự & Đào tạo" },
   { code: "IT", name: "Công nghệ Thông tin" },
@@ -113,7 +112,7 @@ export function calcResult(scores) {
 // Lưu trữ (localStorage, đọc lại mỗi lần để các tab luôn thấy dữ liệu mới nhất)
 // ============================================
 function emptyState() {
-  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {}, defaultsSeeded: true };
+  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {}, catalogV4: true };
 }
 
 function read() {
@@ -128,13 +127,19 @@ function read() {
         tickets: p.tickets || {},
         departments: p.departments || {},
         members: p.members || {},
-        defaultsSeeded: p.defaultsSeeded === true
+        catalogV4: p.catalogV4 === true
       };
-      if (!state.defaultsSeeded) {
+      if (!state.catalogV4) {
+        // Bản trước tự thêm 8 bộ phận mặc định mà Admin chưa tạo.
+        // Bỏ các mục đó nếu chưa có SVTT hoặc tài khoản nào dùng, để danh mục chỉ gồm bộ phận Admin tạo.
+        const inUse = code =>
+          Object.values(state.interns).some(i => i.department === code) ||
+          Object.values(state.members).some(m => m.department === code);
         for (const d of DEFAULT_DEPARTMENTS) {
-          if (!state.departments[d.code]) state.departments[d.code] = { ...d };
+          const cur = state.departments[d.code];
+          if (cur && cur.name === d.name && !inUse(d.code)) delete state.departments[d.code];
         }
-        state.defaultsSeeded = true;
+        state.catalogV4 = true;
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (error) {
@@ -152,10 +157,7 @@ function read() {
   } catch (error) {
     // Dữ liệu hỏng hoặc storage bị chặn: coi như chưa có dữ liệu
   }
-  const fresh = emptyState();
-  for (const d of DEFAULT_DEPARTMENTS) fresh.departments[d.code] = { ...d };
-  fresh.defaultsSeeded = true;
-  return fresh;
+  return emptyState();
 }
 
 function write(state) {
