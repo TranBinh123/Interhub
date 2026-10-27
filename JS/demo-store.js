@@ -1,22 +1,24 @@
 // ============================================
 // DEMO STORE — DỮ LIỆU MÔ PHỎNG (prototype)
 // ============================================
-// Không ghi Firestore. Dữ liệu nằm trong localStorage của trình duyệt:
+// Không ghi Firestore. Toàn bộ dữ liệu nằm trong localStorage của trình duyệt:
 //  - dùng chung giữa các tab trên CÙNG một trình duyệt (admin.html ↔ app.html);
-//  - KHÔNG dùng chung giữa các máy hoặc các trình duyệt khác nhau.
+//  - KHÔNG dùng chung giữa các máy hoặc trình duyệt khác nhau.
+// Vai trò và bộ phận của user do Admin chỉnh ở đây; hồ sơ thật trên Firestore không đổi.
 // Cấu trúc hạng mục, công thức điểm và luồng trạng thái theo README mục 2.3–2.5.
 //
 // CHỜ XÁC NHẬN (chưa đưa vào quyết định):
 //  - Thang điểm: đang dùng 0–10, bước 0.5 (README ghi thang 10).
 //  - Thang xếp loại: không hiển thị vì README chưa có quy định.
 //  - Làm tròn: chỉ làm tròn 2 chữ số khi hiển thị.
-//  - Sinh viên bắt đầu/kết thúc giữa tháng: hiện tạo phiếu cho mọi SVTT trong danh sách.
-//  - Phân công: hiện theo bộ phận (Trưởng bộ phận của bộ phận đó đánh giá).
+//  - SVTT bắt đầu/kết thúc giữa tháng: hiện tạo phiếu cho mọi SVTT trong danh sách.
+//  - Phân công: mỗi phiếu một người hướng dẫn; chưa giao thì Trưởng bộ phận tự chấm.
 
 export const DEMO_BANNER =
   "DỮ LIỆU MÔ PHỎNG — chưa kết nối cơ sở dữ liệu. Dữ liệu chỉ lưu trên trình duyệt này và dùng chung giữa các tab của trình duyệt này.";
 
-const STORAGE_KEY = "internhub-demo-v2";
+const STORAGE_KEY = "internhub-demo-v3";
+const LEGACY_KEY = "internhub-demo-v2";
 
 export const STATUS = {
   NOT_STARTED: "chua_bat_dau",
@@ -32,6 +34,16 @@ export const STATUS_LABEL = {
   cho_xac_nhan: "Chờ Đào tạo xác nhận",
   tra_ve: "Trả về bổ sung",
   da_chot: "Đã chốt"
+};
+
+// Trạng thái mà người chấm còn được sửa phiếu
+const EDITABLE = [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.RETURNED];
+
+// Vai trò có thể gán cho tài khoản đã duyệt (Admin không nằm trong danh sách này)
+export const MEMBER_ROLES = {
+  hr: "Phòng Nhân sự",
+  supervisor: "Trưởng bộ phận",
+  mentor: "Người hướng dẫn"
 };
 
 // 15 hạng mục theo README mục 2.3: Phần I (5), Phần II (4), Phần III (6)
@@ -63,6 +75,9 @@ export const SCORE_MIN = 0;
 export const SCORE_MAX = 10;
 export const SCORE_STEP = 0.5;
 
+// Cột CSV nhập SVTT
+export const INTERN_COLUMNS = ["Mã SV", "Họ tên", "Trường", "Bộ phận", "Ngày bắt đầu", "Ngày kết thúc"];
+
 // ============================================
 // Tính điểm (README mục 2.4)
 // ============================================
@@ -85,19 +100,29 @@ export function calcResult(scores) {
 // Lưu trữ (localStorage, đọc lại mỗi lần để các tab luôn thấy dữ liệu mới nhất)
 // ============================================
 function emptyState() {
-  return { periods: {}, interns: {}, tickets: {} };
+  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {} };
 }
 
 function read() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const legacy = !localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(legacy ? LEGACY_KEY : STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        periods: parsed.periods || {},
-        interns: parsed.interns || {},
-        tickets: parsed.tickets || {}
+      const p = JSON.parse(raw);
+      const state = {
+        periods: p.periods || {},
+        interns: p.interns || {},
+        tickets: p.tickets || {},
+        departments: p.departments || {},
+        members: p.members || {}
       };
+      // Chuyển từ bản cũ: tạo danh mục bộ phận từ dữ liệu SVTT đã nhập
+      if (legacy && Object.keys(state.departments).length === 0) {
+        for (const intern of Object.values(state.interns)) {
+          state.departments[intern.department] = { code: intern.department, name: intern.department };
+        }
+      }
+      return state;
     }
   } catch (error) {
     // Dữ liệu hỏng hoặc storage bị chặn: coi như chưa có dữ liệu
@@ -126,8 +151,72 @@ function fail(error) {
 }
 
 function addHistory(ticket, actor, action, note = "") {
-  ticket.history.push({ at: now(), by: actor.name || "—", action, note });
+  ticket.history.push({ at: now(), by: actor?.name || "—", action, note });
   ticket.updatedAt = now();
+}
+
+function defaultEvaluatorName(department) {
+  return `Trưởng bộ phận ${department}`;
+}
+
+function normalizeDate(value) {
+  const v = String(value || "").trim();
+  if (!v) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return null; // không hợp lệ
+}
+
+// ============================================
+// Danh mục bộ phận
+// ============================================
+export function listDepartments() {
+  return Object.values(read().departments).sort((a, b) => a.code.localeCompare(b.code));
+}
+
+// Nhận mã hoặc tên bộ phận, trả về mã đã chuẩn hóa hoặc null
+function findDepartmentIn(state, value) {
+  const v = String(value || "").trim().toLowerCase();
+  if (!v) return null;
+  const hit = Object.values(state.departments)
+    .find(d => d.code.toLowerCase() === v || d.name.toLowerCase() === v);
+  return hit ? hit.code : null;
+}
+
+export function departmentName(code) {
+  return read().departments[code]?.name || code || "—";
+}
+
+export function createDepartment({ code, name }) {
+  const state = read();
+  const c = String(code || "").trim().toUpperCase();
+  const n = String(name || "").trim();
+  if (!c) return fail("Mã bộ phận không được để trống.");
+  if (!n) return fail("Tên bộ phận không được để trống.");
+  if (!/^[A-Z0-9_-]{1,12}$/.test(c)) {
+    return fail("Mã bộ phận chỉ gồm chữ không dấu, số, gạch ngang hoặc gạch dưới (tối đa 12 ký tự).");
+  }
+  if (state.departments[c]) return fail(`Mã bộ phận ${c} đã tồn tại.`);
+  if (Object.values(state.departments).some(d => d.name.toLowerCase() === n.toLowerCase())) {
+    return fail(`Tên bộ phận "${n}" đã tồn tại.`);
+  }
+  state.departments[c] = { code: c, name: n };
+  write(state);
+  return ok({ department: state.departments[c] });
+}
+
+export function deleteDepartment(code) {
+  const state = read();
+  if (!state.departments[code]) return fail("Bộ phận không tồn tại.");
+  const internCount = Object.values(state.interns).filter(i => i.department === code).length;
+  const memberCount = Object.values(state.members).filter(m => m.department === code).length;
+  if (internCount || memberCount) {
+    return fail(`Không thể xóa: còn ${internCount} SVTT và ${memberCount} tài khoản thuộc bộ phận này.`);
+  }
+  delete state.departments[code];
+  write(state);
+  return ok();
 }
 
 // ============================================
@@ -158,13 +247,13 @@ export function createPeriod({ month, name }) {
   return ok({ period: state.periods[id] });
 }
 
-// Tạo phiếu cho mọi SVTT trong danh sách. Phiếu đã có thì bỏ qua, không tạo trùng.
+// Tạo phiếu cho mọi SVTT trong danh sách. Phiếu đã có thì giữ nguyên, không tạo trùng.
 export function generateTickets(periodId) {
   const state = read();
   if (!state.periods[periodId]) return fail("Kỳ đánh giá không tồn tại.");
 
   const interns = Object.values(state.interns);
-  if (interns.length === 0) return fail("Chưa có danh sách SVTT. Hãy nhập danh sách trước.");
+  if (interns.length === 0) return fail("Chưa có danh sách SVTT. Hãy nhập hoặc thêm SVTT trước.");
 
   let created = 0;
   let existing = 0;
@@ -182,7 +271,8 @@ export function generateTickets(periodId) {
       internName: intern.fullName,
       school: intern.school || "",
       department: intern.department,
-      evaluatorName: `Trưởng bộ phận ${intern.department}`,
+      evaluatorUid: null,
+      evaluatorName: defaultEvaluatorName(intern.department),
       status: STATUS.NOT_STARTED,
       scores: Array(ITEMS.length).fill(null),
       textPart4: "",
@@ -202,11 +292,129 @@ export function generateTickets(periodId) {
 }
 
 // ============================================
-// Danh sách SVTT: đọc CSV và kiểm tra
+// Sinh viên thực tập (SVTT)
 // ============================================
-// Cột: Mã SV, Họ tên, Trường, Bộ phận, Ngày bắt đầu, Ngày kết thúc (ngày dạng YYYY-MM-DD hoặc DD/MM/YYYY)
-export const INTERN_COLUMNS = ["Mã SV", "Họ tên", "Trường", "Bộ phận", "Ngày bắt đầu", "Ngày kết thúc"];
+// Kiểm tra và chuẩn hóa một SVTT. Bộ phận phải đã có trong danh mục.
+function cleanIntern(input, state) {
+  const internId = String(input.internId || "").trim().toUpperCase();
+  const fullName = String(input.fullName || "").trim();
+  const school = String(input.school || "").trim();
+  const rawDept = String(input.department || "").trim();
+  const department = findDepartmentIn(state, rawDept);
+  const startDate = normalizeDate(input.startDate);
+  const endDate = normalizeDate(input.endDate);
 
+  const problems = [];
+  if (!internId) problems.push("thiếu Mã SV");
+  if (!fullName) problems.push("thiếu Họ tên");
+  if (!rawDept) problems.push("thiếu Bộ phận");
+  else if (!department) problems.push(`Bộ phận "${rawDept}" chưa có trong danh mục`);
+  if (startDate === null) problems.push("Ngày bắt đầu không đúng định dạng");
+  if (endDate === null) problems.push("Ngày kết thúc không đúng định dạng");
+
+  if (problems.length) return { error: problems.join("; ") };
+  return {
+    value: { internId, fullName, school, department, startDate: startDate || "", endDate: endDate || "" }
+  };
+}
+
+export function listInterns() {
+  return Object.values(read().interns).sort((a, b) => a.internId.localeCompare(b.internId));
+}
+
+export function createIntern(input) {
+  const state = read();
+  const cleaned = cleanIntern(input, state);
+  if (cleaned.error) return fail(cleaned.error);
+  const { value } = cleaned;
+  if (state.interns[value.internId]) return fail(`Mã SV ${value.internId} đã tồn tại.`);
+
+  state.interns[value.internId] = { ...value, importedAt: now(), updatedAt: now() };
+  write(state);
+  return ok({ intern: state.interns[value.internId] });
+}
+
+// Sửa SVTT. Mã SV không đổi. Phiếu chưa gửi được cập nhật theo; phiếu đã chốt giữ nguyên snapshot.
+export function updateIntern(internId, input) {
+  const state = read();
+  const existing = state.interns[internId];
+  if (!existing) return fail("SVTT không tồn tại.");
+
+  const cleaned = cleanIntern({ ...input, internId }, state);
+  if (cleaned.error) return fail(cleaned.error);
+  const next = cleaned.value;
+
+  const ticketList = Object.values(state.tickets).filter(t => t.internId === internId);
+  const deptChanged = next.department !== existing.department;
+  if (deptChanged && ticketList.some(t => ![STATUS.NOT_STARTED, STATUS.IN_PROGRESS].includes(t.status))) {
+    return fail("Không đổi bộ phận: SVTT này đã có phiếu được gửi, trả về hoặc chốt.");
+  }
+
+  for (const t of ticketList) {
+    if (t.status === STATUS.FINALIZED) continue;
+    t.internName = next.fullName;
+    t.school = next.school;
+    if (deptChanged) {
+      t.department = next.department;
+      t.evaluatorUid = null;
+      t.evaluatorName = defaultEvaluatorName(next.department);
+      t.updatedAt = now();
+      t.history.push({ at: now(), by: "Admin", action: "Đổi bộ phận", note: `Chuyển sang ${next.department}` });
+    }
+  }
+
+  state.interns[internId] = { ...existing, ...next, updatedAt: now() };
+  write(state);
+  return ok({ intern: state.interns[internId] });
+}
+
+export function deleteIntern(internId) {
+  const state = read();
+  if (!state.interns[internId]) return fail("SVTT không tồn tại.");
+  const hasTickets = Object.values(state.tickets).some(t => t.internId === internId);
+  if (hasTickets) return fail("Không xóa được: SVTT đã có phiếu đánh giá. Cần giữ lại để lưu lịch sử.");
+  delete state.interns[internId];
+  write(state);
+  return ok();
+}
+
+// rows: kết quả của parseCsv().rows. Không ghi đè SVTT đã có.
+export function importInterns(rows) {
+  const state = read();
+  const seenInFile = new Set();
+  const errors = [];
+  let added = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const [internId, fullName, school, department, startDate, endDate] = row.cells;
+    const cleaned = cleanIntern({ internId, fullName, school, department, startDate, endDate }, state);
+    if (cleaned.error) {
+      errors.push({ line: row.line, message: cleaned.error });
+      continue;
+    }
+    const id = cleaned.value.internId;
+    if (seenInFile.has(id)) {
+      errors.push({ line: row.line, message: `Mã SV ${id} bị trùng trong file` });
+      continue;
+    }
+    seenInFile.add(id);
+
+    if (state.interns[id]) {
+      skipped += 1;
+      continue;
+    }
+    state.interns[id] = { ...cleaned.value, importedAt: now(), updatedAt: now() };
+    added += 1;
+  }
+
+  write(state);
+  return { added, skipped, errors, total: rows.length };
+}
+
+// ============================================
+// CSV
+// ============================================
 function splitCsvLine(line, delimiter) {
   const cells = [];
   let cur = "";
@@ -244,192 +452,173 @@ export function parseCsv(text) {
   return { headers: all[0].cells, rows: all.slice(1) };
 }
 
-function normalizeDate(value) {
-  const v = String(value || "").trim();
-  if (!v) return "";
-  let m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) return v;
-  m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  return null; // không hợp lệ
-}
-
-// rows: kết quả của parseCsv().rows. Không ghi đè SVTT đã có.
-export function importInterns(rows) {
+// ============================================
+// Tài khoản: vai trò và bộ phận do Admin chỉnh (mô phỏng)
+// ============================================
+// users: danh sách hồ sơ từ Firestore. Chỉ đồng bộ tài khoản đã duyệt có vai trò nội bộ.
+// Giữ nguyên vai trò/bộ phận Admin đã chỉnh trước đó.
+export function syncMembers(users) {
   const state = read();
-  const seenInFile = new Set();
-  const errors = [];
-  let added = 0;
-  let skipped = 0;
+  const approved = new Set();
 
-  for (const row of rows) {
-    const [internId, fullName, school, department, start, end] = row.cells;
-    const problems = [];
-    if (!internId) problems.push("thiếu Mã SV");
-    if (!fullName) problems.push("thiếu Họ tên");
-    if (!department) problems.push("thiếu Bộ phận");
-    const startDate = normalizeDate(start);
-    const endDate = normalizeDate(end);
-    if (startDate === null) problems.push("Ngày bắt đầu không đúng định dạng");
-    if (endDate === null) problems.push("Ngày kết thúc không đúng định dạng");
+  for (const u of users) {
+    const uid = u.id || u.uid;
+    if (!uid) continue;
+    if (u.status !== "approved" || u.isActive !== true) continue;
+    if (!Object.keys(MEMBER_ROLES).includes(u.role)) continue;
 
-    if (problems.length) {
-      errors.push({ line: row.line, message: problems.join("; ") });
-      continue;
+    approved.add(uid);
+    const existing = state.members[uid];
+    if (existing) {
+      existing.email = u.email || existing.email;
+      existing.fullName = u.fullName || existing.fullName;
+    } else {
+      state.members[uid] = {
+        uid,
+        email: u.email || "",
+        fullName: u.fullName || u.email || "",
+        role: u.role,
+        department: u.department || ""
+      };
     }
-    if (seenInFile.has(internId)) {
-      errors.push({ line: row.line, message: `Mã SV ${internId} bị trùng trong file` });
-      continue;
-    }
-    seenInFile.add(internId);
+  }
 
-    if (state.interns[internId]) {
-      skipped += 1;
-      continue;
-    }
-
-    state.interns[internId] = {
-      internId,
-      fullName,
-      school: school || "",
-      department,
-      startDate: startDate || "",
-      endDate: endDate || "",
-      importedAt: now()
-    };
-    added += 1;
+  for (const uid of Object.keys(state.members)) {
+    if (!approved.has(uid)) delete state.members[uid];
   }
 
   write(state);
-  return { added, skipped, errors, total: rows.length };
+  return Object.keys(state.members).length;
 }
 
-export function listInterns() {
-  return Object.values(read().interns).sort((a, b) => a.internId.localeCompare(b.internId));
+export function listMembers() {
+  return Object.values(read().members).sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
-// ============================================
-// Dữ liệu mẫu (chỉ khi Admin chủ động nạp)
-// ============================================
-function mulberry32(seed) {
-  let s = seed >>> 0;
-  return function () {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+export function getMember(uid) {
+  return read().members[uid] || null;
+}
+
+// Người hướng dẫn thuộc một bộ phận
+export function mentorsOf(department) {
+  return listMembers().filter(m => m.role === "mentor" && m.department === department);
+}
+
+// Ghi đè vai trò/bộ phận cho tài khoản đã đồng bộ
+export function updateMember(uid, { role, department }) {
+  const state = read();
+  const member = state.members[uid];
+  if (!member) return fail("Tài khoản không tồn tại hoặc chưa được duyệt.");
+  if (!Object.keys(MEMBER_ROLES).includes(role)) return fail("Vai trò không hợp lệ.");
+
+  let dept = "";
+  if (role !== "hr") {
+    dept = findDepartmentIn(state, department);
+    if (!dept) return fail("Trưởng bộ phận và người hướng dẫn phải thuộc một bộ phận có trong danh mục.");
+  }
+
+  const changed = member.role !== role || member.department !== dept;
+  if (changed) {
+    // Bỏ phân công của tài khoản này ở các phiếu chưa gửi
+    for (const t of Object.values(state.tickets)) {
+      if (t.evaluatorUid === uid && EDITABLE.includes(t.status)) {
+        t.evaluatorUid = null;
+        t.evaluatorName = defaultEvaluatorName(t.department);
+        addHistory(t, { name: "Admin" }, "Bỏ phân công", "Vai trò hoặc bộ phận của người đánh giá đã thay đổi");
+      }
+    }
+  }
+
+  member.role = role;
+  member.department = dept;
+  write(state);
+  return ok({ member: { ...member } });
+}
+
+// Hồ sơ hiệu lực: áp dụng vai trò/bộ phận Admin đã chỉnh lên hồ sơ Firestore
+export function effectiveProfile(uid, profile) {
+  const member = read().members[uid];
+  if (!member) return profile;
+  return {
+    ...profile,
+    role: member.role,
+    department: member.department,
+    fullName: member.fullName || profile.fullName
   };
-}
-
-export function loadSampleData() {
-  const rnd = mulberry32(20261027);
-  const pick = list => list[Math.floor(rnd() * list.length)];
-  const departments = ["Lễ tân", "Nhà hàng", "Buồng phòng", "Kỹ thuật", "Kinh doanh", "Marketing", "Tài chính", "Vui chơi"];
-  const surnames = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ"];
-  const middle = ["Văn", "Thị", "Minh", "Thu", "Hoàng", "Quốc", "Ngọc", "Anh"];
-  const given = ["An", "Bình", "Châu", "Dũng", "Hà", "Khang", "Linh", "Nam", "Phương", "Quân", "Trang", "Uyên", "Việt"];
-  const schools = ["Trường ĐH Demo A", "Trường ĐH Demo B", "Trường CĐ Demo C", "Trường ĐH Demo D"];
-
-  const state = emptyState();
-  const period = { id: "EV-2026-10", month: "2026-10", name: "Tháng 10/2026 (dữ liệu mẫu)", status: "dang_mo", createdAt: now() };
-  state.periods[period.id] = period;
-
-  for (let i = 1; i <= 520; i++) {
-    const internId = `SV${String(i).padStart(4, "0")}`;
-    const department = pick(departments);
-    state.interns[internId] = {
-      internId,
-      fullName: `${pick(surnames)} ${pick(middle)} ${pick(given)}`,
-      school: pick(schools),
-      department,
-      startDate: "2026-10-01",
-      endDate: "2026-12-31",
-      importedAt: now()
-    };
-
-    const r = rnd();
-    const status =
-      r < 0.3 ? STATUS.NOT_STARTED :
-      r < 0.5 ? STATUS.IN_PROGRESS :
-      r < 0.75 ? STATUS.WAITING :
-      r < 0.85 ? STATUS.RETURNED : STATUS.FINALIZED;
-
-    const scores = Array(ITEMS.length).fill(null);
-    const filled =
-      status === STATUS.NOT_STARTED ? 0 :
-      status === STATUS.IN_PROGRESS ? Math.floor(rnd() * ITEMS.length) : ITEMS.length;
-    for (let k = 0; k < filled; k++) scores[k] = Math.round((rnd() * 9 + 1) * 2) / 2;
-
-    const stamp = new Date(Date.UTC(2026, 9, 1, 8, 0, 0) + i * 600000).toISOString();
-    const id = `${period.id}-${internId}`;
-    const sent = [STATUS.WAITING, STATUS.FINALIZED, STATUS.RETURNED].includes(status);
-    state.tickets[id] = {
-      id,
-      periodId: period.id,
-      internId,
-      internName: state.interns[internId].fullName,
-      school: state.interns[internId].school,
-      department,
-      evaluatorName: `Trưởng bộ phận ${department}`,
-      status,
-      scores,
-      textPart4: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu (dữ liệu giả lập).",
-      textPart5: "",
-      textCommittee: "",
-      sendCount: sent ? 1 : 0,
-      returnReason: status === STATUS.RETURNED ? "Bổ sung nhận xét chi tiết (dữ liệu giả lập)." : "",
-      history: [],
-      createdAt: stamp,
-      updatedAt: stamp
-    };
-  }
-
-  write(state);
-  return ok({ interns: 520, tickets: 520 });
-}
-
-export function resetDemo() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    // bỏ qua
-  }
 }
 
 // ============================================
 // Phân quyền (mô phỏng — quy tắc thật phải nằm ở máy chủ/Firestore Rules)
 // ============================================
+function isEvaluatorOf(ticket, actor) {
+  if (ticket.evaluatorUid) return ticket.evaluatorUid === actor.uid;
+  return actor.role === "supervisor" && actor.department === ticket.department;
+}
+
 export function canView(ticket, actor) {
   if (!ticket || !actor) return false;
   if (actor.role === "hr") return true;
   if (actor.role === "supervisor") return actor.department === ticket.department;
+  if (actor.role === "mentor") return ticket.evaluatorUid === actor.uid;
   return false;
 }
 
 export function permissionsFor(ticket, actor) {
   const none = {
     scores: false, part4: false, part5: false, committee: false,
-    submit: false, returnTicket: false, finalize: false
+    submit: false, returnTicket: false, finalize: false, assign: false
   };
   if (!ticket || !actor) return none;
-
-  if (actor.role === "supervisor" && actor.department === ticket.department) {
-    const editable = [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.RETURNED].includes(ticket.status);
-    return { ...none, scores: editable, part4: editable, submit: editable };
-  }
 
   if (actor.role === "hr") {
     const waiting = ticket.status === STATUS.WAITING;
     return { ...none, part5: waiting, committee: waiting, returnTicket: waiting, finalize: waiting };
   }
 
-  return none;
+  if (!canView(ticket, actor)) return none;
+
+  const editable = EDITABLE.includes(ticket.status);
+  const base = { ...none, assign: actor.role === "supervisor" && editable };
+  if (isEvaluatorOf(ticket, actor)) {
+    return { ...base, scores: editable, part4: editable, submit: editable };
+  }
+  return base;
+}
+
+// Trưởng bộ phận giao phiếu cho người hướng dẫn cùng bộ phận (mentorUid = null: tự chấm)
+export function assignEvaluator(ticketId, actor, mentorUid) {
+  const state = read();
+  const ticket = state.tickets[ticketId];
+  if (!ticket) return fail("Phiếu không tồn tại.");
+  if (!permissionsFor(ticket, actor).assign) {
+    return fail("Chỉ Trưởng bộ phận của bộ phận này mới được phân công, và chỉ khi phiếu chưa gửi.");
+  }
+
+  if (mentorUid) {
+    const mentor = state.members[mentorUid];
+    if (!mentor || mentor.role !== "mentor" || mentor.department !== ticket.department) {
+      return fail("Người hướng dẫn phải là tài khoản thuộc đúng bộ phận của phiếu.");
+    }
+    ticket.evaluatorUid = mentorUid;
+    ticket.evaluatorName = mentor.fullName;
+    addHistory(ticket, actor, "Phân công", `Giao cho ${mentor.fullName}`);
+  } else {
+    ticket.evaluatorUid = null;
+    ticket.evaluatorName = defaultEvaluatorName(ticket.department);
+    addHistory(ticket, actor, "Phân công", "Trưởng bộ phận tự đánh giá");
+  }
+
+  write(state);
+  return ok({ ticket: { ...ticket } });
 }
 
 // ============================================
-// Truy vấn phiếu
+// Kỳ hiện hành và truy vấn phiếu
 // ============================================
+export function activePeriod() {
+  return listPeriods().find(p => p.status === "dang_mo") || null;
+}
+
 export function listTickets(actor, periodId = null) {
   return Object.values(read().tickets)
     .filter(t => canView(t, actor))
@@ -449,24 +638,20 @@ export function getTicket(id) {
   return t ? { ...t } : null;
 }
 
-// Kỳ mới nhất đang mở, dùng làm kỳ hiện hành trên giao diện người dùng
-export function activePeriod() {
-  return listPeriods().find(p => p.status === "dang_mo") || null;
-}
-
-// Việc cần làm của người dùng hiện tại
+// Việc cần làm theo vai trò
 export function todoFor(actor, periodId = null) {
   const tickets = listTickets(actor, periodId);
-  let items;
   if (actor.role === "supervisor") {
-    items = tickets.filter(t =>
-      [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.RETURNED].includes(t.status));
-  } else if (actor.role === "hr") {
-    items = tickets.filter(t => t.status === STATUS.WAITING);
-  } else {
-    items = [];
+    // Phiếu của bộ phận chưa giao người hướng dẫn và còn mở
+    return tickets.filter(t => !t.evaluatorUid && EDITABLE.includes(t.status));
   }
-  return items;
+  if (actor.role === "mentor") {
+    return tickets.filter(t => EDITABLE.includes(t.status));
+  }
+  if (actor.role === "hr") {
+    return tickets.filter(t => t.status === STATUS.WAITING);
+  }
+  return [];
 }
 
 // ============================================
@@ -546,7 +731,109 @@ export function finalize(id, actor) {
   return ok({ ticket: { ...ticket } });
 }
 
-// Thống kê theo README mục 7.2: chỉ "đã chốt" mới tính là hoàn tất
+// ============================================
+// Dữ liệu mẫu (chỉ khi Admin chủ động nạp)
+// ============================================
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function loadSampleData() {
+  const rnd = mulberry32(20261027);
+  const pick = list => list[Math.floor(rnd() * list.length)];
+  const departments = [
+    { code: "LT", name: "Lễ tân" }, { code: "NH", name: "Nhà hàng" },
+    { code: "BP", name: "Buồng phòng" }, { code: "KT", name: "Kỹ thuật" },
+    { code: "KD", name: "Kinh doanh" }, { code: "MK", name: "Marketing" },
+    { code: "TC", name: "Tài chính" }, { code: "VC", name: "Vui chơi" }
+  ];
+  const surnames = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ"];
+  const middle = ["Văn", "Thị", "Minh", "Thu", "Hoàng", "Quốc", "Ngọc", "Anh"];
+  const given = ["An", "Bình", "Châu", "Dũng", "Hà", "Khang", "Linh", "Nam", "Phương", "Quân", "Trang", "Uyên", "Việt"];
+  const schools = ["Trường ĐH Demo A", "Trường ĐH Demo B", "Trường CĐ Demo C", "Trường ĐH Demo D"];
+
+  const state = emptyState();
+  for (const d of departments) state.departments[d.code] = d;
+
+  const period = { id: "EV-2026-10", month: "2026-10", name: "Tháng 10/2026 (dữ liệu mẫu)", status: "dang_mo", createdAt: now() };
+  state.periods[period.id] = period;
+
+  for (let i = 1; i <= 520; i++) {
+    const internId = `SV${String(i).padStart(4, "0")}`;
+    const dept = pick(departments).code;
+    state.interns[internId] = {
+      internId,
+      fullName: `${pick(surnames)} ${pick(middle)} ${pick(given)}`,
+      school: pick(schools),
+      department: dept,
+      startDate: "2026-10-01",
+      endDate: "2026-12-31",
+      importedAt: now(),
+      updatedAt: now()
+    };
+
+    const r = rnd();
+    const status =
+      r < 0.3 ? STATUS.NOT_STARTED :
+      r < 0.5 ? STATUS.IN_PROGRESS :
+      r < 0.75 ? STATUS.WAITING :
+      r < 0.85 ? STATUS.RETURNED : STATUS.FINALIZED;
+
+    const scores = Array(ITEMS.length).fill(null);
+    const filled =
+      status === STATUS.NOT_STARTED ? 0 :
+      status === STATUS.IN_PROGRESS ? Math.floor(rnd() * ITEMS.length) : ITEMS.length;
+    for (let k = 0; k < filled; k++) scores[k] = Math.round((rnd() * 9 + 1) * 2) / 2;
+
+    const stamp = new Date(Date.UTC(2026, 9, 1, 8, 0, 0) + i * 600000).toISOString();
+    const id = `${period.id}-${internId}`;
+    const sent = [STATUS.WAITING, STATUS.FINALIZED, STATUS.RETURNED].includes(status);
+    state.tickets[id] = {
+      id,
+      periodId: period.id,
+      internId,
+      internName: state.interns[internId].fullName,
+      school: state.interns[internId].school,
+      department: dept,
+      evaluatorUid: null,
+      evaluatorName: defaultEvaluatorName(dept),
+      status,
+      scores,
+      textPart4: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu (dữ liệu giả lập).",
+      textPart5: "",
+      textCommittee: "",
+      sendCount: sent ? 1 : 0,
+      returnReason: status === STATUS.RETURNED ? "Bổ sung nhận xét chi tiết (dữ liệu giả lập)." : "",
+      history: [],
+      createdAt: stamp,
+      updatedAt: stamp
+    };
+  }
+
+  write(state);
+  return ok({ interns: 520, tickets: 520 });
+}
+
+export function resetDemo() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+  } catch (error) {
+    // bỏ qua
+  }
+}
+
+// ============================================
+// Thống kê và định dạng
+// ============================================
+// Theo README mục 7.2: chỉ "đã chốt" mới tính là hoàn tất
 export function stats(list) {
   const finalized = list.filter(t => t.status === STATUS.FINALIZED).length;
   return {
@@ -564,12 +851,25 @@ export function formatDateTime(iso) {
 }
 
 export const DemoStore = {
+  listDepartments,
+  createDepartment,
+  deleteDepartment,
+  departmentName,
   listPeriods,
   createPeriod,
   generateTickets,
+  listInterns,
+  createIntern,
+  updateIntern,
+  deleteIntern,
   parseCsv,
   importInterns,
-  listInterns,
+  syncMembers,
+  listMembers,
+  getMember,
+  mentorsOf,
+  updateMember,
+  effectiveProfile,
   loadSampleData,
   resetDemo,
   listTickets,
@@ -579,6 +879,7 @@ export const DemoStore = {
   todoFor,
   canView,
   permissionsFor,
+  assignEvaluator,
   saveDraft,
   submit,
   returnTicket,
