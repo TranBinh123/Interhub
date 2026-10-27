@@ -324,12 +324,27 @@ function renderUsers() {
   `;
 }
 
+// Ô chọn bộ phận: chỉ liệt kê bộ phận có trong danh mục Admin đã tạo
+function deptSelectHtml(selectedCode, attrs, allowEmpty) {
+  const options = departments
+    .map(d => `<option value="${html(d.code)}" ${selectedCode === d.code ? "selected" : ""}>${html(d.code)} — ${html(d.name)}</option>`)
+    .join("");
+  return `
+    <select ${attrs}>
+      <option value="">${allowEmpty ? "— Không thuộc bộ phận —" : "— Chọn bộ phận —"}</option>
+      ${options}
+    </select>`;
+}
+
 function userRow(user) {
   const status = user.status || USER_STATUS.PENDING;
   const id = html(user.id);
   const member = DemoStore.getMember(user.id);
   const role = member?.role || user.role;
   const deptCode = member ? member.department : user.department;
+  const noDepartments = departments.length === 0
+    ? `<small>Chưa có bộ phận nào. Hãy tạo ở tab "Bộ phận" trước.</small>`
+    : "";
 
   let controls = "—";
 
@@ -343,28 +358,25 @@ function userRow(user) {
           <option value="">Chọn vai trò</option>
           ${roleOptions}
         </select>
+        ${deptSelectHtml("", `aria-label="Bộ phận" data-dept-for="${id}"`, true)}
         <button type="button" class="ih-btn ih-btn--primary"
           data-action="approve" data-user-id="${id}">Duyệt</button>
         <button type="button" class="ih-btn ih-btn--danger"
           data-action="reject" data-user-id="${id}">Từ chối</button>
-      </div>`;
+      </div>
+      ${noDepartments}`;
   } else if (status === USER_STATUS.APPROVED && member) {
     const roleOptions = Object.entries(MEMBER_ROLES)
       .map(([value, label]) => `<option value="${html(value)}" ${role === value ? "selected" : ""}>${html(label)}</option>`)
       .join("");
-    const deptOptions = departments
-      .map(d => `<option value="${html(d.code)}" ${deptCode === d.code ? "selected" : ""}>${html(d.code)} — ${html(d.name)}</option>`)
-      .join("");
     controls = `
       <div class="ih-actions">
         <select aria-label="Vai trò" data-member-role-for="${id}">${roleOptions}</select>
-        <select aria-label="Bộ phận" data-member-dept-for="${id}">
-          <option value="">— Không thuộc bộ phận —</option>
-          ${deptOptions}
-        </select>
+        ${deptSelectHtml(deptCode, `aria-label="Bộ phận" data-member-dept-for="${id}"`, true)}
         <button type="button" class="ih-btn ih-btn--secondary"
           data-action="save-member" data-user-id="${id}">Lưu</button>
-      </div>`;
+      </div>
+      ${noDepartments}`;
   }
 
   return `
@@ -734,6 +746,10 @@ async function handleDemoAction(action, button) {
     const uid = button.dataset.userId;
     const role = mountNode.querySelector(`[data-member-role-for="${CSS.escape(uid)}"]`)?.value;
     const department = mountNode.querySelector(`[data-member-dept-for="${CSS.escape(uid)}"]`)?.value;
+    if (role !== "hr" && !department) {
+      announce("Người hướng dẫn và Trưởng bộ phận phải chọn bộ phận.", "error");
+      return true;
+    }
     report(DemoStore.updateMember(uid, { role, department }), "Đã cập nhật vai trò và bộ phận (mô phỏng).");
   }
 
@@ -837,12 +853,29 @@ async function handleAction(event) {
         return;
       }
 
+      const deptCode = mountNode.querySelector(
+        `[data-dept-for="${CSS.escape(userId)}"]`
+      )?.value || "";
+
+      if (role !== ROLES.HR && !deptCode) {
+        announce("Trưởng bộ phận và người hướng dẫn phải được chọn bộ phận.", "error");
+        button.disabled = false;
+        return;
+      }
+
       const ok = await Auth.approveUser(userId, role);
 
       if (!ok) {
         throw new Error(
           "Không thể duyệt tài khoản. Kiểm tra tài khoản Admin và Firestore Rules."
         );
+      }
+
+      // Đồng bộ để có hồ sơ thành viên, rồi ghi bộ phận Admin đã chọn
+      await refreshData();
+      if (role !== ROLES.HR) {
+        const result = DemoStore.updateMember(userId, { role, department: deptCode });
+        if (!result.ok) throw new Error(result.error);
       }
 
       announce("Đã duyệt tài khoản và gán vai trò.");
