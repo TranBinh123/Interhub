@@ -54,6 +54,13 @@ function isAdminEmail(user) {
   return normalizeEmail(user?.email) === ADMIN_EMAIL;
 }
 
+// Chỉ trang đăng nhập (index.html hoặc thư mục gốc) mới được tự chuyển hướng
+// theo trạng thái tài khoản. Các trang khác (app.html, admin.html, ...) chỉ
+// dùng user hiện tại; nếu chuyển hướng ở đó sẽ tạo vòng lặp reload.
+function isLoginPage() {
+  return /(\/|\/index\.html)$/.test(window.location.pathname);
+}
+
 function showMessage(elementId, message, type = "error") {
   const el = document.getElementById(elementId);
   if (!el) {
@@ -187,11 +194,7 @@ export function initializeAuth() {
       authReadyResolve(user);
     }
 
-    if (user && window.location.pathname.endsWith("/admin.html")) {
-      return;
-    }
-
-    if (user) {
+    if (user && isLoginPage()) {
       await processSignedInUser(user);
     }
   });
@@ -425,6 +428,7 @@ export async function handleSignOut() {
 export const Auth = {
   init: initializeAuth,
   waitForUser,
+  getProfile: getUserProfile,
   googleSignIn: handleGoogleSignIn,
   userSubmit: handleUserSubmit,
   adminLogin: handleAdminLogin,
