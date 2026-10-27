@@ -583,29 +583,35 @@
     // Initialization
     // ============================================
     async function initApp() {
-      // Wait for auth
-      const authReady = new Promise(resolve => {
-        const checkAuth = setInterval(() => {
-          if (Auth.getCurrentUser && Auth.getCurrentUser()) {
-            clearInterval(checkAuth);
-            resolve();
-          }
-        }, 100);
-        setTimeout(() => {
-          clearInterval(checkAuth);
-          resolve();
-        }, 5000);
-      });
+      // Chờ Firebase xác định trạng thái đăng nhập (khởi tạo listener trong auth.js)
+      let user = null;
+      try {
+        user = await Auth.waitForUser();
+      } catch (error) {
+        console.error("Không thể kiểm tra đăng nhập:", error);
+      }
 
-      await authReady;
-
-      const user = Auth.getCurrentUser?.();
       if (!user) {
         window.location.replace("./index.html");
         return;
       }
 
+      // Chỉ cho vào app khi tài khoản đã được Admin duyệt.
+      // Nếu không đạt, về index.html (không tự chuyển lại app.html nên không lặp).
+      let profile = null;
+      try {
+        profile = await Auth.getProfile(user.uid);
+      } catch (error) {
+        console.error("Không thể tải hồ sơ người dùng:", error);
+      }
+
+      if (!profile || profile.status !== "approved" || profile.isActive !== true) {
+        window.location.replace("./index.html");
+        return;
+      }
+
       currentUser = user;
+      userProfile = profile;
       setupUI();
       loadDashboardData();
     }
