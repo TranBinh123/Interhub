@@ -599,8 +599,15 @@ export function updateIntern(internId, input) {
 export function deleteIntern(internId) {
   const state = read();
   if (!state.interns[internId]) return fail("SVTT không tồn tại.");
-  const hasTickets = Object.values(state.tickets).some(t => t.internId === internId);
-  if (hasTickets) return fail("Không xóa được: SVTT đã có phiếu đánh giá. Cần giữ lại để lưu lịch sử.");
+  const own = Object.values(state.tickets).filter(t => t.internId === internId);
+  // Phiếu tự sinh nhưng chưa ai chấm/gửi thì được xóa cùng SVTT; phiếu đã có tiến độ thì giữ lại để lưu lịch sử
+  const touched = own.some(t =>
+    t.status !== STATUS.NOT_STARTED ||
+    (t.scores || []).some(v => v !== null && v !== undefined && v !== "") ||
+    (t.sendCount || 0) > 0
+  );
+  if (touched) return fail("Không xóa được: SVTT đã có phiếu đã chấm hoặc đã gửi. Cần giữ lại để lưu lịch sử.");
+  own.forEach(t => { delete state.tickets[t.id]; });
   delete state.interns[internId];
   write(state);
   return ok();
@@ -854,6 +861,42 @@ export function assignEvaluator(ticketId, actor, mentorUid) {
 
   write(state);
   return ok({ ticket: { ...ticket } });
+}
+
+// Gán hàng loạt: chọn nhiều phiếu, giao cho cùng một người hướng dẫn (hoặc tự đánh giá khi mentorUid = null).
+// Chỉ xử lý phiếu mà actor được phép phân công; phần còn lại được báo lại là bỏ qua.
+export function assignEvaluatorBulk(ticketIds, actor, mentorUid) {
+  const state = read();
+  const ids = [...new Set(ticketIds || [])];
+  if (!ids.length) return fail("Chưa chọn phiếu nào.");
+
+  let mentor = null;
+  if (mentorUid) {
+    mentor = state.members[mentorUid];
+    if (!mentor || mentor.role !== "mentor") return fail("Người hướng dẫn không hợp lệ.");
+  }
+
+  let updated = 0;
+  let skipped = 0;
+  for (const id of ids) {
+    const ticket = state.tickets[id];
+    if (!ticket || !permissionsFor(ticket, actor).assign) { skipped++; continue; }
+    if (mentor) {
+      if (mentor.department !== ticket.department) { skipped++; continue; }
+      ticket.evaluatorUid = mentorUid;
+      ticket.evaluatorName = mentor.fullName;
+      addHistory(ticket, actor, "Phân công", `Giao cho ${mentor.fullName} (gán hàng loạt)`);
+    } else {
+      ticket.evaluatorUid = null;
+      ticket.evaluatorName = defaultEvaluatorName(ticket.department);
+      addHistory(ticket, actor, "Phân công", "Trưởng bộ phận tự đánh giá (gán hàng loạt)");
+    }
+    updated++;
+  }
+
+  if (!updated) return fail("Không gán được phiếu nào: phiếu đã gửi, ngoài quyền của bạn, hoặc người hướng dẫn khác bộ phận.");
+  write(state);
+  return ok({ updated, skipped });
 }
 
 // ============================================
@@ -1130,6 +1173,7 @@ export const DemoStore = {
   canView,
   permissionsFor,
   assignEvaluator,
+  assignEvaluatorBulk,
   saveDraft,
   submit,
   returnTicket,
