@@ -98,13 +98,17 @@ function showGoogleLogin() {
 // ✅ FIX 1: Update redirectToApp() để redirect HR/Supervisor sang app.html
 function redirectToApp(role) {
   if (role === ROLES.ADMIN) {
-    window.location.replace("./admin.html");
+    setTimeout(() => {
+  window.location.href = "./admin.html";
+}, 100);
     return;
   }
 
   // HR & Supervisor chuyển sang app.html
   if (role === ROLES.HR || role === ROLES.SUPERVISOR) {
-    window.location.replace("./app.html");
+    setTimeout(() => {
+  window.location.href = "./app.html";
+}, 100);
     return;
   }
 
@@ -129,7 +133,9 @@ async function processSignedInUser(user) {
   if (isAdminEmail(user)) {
     const adminTab = document.getElementById("admin");
     if (adminTab) {
-      window.location.replace("./admin.html");
+      setTimeout(() => {
+  window.location.href = "./admin.html";
+}, 100);
     }
     return;
   }
@@ -218,7 +224,9 @@ export async function handleGoogleSignIn() {
     currentUser = result.user;
 
     if (isAdminEmail(currentUser)) {
-      window.location.replace("./admin.html");
+      setTimeout(() => {
+  window.location.href = "./admin.html";
+}, 100);
       return currentUser;
     }
 
@@ -246,7 +254,9 @@ export async function handleUserSubmit(formData) {
   }
 
   if (isAdminEmail(currentUser)) {
-    window.location.replace("./admin.html");
+    setTimeout(() => {
+  window.location.href = "./admin.html";
+}, 100);
     return false;
   }
 
@@ -339,7 +349,9 @@ export async function handleAdminLogin() {
       return false;
     }
 
-    window.location.replace("./admin.html");
+    setTimeout(() => {
+  window.location.href = "./admin.html";
+}, 100);
     return true;
   } catch (error) {
     console.error("Admin sign-in error:", error);
