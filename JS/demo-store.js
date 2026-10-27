@@ -1,25 +1,22 @@
 // ============================================
 // DEMO STORE — DỮ LIỆU MÔ PHỎNG (prototype)
 // ============================================
-// Không ghi Firestore. Dữ liệu giả lập được lưu trong sessionStorage của
-// trình duyệt, nên chỉ tồn tại trong tab hiện tại; bấm "Làm mới" sẽ tạo lại.
-//
-// Cấu trúc hạng mục, công thức điểm và luồng trạng thái theo README mục 2.3, 2.4, 2.5.
+// Không ghi Firestore. Dữ liệu nằm trong localStorage của trình duyệt:
+//  - dùng chung giữa các tab trên CÙNG một trình duyệt (admin.html ↔ app.html);
+//  - KHÔNG dùng chung giữa các máy hoặc các trình duyệt khác nhau.
+// Cấu trúc hạng mục, công thức điểm và luồng trạng thái theo README mục 2.3–2.5.
 //
 // CHỜ XÁC NHẬN (chưa đưa vào quyết định):
-//  - Thang điểm chi tiết (đang dùng 0–10, bước 0.5; README ghi thang 10).
+//  - Thang điểm: đang dùng 0–10, bước 0.5 (README ghi thang 10).
 //  - Thang xếp loại: không hiển thị vì README chưa có quy định.
-//  - Quy tắc làm tròn: chỉ làm tròn 2 chữ số khi hiển thị.
-//  - Các ô nhận xét HR / Tổ công tác: README chưa có, giữ theo form hiện có.
+//  - Làm tròn: chỉ làm tròn 2 chữ số khi hiển thị.
+//  - Sinh viên bắt đầu/kết thúc giữa tháng: hiện tạo phiếu cho mọi SVTT trong danh sách.
+//  - Phân công: hiện theo bộ phận (Trưởng bộ phận của bộ phận đó đánh giá).
 
 export const DEMO_BANNER =
-  "DỮ LIỆU MÔ PHỎNG — chưa kết nối cơ sở dữ liệu. Thay đổi chỉ lưu trên trình duyệt này.";
+  "DỮ LIỆU MÔ PHỎNG — chưa kết nối cơ sở dữ liệu. Dữ liệu chỉ lưu trên trình duyệt này và dùng chung giữa các tab của trình duyệt này.";
 
-const STORAGE_KEY = "internhub-demo-v1";
-const SEED = 20261027;
-const INTERN_COUNT = 520;
-
-export const PERIOD = { id: "EV-2026-10", label: "Tháng 10/2026" };
+const STORAGE_KEY = "internhub-demo-v2";
 
 export const STATUS = {
   NOT_STARTED: "chua_bat_dau",
@@ -85,114 +82,43 @@ export function calcResult(scores) {
 }
 
 // ============================================
-// Dữ liệu giả lập
+// Lưu trữ (localStorage, đọc lại mỗi lần để các tab luôn thấy dữ liệu mới nhất)
 // ============================================
-function mulberry32(seed) {
-  let s = seed >>> 0;
-  return function () {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function emptyState() {
+  return { periods: {}, interns: {}, tickets: {} };
 }
 
-const DEPARTMENTS = ["Lễ tân", "Nhà hàng", "Buồng phòng", "Kỹ thuật", "Kinh doanh", "Marketing", "Tài chính", "Vui chơi"];
-const SURNAMES = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ"];
-const MIDDLE = ["Văn", "Thị", "Minh", "Thu", "Hoàng", "Quốc", "Ngọc", "Anh"];
-const GIVEN = ["An", "Bình", "Châu", "Dũng", "Hà", "Khang", "Linh", "Nam", "Phương", "Quân", "Trang", "Uyên", "Việt"];
-const SCHOOLS = ["Trường ĐH Demo A", "Trường ĐH Demo B", "Trường CĐ Demo C", "Trường ĐH Demo D"];
-
-function buildSeed() {
-  const rnd = mulberry32(SEED);
-  const pick = list => list[Math.floor(rnd() * list.length)];
-  const baseTime = Date.UTC(2026, 9, 1, 8, 0, 0);
-  const tickets = {};
-
-  for (let i = 1; i <= INTERN_COUNT; i++) {
-    const internId = `SV${String(i).padStart(4, "0")}`;
-    const department = pick(DEPARTMENTS);
-    const r = rnd();
-    let status;
-    if (r < 0.3) status = STATUS.NOT_STARTED;
-    else if (r < 0.5) status = STATUS.IN_PROGRESS;
-    else if (r < 0.75) status = STATUS.WAITING;
-    else if (r < 0.85) status = STATUS.RETURNED;
-    else status = STATUS.FINALIZED;
-
-    const scores = Array(ITEMS.length).fill(null);
-    const filled =
-      status === STATUS.NOT_STARTED ? 0 :
-      status === STATUS.IN_PROGRESS ? Math.floor(rnd() * ITEMS.length) :
-      ITEMS.length;
-    for (let k = 0; k < filled; k++) {
-      scores[k] = Math.round((rnd() * 9 + 1) * 2) / 2;
-    }
-
-    const updated = new Date(baseTime + i * 600000).toISOString();
-    const id = `${PERIOD.id}-${internId}`;
-    const sent = [STATUS.WAITING, STATUS.FINALIZED, STATUS.RETURNED].includes(status);
-
-    tickets[id] = {
-      id,
-      periodId: PERIOD.id,
-      internId,
-      internName: `${pick(SURNAMES)} ${pick(MIDDLE)} ${pick(GIVEN)}`,
-      school: pick(SCHOOLS),
-      department,
-      evaluatorName: `Trưởng bộ phận ${department}`,
-      status,
-      scores,
-      textPart4: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu (dữ liệu giả lập).",
-      textPart5: "",
-      textCommittee: "",
-      sendCount: sent ? 1 : 0,
-      returnReason: status === STATUS.RETURNED ? "Bổ sung nhận xét chi tiết (dữ liệu giả lập)." : "",
-      history: [],
-      createdAt: updated,
-      updatedAt: updated
-    };
-  }
-  return tickets;
-}
-
-// ============================================
-// Lưu trữ (sessionStorage, có try/catch)
-// ============================================
-let cache = null;
-
-function save(data) {
-  cache = data;
+function read() {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (error) {
-    // Trình duyệt chặn storage: vẫn chạy trong bộ nhớ, chỉ mất khi tải lại trang
-  }
-}
-
-function data() {
-  if (cache) return cache;
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      cache = JSON.parse(raw);
-      return cache;
+      const parsed = JSON.parse(raw);
+      return {
+        periods: parsed.periods || {},
+        interns: parsed.interns || {},
+        tickets: parsed.tickets || {}
+      };
     }
   } catch (error) {
-    // Dữ liệu hỏng hoặc storage bị chặn: tạo lại từ seed
+    // Dữ liệu hỏng hoặc storage bị chặn: coi như chưa có dữ liệu
   }
-  const seeded = buildSeed();
-  save(seeded);
-  return seeded;
+  return emptyState();
+}
+
+function write(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // Storage bị chặn: thao tác vẫn trả về kết quả nhưng không lưu được
+  }
 }
 
 function now() {
   return new Date().toISOString();
 }
 
-function ok(ticket) {
-  return { ok: true, ticket: ticket ? { ...ticket } : null };
+function ok(extra = {}) {
+  return { ok: true, ...extra };
 }
 
 function fail(error) {
@@ -205,7 +131,274 @@ function addHistory(ticket, actor, action, note = "") {
 }
 
 // ============================================
-// Phân quyền (mô phỏng — logic giống quy tắc sẽ đặt ở máy chủ)
+// Kỳ đánh giá
+// ============================================
+export function listPeriods() {
+  return Object.values(read().periods).sort((a, b) => b.id.localeCompare(a.id));
+}
+
+// month dạng "YYYY-MM"
+export function createPeriod({ month, name }) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month || ""))) {
+    return fail("Tháng không hợp lệ. Định dạng đúng: năm-tháng, ví dụ 2026-11.");
+  }
+  const state = read();
+  const id = `EV-${month}`;
+  if (state.periods[id]) return fail(`Kỳ ${id} đã tồn tại.`);
+
+  const [y, m] = month.split("-");
+  state.periods[id] = {
+    id,
+    month,
+    name: String(name || "").trim() || `Tháng ${Number(m)}/${y}`,
+    status: "dang_mo",
+    createdAt: now()
+  };
+  write(state);
+  return ok({ period: state.periods[id] });
+}
+
+// Tạo phiếu cho mọi SVTT trong danh sách. Phiếu đã có thì bỏ qua, không tạo trùng.
+export function generateTickets(periodId) {
+  const state = read();
+  if (!state.periods[periodId]) return fail("Kỳ đánh giá không tồn tại.");
+
+  const interns = Object.values(state.interns);
+  if (interns.length === 0) return fail("Chưa có danh sách SVTT. Hãy nhập danh sách trước.");
+
+  let created = 0;
+  let existing = 0;
+  for (const intern of interns) {
+    const id = `${periodId}-${intern.internId}`;
+    if (state.tickets[id]) {
+      existing += 1;
+      continue;
+    }
+    const stamp = now();
+    state.tickets[id] = {
+      id,
+      periodId,
+      internId: intern.internId,
+      internName: intern.fullName,
+      school: intern.school || "",
+      department: intern.department,
+      evaluatorName: `Trưởng bộ phận ${intern.department}`,
+      status: STATUS.NOT_STARTED,
+      scores: Array(ITEMS.length).fill(null),
+      textPart4: "",
+      textPart5: "",
+      textCommittee: "",
+      sendCount: 0,
+      returnReason: "",
+      history: [],
+      createdAt: stamp,
+      updatedAt: stamp
+    };
+    created += 1;
+  }
+
+  write(state);
+  return ok({ created, existing });
+}
+
+// ============================================
+// Danh sách SVTT: đọc CSV và kiểm tra
+// ============================================
+// Cột: Mã SV, Họ tên, Trường, Bộ phận, Ngày bắt đầu, Ngày kết thúc (ngày dạng YYYY-MM-DD hoặc DD/MM/YYYY)
+export const INTERN_COLUMNS = ["Mã SV", "Họ tên", "Trường", "Bộ phận", "Ngày bắt đầu", "Ngày kết thúc"];
+
+function splitCsvLine(line, delimiter) {
+  const cells = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quoted) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cur += ch;
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === delimiter) {
+      cells.push(cur.trim());
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+
+// Trả về { headers, rows: [{ line, cells }] }. Dòng trống bị bỏ qua.
+export function parseCsv(text) {
+  const lines = String(text || "").replace(/^﻿/, "").split(/\r?\n/);
+  const first = lines.find(l => l.trim() !== "") || "";
+  const delimiter = first.split(";").length > first.split(",").length ? ";" : ",";
+  const all = [];
+  lines.forEach((raw, idx) => {
+    if (raw.trim() === "") return;
+    all.push({ line: idx + 1, cells: splitCsvLine(raw, delimiter) });
+  });
+  if (all.length === 0) return { headers: [], rows: [] };
+  return { headers: all[0].cells, rows: all.slice(1) };
+}
+
+function normalizeDate(value) {
+  const v = String(value || "").trim();
+  if (!v) return "";
+  let m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return v;
+  m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return null; // không hợp lệ
+}
+
+// rows: kết quả của parseCsv().rows. Không ghi đè SVTT đã có.
+export function importInterns(rows) {
+  const state = read();
+  const seenInFile = new Set();
+  const errors = [];
+  let added = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const [internId, fullName, school, department, start, end] = row.cells;
+    const problems = [];
+    if (!internId) problems.push("thiếu Mã SV");
+    if (!fullName) problems.push("thiếu Họ tên");
+    if (!department) problems.push("thiếu Bộ phận");
+    const startDate = normalizeDate(start);
+    const endDate = normalizeDate(end);
+    if (startDate === null) problems.push("Ngày bắt đầu không đúng định dạng");
+    if (endDate === null) problems.push("Ngày kết thúc không đúng định dạng");
+
+    if (problems.length) {
+      errors.push({ line: row.line, message: problems.join("; ") });
+      continue;
+    }
+    if (seenInFile.has(internId)) {
+      errors.push({ line: row.line, message: `Mã SV ${internId} bị trùng trong file` });
+      continue;
+    }
+    seenInFile.add(internId);
+
+    if (state.interns[internId]) {
+      skipped += 1;
+      continue;
+    }
+
+    state.interns[internId] = {
+      internId,
+      fullName,
+      school: school || "",
+      department,
+      startDate: startDate || "",
+      endDate: endDate || "",
+      importedAt: now()
+    };
+    added += 1;
+  }
+
+  write(state);
+  return { added, skipped, errors, total: rows.length };
+}
+
+export function listInterns() {
+  return Object.values(read().interns).sort((a, b) => a.internId.localeCompare(b.internId));
+}
+
+// ============================================
+// Dữ liệu mẫu (chỉ khi Admin chủ động nạp)
+// ============================================
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function loadSampleData() {
+  const rnd = mulberry32(20261027);
+  const pick = list => list[Math.floor(rnd() * list.length)];
+  const departments = ["Lễ tân", "Nhà hàng", "Buồng phòng", "Kỹ thuật", "Kinh doanh", "Marketing", "Tài chính", "Vui chơi"];
+  const surnames = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ"];
+  const middle = ["Văn", "Thị", "Minh", "Thu", "Hoàng", "Quốc", "Ngọc", "Anh"];
+  const given = ["An", "Bình", "Châu", "Dũng", "Hà", "Khang", "Linh", "Nam", "Phương", "Quân", "Trang", "Uyên", "Việt"];
+  const schools = ["Trường ĐH Demo A", "Trường ĐH Demo B", "Trường CĐ Demo C", "Trường ĐH Demo D"];
+
+  const state = emptyState();
+  const period = { id: "EV-2026-10", month: "2026-10", name: "Tháng 10/2026 (dữ liệu mẫu)", status: "dang_mo", createdAt: now() };
+  state.periods[period.id] = period;
+
+  for (let i = 1; i <= 520; i++) {
+    const internId = `SV${String(i).padStart(4, "0")}`;
+    const department = pick(departments);
+    state.interns[internId] = {
+      internId,
+      fullName: `${pick(surnames)} ${pick(middle)} ${pick(given)}`,
+      school: pick(schools),
+      department,
+      startDate: "2026-10-01",
+      endDate: "2026-12-31",
+      importedAt: now()
+    };
+
+    const r = rnd();
+    const status =
+      r < 0.3 ? STATUS.NOT_STARTED :
+      r < 0.5 ? STATUS.IN_PROGRESS :
+      r < 0.75 ? STATUS.WAITING :
+      r < 0.85 ? STATUS.RETURNED : STATUS.FINALIZED;
+
+    const scores = Array(ITEMS.length).fill(null);
+    const filled =
+      status === STATUS.NOT_STARTED ? 0 :
+      status === STATUS.IN_PROGRESS ? Math.floor(rnd() * ITEMS.length) : ITEMS.length;
+    for (let k = 0; k < filled; k++) scores[k] = Math.round((rnd() * 9 + 1) * 2) / 2;
+
+    const stamp = new Date(Date.UTC(2026, 9, 1, 8, 0, 0) + i * 600000).toISOString();
+    const id = `${period.id}-${internId}`;
+    const sent = [STATUS.WAITING, STATUS.FINALIZED, STATUS.RETURNED].includes(status);
+    state.tickets[id] = {
+      id,
+      periodId: period.id,
+      internId,
+      internName: state.interns[internId].fullName,
+      school: state.interns[internId].school,
+      department,
+      evaluatorName: `Trưởng bộ phận ${department}`,
+      status,
+      scores,
+      textPart4: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu (dữ liệu giả lập).",
+      textPart5: "",
+      textCommittee: "",
+      sendCount: sent ? 1 : 0,
+      returnReason: status === STATUS.RETURNED ? "Bổ sung nhận xét chi tiết (dữ liệu giả lập)." : "",
+      history: [],
+      createdAt: stamp,
+      updatedAt: stamp
+    };
+  }
+
+  write(state);
+  return ok({ interns: 520, tickets: 520 });
+}
+
+export function resetDemo() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    // bỏ qua
+  }
+}
+
+// ============================================
+// Phân quyền (mô phỏng — quy tắc thật phải nằm ở máy chủ/Firestore Rules)
 // ============================================
 export function canView(ticket, actor) {
   if (!ticket || !actor) return false;
@@ -235,24 +428,54 @@ export function permissionsFor(ticket, actor) {
 }
 
 // ============================================
-// Thao tác (mô phỏng)
+// Truy vấn phiếu
 // ============================================
-export function listTickets(actor) {
-  return Object.values(data())
+export function listTickets(actor, periodId = null) {
+  return Object.values(read().tickets)
     .filter(t => canView(t, actor))
+    .filter(t => !periodId || t.periodId === periodId)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map(t => ({ ...t }));
 }
 
+export function listAllTickets(periodId = null) {
+  return Object.values(read().tickets)
+    .filter(t => !periodId || t.periodId === periodId)
+    .map(t => ({ ...t }));
+}
+
 export function getTicket(id) {
-  const t = data()[id];
+  const t = read().tickets[id];
   return t ? { ...t } : null;
 }
 
+// Kỳ mới nhất đang mở, dùng làm kỳ hiện hành trên giao diện người dùng
+export function activePeriod() {
+  return listPeriods().find(p => p.status === "dang_mo") || null;
+}
+
+// Việc cần làm của người dùng hiện tại
+export function todoFor(actor, periodId = null) {
+  const tickets = listTickets(actor, periodId);
+  let items;
+  if (actor.role === "supervisor") {
+    items = tickets.filter(t =>
+      [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.RETURNED].includes(t.status));
+  } else if (actor.role === "hr") {
+    items = tickets.filter(t => t.status === STATUS.WAITING);
+  } else {
+    items = [];
+  }
+  return items;
+}
+
+// ============================================
+// Thao tác (mô phỏng)
+// ============================================
 // Lưu nháp: điểm và nhận xét. Chỉ ghi phần người dùng được phép sửa.
 export function saveDraft(id, actor, { scores, notes = {} }) {
-  const all = data();
-  const ticket = all[id];
+  const all = read();
+  const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   const p = permissionsFor(ticket, actor);
 
@@ -275,13 +498,13 @@ export function saveDraft(id, actor, { scores, notes = {} }) {
     ticket[field] = String(value ?? "");
   }
 
-  save(all);
-  return ok(ticket);
+  write(all);
+  return ok({ ticket: { ...ticket } });
 }
 
 export function submit(id, actor) {
-  const all = data();
-  const ticket = all[id];
+  const all = read();
+  const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).submit) return fail("Phiếu này không ở trạng thái có thể gửi.");
 
@@ -292,13 +515,13 @@ export function submit(id, actor) {
   ticket.sendCount += 1;
   ticket.returnReason = "";
   addHistory(ticket, actor, "Gửi phiếu");
-  save(all);
-  return ok(ticket);
+  write(all);
+  return ok({ ticket: { ...ticket } });
 }
 
 export function returnTicket(id, actor, reason) {
-  const all = data();
-  const ticket = all[id];
+  const all = read();
+  const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).returnTicket) return fail("Bạn không có quyền trả phiếu này.");
   const text = String(reason || "").trim();
@@ -307,20 +530,20 @@ export function returnTicket(id, actor, reason) {
   ticket.status = STATUS.RETURNED;
   ticket.returnReason = text;
   addHistory(ticket, actor, "Trả về", text);
-  save(all);
-  return ok(ticket);
+  write(all);
+  return ok({ ticket: { ...ticket } });
 }
 
 export function finalize(id, actor) {
-  const all = data();
-  const ticket = all[id];
+  const all = read();
+  const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).finalize) return fail("Chỉ phiếu đang chờ xác nhận mới được chốt.");
 
   ticket.status = STATUS.FINALIZED;
   addHistory(ticket, actor, "Chốt phiếu");
-  save(all);
-  return ok(ticket);
+  write(all);
+  return ok({ ticket: { ...ticket } });
 }
 
 // Thống kê theo README mục 7.2: chỉ "đã chốt" mới tính là hoàn tất
@@ -340,19 +563,20 @@ export function formatDateTime(iso) {
   return new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
 }
 
-// Xóa dữ liệu demo và tạo lại từ seed
-export function resetDemo() {
-  cache = null;
-  try {
-    sessionStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    // bỏ qua
-  }
-}
-
 export const DemoStore = {
+  listPeriods,
+  createPeriod,
+  generateTickets,
+  parseCsv,
+  importInterns,
+  listInterns,
+  loadSampleData,
+  resetDemo,
   listTickets,
+  listAllTickets,
   getTicket,
+  activePeriod,
+  todoFor,
   canView,
   permissionsFor,
   saveDraft,
@@ -360,6 +584,5 @@ export const DemoStore = {
   returnTicket,
   finalize,
   stats,
-  formatDateTime,
-  resetDemo
+  formatDateTime
 };
