@@ -373,14 +373,6 @@
             <label for="department">Bộ phận / Phòng ban</label>
             <select id="department" required>
               <option value="">-- Chọn bộ phận --</option>
-              <option value="HR">Nhân sự &amp; Đào tạo</option>
-              <option value="IT">Công nghệ Thông tin</option>
-              <option value="ENG">Kỹ thuật &amp; Bảo trì</option>
-              <option value="SEC">An ninh &amp; An toàn</option>
-              <option value="MK">Truyền thông &amp; Quan hệ Công chúng</option>
-              <option value="FB">Tiền sảnh &amp; Bar</option>
-              <option value="KT">Kế toán</option>
-              <option value="MKT">Marketing</option>
             </select>
           </div>
 
@@ -421,6 +413,7 @@
 
   <script type="module">
     import { Auth } from "./JS/auth.js";
+    import { DemoStore } from "./JS/demo-store.js";
 
     // Lối thoát khi đang kẹt phiên: mở index.html?logout=1 để đăng xuất rồi hiện form đăng nhập.
     // Phải đăng xuất TRƯỚC khi bật listener, nếu không listener sẽ tự chuyển trang theo phiên cũ.
@@ -434,6 +427,27 @@
     }
 
     Auth.init();
+
+    // Danh sách bộ phận lấy từ danh mục do Admin tạo (không cứng trong HTML)
+    const deptSelect = document.getElementById("department");
+    function fillDepartments() {
+      const keep = deptSelect.value;
+      deptSelect.replaceChildren();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      const list = DemoStore.listDepartments();
+      placeholder.textContent = list.length ? "-- Chọn bộ phận --" : "Chưa có bộ phận (liên hệ Admin)";
+      deptSelect.appendChild(placeholder);
+      for (const d of list) {
+        const option = document.createElement("option");
+        option.value = d.code;
+        option.textContent = d.name;
+        deptSelect.appendChild(option);
+      }
+      if (list.some(d => d.code === keep)) deptSelect.value = keep;
+    }
+    fillDepartments();
+    deptSelect.addEventListener("focus", fillDepartments);
 
     // Chuyển tab đăng nhập
     document.querySelectorAll(".tab-button").forEach(button => {
