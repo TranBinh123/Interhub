@@ -430,6 +430,15 @@
 
     // Danh sách bộ phận lấy từ danh mục do Admin tạo (không cứng trong HTML)
     const deptSelect = document.getElementById("department");
+    let deptHint = document.getElementById("deptHint");
+    if (!deptHint) {
+      deptHint = document.createElement("small");
+      deptHint.id = "deptHint";
+      deptHint.style.display = "block";
+      deptHint.style.color = "#64748b";
+      deptSelect.insertAdjacentElement("afterend", deptHint);
+    }
+
     function fillDepartments() {
       const keep = deptSelect.value;
       deptSelect.replaceChildren();
@@ -445,6 +454,9 @@
         deptSelect.appendChild(option);
       }
       if (list.some(d => d.code === keep)) deptSelect.value = keep;
+      deptHint.textContent = list.length
+        ? `Đang thấy ${list.length} bộ phận trên trình duyệt này.`
+        : "Trình duyệt này chưa thấy bộ phận nào. Hãy mở trang quản trị (admin.html) trên cùng địa chỉ và trình duyệt để kiểm tra danh mục.";
     }
     fillDepartments();
     deptSelect.addEventListener("focus", fillDepartments);

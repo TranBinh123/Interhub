@@ -468,6 +468,7 @@
 
         <!-- Dashboard view -->
         <div id="dashboard" class="view">
+          <div class="card hidden" id="followBox"></div>
           <div class="card" id="todoBox"></div>
 
           <div class="stats-grid">
@@ -818,9 +819,39 @@
       const period = DemoStore.activePeriod();
       tickets = period ? DemoStore.listTickets(actor, period.id) : [];
       updateDashboardStats();
+      renderFollow(actor);
       renderTodo(period, actor);
       displayRecentTickets();
       displayAllTickets();
+    }
+
+    // Cảnh báo SVTT sắp về: Phòng Nhân sự thấy tất cả, Trưởng bộ phận thấy bộ phận mình
+    function renderFollow(actor) {
+      const box = document.getElementById("followBox");
+      if (!box) return;
+      const rows = DemoStore.followUpFor(actor, DemoStore.todayIso());
+      if (!rows.length) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+      const alerts = rows.filter(r => r.level === "alert");
+      const items = rows.slice(0, 10).map(r => `
+        <tr>
+          <td>${escapeHtml(r.internName)}<br><small>${escapeHtml(r.internId)} · ${escapeHtml(r.department)}</small></td>
+          <td>${escapeHtml(r.endDate.split("-").reverse().join("/"))}</td>
+          <td>${r.leavingSoon ? "Sắp về" : ""}</td>
+          <td class="${r.level === "alert" ? "ih-error" : ""}">${escapeHtml(r.message)}</td>
+        </tr>`).join("");
+      box.classList.remove("hidden");
+      box.innerHTML = `
+        <h2>Cảnh báo SVTT sắp về</h2>
+        <p>Cảnh báo trước ${DemoStore.FOLLOW_UP_DAYS} ngày theo lịch (kể cả thứ 7, chủ nhật). <strong>${alerts.length}</strong> cần làm ngay.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>SVTT</th><th>Ngày về</th><th></th><th>Cảnh báo</th></tr></thead>
+          <tbody>${items}</tbody>
+        </table></div>
+        ${rows.length > 10 ? `<p>Hiển thị 10 trên tổng ${rows.length}.</p>` : ""}`;
     }
 
     // Lý do cụ thể khi người dùng chưa thấy SVTT/phiếu nào
@@ -860,7 +891,7 @@
       const hint = todoHint(actor, period, todo);
       const rows = todo.slice(0, 10).map(t => `
         <tr>
-          <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
+          <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small>${t.evaluationNote ? `<br><small style="color:#9a3412;">${escapeHtml(t.evaluationNote)}</small>` : ""}</td>
           <td>${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
           <td><a class="btn btn-secondary btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
         </tr>`).join("");
