@@ -440,16 +440,13 @@
 
     let currentTicket = null;
     let currentScores = Array(15).fill(null);
+    let userProfile = null;
 
     // ============================================
     // Get ticket ID from URL
+    // (Không dùng "return" ở cấp module: đó là lỗi cú pháp và làm hỏng cả script)
     // ============================================
     const ticketId = new URLSearchParams(window.location.search).get("id");
-    if (!ticketId) {
-      document.getElementById("evaluationForm").classList.add("hidden");
-      document.getElementById("loadingState").innerHTML = "❌ Không tìm thấy phiếu";
-      return;
-    }
 
     // ============================================
     // Initialize
@@ -492,7 +489,8 @@
     // Render Role-specific Notes
     // ============================================
     function renderRoleNotes() {
-      const userRole = Auth.getCurrentUser?.()?.role;
+      // Vai trò nằm trong hồ sơ Firestore (users/{uid}), không nằm trên đối tượng user của Firebase
+      const userRole = userProfile?.role;
       const container = document.getElementById("roleNotesContainer");
       let html = "";
 
@@ -663,8 +661,43 @@
       }
     }
 
-    // Initialize form
-    initForm();
+    // ============================================
+    // Bootstrap: kiểm tra đăng nhập và quyền trước khi tải phiếu
+    // ============================================
+    async function bootstrap() {
+      if (!ticketId) {
+        document.getElementById("evaluationForm").classList.add("hidden");
+        document.getElementById("loadingState").innerHTML = "❌ Không tìm thấy phiếu";
+        return;
+      }
+
+      let user = null;
+      try {
+        user = await Auth.waitForUser();
+      } catch (error) {
+        console.error("Không thể kiểm tra đăng nhập:", error);
+      }
+
+      if (!user) {
+        window.location.replace("./index.html");
+        return;
+      }
+
+      try {
+        userProfile = await Auth.getProfile(user.uid);
+      } catch (error) {
+        console.error("Không thể tải hồ sơ người dùng:", error);
+      }
+
+      if (!userProfile || userProfile.status !== "approved" || userProfile.isActive !== true) {
+        window.location.replace("./index.html");
+        return;
+      }
+
+      await initForm();
+    }
+
+    bootstrap();
   </script>
 </body>
 </html>
