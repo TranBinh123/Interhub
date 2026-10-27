@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>InternHub - Phiếu đánh giá</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --primary: #0a6a73;
+      --primary-dark: #073b40;
+      --surface: #ffffff;
+      --surface-2: #f3f6f9;
+      --text: #12212f;
+      --text-muted: #556675;
+      --border: #d3dce4;
+      --error: #a82e28;
+      --success: #16694a;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface: #122030;
+        --surface-2: #0b1520;
+        --text: #e5edf3;
+        --text-muted: #92a4b3;
+        --border: #243646;
+      }
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: "Be Vietnam Pro", system-ui, -apple-system, sans-serif;
+      background: var(--surface-2);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .page-header h1 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .page-header button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-back {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-back:hover {
+      background: var(--surface-2);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* Form sections */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    input, select, textarea {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(10, 106, 115, 0.1);
+    }
+
+    input[readonly] {
+      background: var(--surface-2);
+      cursor: not-allowed;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Evaluation table */
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--surface-2);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    tr:hover {
+      background: var(--surface-2);
+    }
+
+    .part-header {
+      background: rgba(10, 106, 115, 0.1);
+      font-weight: 700;
+    }
+
+    .part-label {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .score-input {
+      width: 80px;
+      text-align: center;
+      padding: 8px 4px;
+    }
+
+    /* Result section */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .result-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .result-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .result-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .result-grade {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* Actions */
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-primary:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* Messages */
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.success {
+      background: rgba(22, 105, 74, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(22, 105, 74, 0.2);
+    }
+
+    .message.error {
+      background: rgba(168, 46, 40, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(168, 46, 40, 0.2);
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 16px;
+      }
+
+      .score-input {
+        width: 60px;
+        font-size: 12px;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th, td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="page-header">
+      <h1>Phiếu đánh giá thực tập sinh</h1>
+      <button class="btn-back" id="backBtn" onclick="window.history.back()">← Quay lại</button>
+    </div>
+
+    <!-- Messages -->
+    <div id="successMessage" class="message success"></div>
+    <div id="errorMessage" class="message error"></div>
+
+    <!-- Loading -->
+    <div id="loadingState" class="loading">
+      Đang tải dữ liệu...
+    </div>
+
+    <!-- Form -->
+    <form id="evaluationForm" class="hidden">
+      <!-- Section 1: Intern Info -->
+      <div class="card">
+        <h2>Thông tin thực tập sinh</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Mã phiếu</label>
+            <input type="text" id="ticketId" readonly>
+          </div>
+          <div class="form-group">
+            <label>Mã sinh viên</label>
+            <input type="text" id="internId" readonly>
+          </div>
+          <div class="form-group">
+            <label>Tên sinh viên</label>
+            <input type="text" id="internName" readonly>
+          </div>
+          <div class="form-group">
+            <label>Bộ phận</label>
+            <input type="text" id="department" readonly>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Evaluation Scores -->
+      <div class="card">
+        <h2>Tiêu chí đánh giá (Điểm từ 1-5)</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tiêu chí</th>
+                <th>Mô tả</th>
+                <th>Điểm</th>
+              </tr>
+            </thead>
+            <tbody id="scoresTable">
+              <!-- Generated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 3: Notes by Role -->
+      <div class="card" id="notesSection">
+        <h2>Nhận xét</h2>
+        <div id="roleNotesContainer">
+          <!-- Generated by JS based on user role -->
+        </div>
+      </div>
+
+      <!-- Section 4: Results -->
+      <div class="card">
+        <h2>Kết quả đánh giá</h2>
+        <div class="result-grid">
+          <div class="result-card">
+            <div class="result-label">Phần I</div>
+            <div class="result-value" id="resultA">—</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Phần II</div>
+            <div class="result-value" id="resultB">—</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Phần III</div>
+            <div class="result-value" id="resultC">—</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Điểm cuối</div>
+            <div class="result-value" id="resultFinal">—</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Xếp loại</div>
+            <div class="result-grade" id="resultGrade">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          💾 Lưu
+        </button>
+        <button type="button" class="btn btn-secondary" id="submitForReviewBtn">
+          ✓ Gửi phê duyệt
+        </button>
+        <button type="button" class="btn btn-secondary" id="resetBtn">
+          ↻ Làm mới
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script type="module">
+    import { TicketManager } from "./JS/ticket-manager.js";
+    import { Auth } from "./JS/auth.js";
+
+    let currentTicket = null;
+    let currentScores = Array(15).fill(null);
+
+    // ============================================
+    // Get ticket ID from URL
+    // ============================================
+    const ticketId = new URLSearchParams(window.location.search).get("id");
+    if (!ticketId) {
+      document.getElementById("evaluationForm").classList.add("hidden");
+      document.getElementById("loadingState").innerHTML = "❌ Không tìm thấy phiếu";
+      return;
+    }
+
+    // ============================================
+    // Initialize
+    // ============================================
+    async function initForm() {
+      try {
+        const ticket = await TicketManager.get(ticketId);
+        if (!ticket) {
+          throw new Error("Phiếu không tồn tại");
+        }
+
+        currentTicket = ticket;
+        currentScores = [...ticket.scores];
+
+        document.getElementById("loadingState").classList.add("hidden");
+        document.getElementById("evaluationForm").classList.remove("hidden");
+
+        populateForm();
+        renderScoresTable();
+        updateResults();
+      } catch (error) {
+        console.error("Error loading form:", error);
+        document.getElementById("loadingState").innerHTML = "❌ " + error.message;
+      }
+    }
+
+    // ============================================
+    // Populate Form
+    // ============================================
+    function populateForm() {
+      document.getElementById("ticketId").value = currentTicket.id;
+      document.getElementById("internId").value = currentTicket.internId;
+      document.getElementById("internName").value = currentTicket.internName;
+      document.getElementById("department").value = currentTicket.department;
+
+      renderRoleNotes();
+    }
+
+    // ============================================
+    // Render Role-specific Notes
+    // ============================================
+    function renderRoleNotes() {
+      const userRole = Auth.getCurrentUser?.()?.role;
+      const container = document.getElementById("roleNotesContainer");
+      let html = "";
+
+      if (userRole === "supervisor") {
+        html = `
+          <div class="form-group">
+            <label>Nhận xét Phần IV (Trưởng bộ phận)</label>
+            <textarea id="textPart4" placeholder="Nhận xét của trưởng bộ phận...">${currentTicket.textPart4 || ""}</textarea>
+          </div>
+        `;
+      } else if (userRole === "hr") {
+        html = `
+          <div class="form-group">
+            <label>Nhận xét Phần V</label>
+            <textarea id="textPart5" placeholder="Nhận xét của Phòng Nhân sự...">${currentTicket.textPart5 || ""}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Nhận xét Tổ công tác sinh viên</label>
+            <textarea id="textCommittee" placeholder="Nhận xét của tổ công tác...">${currentTicket.textCommittee || ""}</textarea>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ============================================
+    // Render Scores Table
+    // ============================================
+    function renderScoresTable() {
+      const tbody = document.getElementById("scoresTable");
+      let html = "";
+
+      TicketManager.items.forEach((item, idx) => {
+        const parts = ["Phần I: Thái độ", "Phần II: Năng lực", "Phần III: Phát triển"];
+        const isNewPart = idx === 0 || item.part !== TicketManager.items[idx - 1].part;
+
+        if (isNewPart) {
+          html += `
+            <tr class="part-header">
+              <td colspan="3"><span class="part-label">${parts[item.part]}</span></td>
+            </tr>
+          `;
+        }
+
+        const score = currentScores[idx] || "";
+        html += `
+          <tr>
+            <td>${item.key}</td>
+            <td>${item.label}</td>
+            <td>
+              <input type="number"
+                     class="score-input"
+                     min="1" max="5"
+                     step="0.5"
+                     value="${score}"
+                     data-index="${idx}"
+                     onchange="handleScoreChange(this)">
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    // ============================================
+    // Handle Score Change
+    // ============================================
+    window.handleScoreChange = function(input) {
+      const idx = parseInt(input.dataset.index);
+      const value = input.value ? parseFloat(input.value) : null;
+
+      if (value && (value < 1 || value > 5)) {
+        showMessage("error", "Điểm phải từ 1-5");
+        input.value = currentScores[idx] || "";
+        return;
+      }
+
+      currentScores[idx] = value;
+      updateResults();
+    };
+
+    // ============================================
+    // Update Results
+    // ============================================
+    function updateResults() {
+      const result = TicketManager.calculateFinalScore(currentScores);
+
+      if (result) {
+        document.getElementById("resultA").textContent = result.A.toFixed(2);
+        document.getElementById("resultB").textContent = result.B.toFixed(2);
+        document.getElementById("resultC").textContent = result.C.toFixed(2);
+        document.getElementById("resultFinal").textContent = result.final.toFixed(2);
+        document.getElementById("resultGrade").textContent = result.grade;
+      } else {
+        document.getElementById("resultA").textContent = "—";
+        document.getElementById("resultB").textContent = "—";
+        document.getElementById("resultC").textContent = "—";
+        document.getElementById("resultFinal").textContent = "—";
+        document.getElementById("resultGrade").textContent = "—";
+      }
+    }
+
+    // ============================================
+    // Save Scores
+    // ============================================
+    document.getElementById("evaluationForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      try {
+        await TicketManager.updateScores(ticketId, currentScores);
+
+        // Save notes
+        const textPart4 = document.getElementById("textPart4");
+        if (textPart4?.value) {
+          await TicketManager.updateNotes(ticketId, 4, textPart4.value);
+        }
+
+        const textPart5 = document.getElementById("textPart5");
+        if (textPart5?.value) {
+          await TicketManager.updateNotes(ticketId, 5, textPart5.value);
+        }
+
+        const textCommittee = document.getElementById("textCommittee");
+        if (textCommittee?.value) {
+          await TicketManager.updateNotes(ticketId, "committee", textCommittee.value);
+        }
+
+        showMessage("success", "✓ Lưu thành công");
+      } catch (error) {
+        showMessage("error", "❌ " + error.message);
+      }
+    });
+
+    // ============================================
+    // Submit for Review
+    // ============================================
+    document.getElementById("submitForReviewBtn")?.addEventListener("click", async () => {
+      try {
+        await TicketManager.submit(ticketId);
+        showMessage("success", "✓ Gửi phê duyệt thành công");
+        setTimeout(() => window.history.back(), 1500);
+      } catch (error) {
+        showMessage("error", "❌ " + error.message);
+      }
+    });
+
+    // ============================================
+    // Reset Form
+    // ============================================
+    document.getElementById("resetBtn")?.addEventListener("click", () => {
+      currentScores = [...currentTicket.scores];
+      document.getElementById("evaluationForm").reset();
+      renderScoresTable();
+      updateResults();
+    });
+
+    // ============================================
+    // Messages
+    // ============================================
+    function showMessage(type, text) {
+      const el = document.getElementById(type + "Message");
+      if (el) {
+        el.textContent = text;
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), 3000);
+      }
+    }
+
+    // Initialize form
+    initForm();
+  </script>
+</body>
+</html>

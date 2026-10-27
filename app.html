@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>InternHub - Đánh giá thực tập sinh</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --primary: #0a6a73;
+      --primary-dark: #073b40;
+      --accent: #d4a574;
+      --surface: #ffffff;
+      --surface-2: #f3f6f9;
+      --text: #12212f;
+      --text-muted: #556675;
+      --border: #d3dce4;
+      --error: #a82e28;
+      --success: #16694a;
+      --warning: #d97706;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface: #122030;
+        --surface-2: #0b1520;
+        --text: #e5edf3;
+        --text-muted: #92a4b3;
+        --border: #243646;
+      }
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Be Vietnam Pro", system-ui, -apple-system, sans-serif;
+      background: var(--surface-2);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .app-container {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        display: none;
+      }
+      .app-container.sidebar-open .sidebar {
+        display: block;
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 100;
+        width: 250px;
+      }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--primary);
+      color: white;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .logo svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .user-info {
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+
+    .user-info strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .user-email {
+      opacity: 0.8;
+      font-size: 12px;
+    }
+
+    .nav {
+      flex: 1;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .nav-item {
+      margin-bottom: 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 10px 12px;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .nav-link.active {
+      background: rgba(255, 255, 255, 0.25);
+      font-weight: 600;
+    }
+
+    .nav-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 16px 0;
+    }
+
+    .logout-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Main content */
+    .main-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .topbar-title h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .topbar-title p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle {
+        display: block;
+      }
+    }
+
+    .content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    /* Cards & Panels */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* Table */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--surface-2);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    tr:hover {
+      background: var(--surface-2);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      background: rgba(217, 119, 6, 0.1);
+      color: var(--warning);
+    }
+
+    .status-approved {
+      background: rgba(22, 105, 74, 0.1);
+      color: var(--success);
+    }
+
+    .status-draft {
+      background: rgba(85, 102, 117, 0.1);
+      color: var(--text-muted);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* Messages */
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.success {
+      background: rgba(22, 105, 74, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(22, 105, 74, 0.2);
+    }
+
+    .message.error {
+      background: rgba(168, 46, 40, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(168, 46, 40, 0.2);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container" id="appContainer">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+        </svg>
+        InternHub
+      </div>
+
+      <div class="user-info">
+        <strong id="userDisplayName">—</strong>
+        <div class="user-email" id="userDisplayRole">—</div>
+        <div class="user-email" id="userDisplayEmail">—</div>
+      </div>
+
+      <ul class="nav">
+        <li class="nav-item">
+          <button class="nav-link active" data-view="dashboard">
+            📊 Tổng quan
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-view="evaluations">
+            📋 Phiếu đánh giá
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-view="periods">
+            📅 Kỳ đánh giá
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-view="reports">
+            📈 Báo cáo
+          </button>
+        </li>
+      </ul>
+
+      <div class="nav-divider"></div>
+
+      <button class="logout-btn" id="logoutBtn">🚪 Đăng xuất</button>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main-content">
+      <!-- Topbar -->
+      <div class="topbar">
+        <div class="topbar-title">
+          <h1 id="pageTitle">Tổng quan</h1>
+          <p id="pageSubtitle">—</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="menu-toggle" id="menuToggle">☰</button>
+        </div>
+      </div>
+
+      <!-- Content area -->
+      <div class="content">
+        <!-- Messages -->
+        <div id="successMessage" class="message success"></div>
+        <div id="errorMessage" class="message error"></div>
+
+        <!-- Dashboard view -->
+        <div id="dashboard" class="view">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Phiếu đang xử lý</div>
+              <div class="stat-value" id="statPending">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Phiếu đã chốt</div>
+              <div class="stat-value" id="statFinalized">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Tổng phiếu tháng này</div>
+              <div class="stat-value" id="statTotal">—</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Phiếu gần đây</h2>
+            <div class="table-wrap">
+              <table id="recentTicketsTable">
+                <thead>
+                  <tr>
+                    <th>Mã phiếu</th>
+                    <th>Sinh viên</th>
+                    <th>Bộ phận</th>
+                    <th>Trạng thái</th>
+                    <th>Cập nhật</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="empty-state">
+                    <td colspan="6">Chưa có phiếu nào</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evaluations view -->
+        <div id="evaluations" class="view hidden">
+          <div class="card">
+            <h2 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 16px;">
+              <span>Danh sách phiếu đánh giá</span>
+              <button class="btn btn-primary btn-sm" id="createTicketBtn">+ Tạo phiếu</button>
+            </h2>
+            <div class="table-wrap">
+              <table id="ticketsTable">
+                <thead>
+                  <tr>
+                    <th>Mã phiếu</th>
+                    <th>Sinh viên</th>
+                    <th>Bộ phận</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày tạo</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="empty-state">
+                    <td colspan="6">Chưa có phiếu nào</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Periods view -->
+        <div id="periods" class="view hidden">
+          <div class="card">
+            <h2 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 16px;">
+              <span>Các kỳ đánh giá</span>
+              <button class="btn btn-primary btn-sm" id="createPeriodBtn">+ Kỳ mới</button>
+            </h2>
+            <div class="table-wrap">
+              <table id="periodsTable">
+                <thead>
+                  <tr>
+                    <th>Mã kỳ</th>
+                    <th>Tên kỳ</th>
+                    <th>Trạng thái</th>
+                    <th>Hạn gửi</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="empty-state">
+                    <td colspan="5">Chưa có kỳ nào</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports view -->
+        <div id="reports" class="view hidden">
+          <div class="card">
+            <h2>Báo cáo đánh giá</h2>
+            <p style="color: var(--text-muted); margin: 0;">Tính năng báo cáo đang được phát triển...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Auth } from "./JS/auth.js";
+    import { Database } from "./JS/db.js";
+
+    // State
+    let currentUser = null;
+    let userProfile = null;
+    let tickets = [];
+
+    // ============================================
+    // Initialization
+    // ============================================
+    async function initApp() {
+      // Wait for auth
+      const authReady = new Promise(resolve => {
+        const checkAuth = setInterval(() => {
+          if (Auth.getCurrentUser && Auth.getCurrentUser()) {
+            clearInterval(checkAuth);
+            resolve();
+          }
+        }, 100);
+        setTimeout(() => {
+          clearInterval(checkAuth);
+          resolve();
+        }, 5000);
+      });
+
+      await authReady;
+
+      const user = Auth.getCurrentUser?.();
+      if (!user) {
+        window.location.replace("./index.html");
+        return;
+      }
+
+      currentUser = user;
+      setupUI();
+      loadDashboardData();
+    }
+
+    // ============================================
+    // UI Setup
+    // ============================================
+    function setupUI() {
+      // Display user info
+      if (userProfile) {
+        document.getElementById("userDisplayName").textContent = userProfile.fullName || "—";
+        document.getElementById("userDisplayRole").textContent = userProfile.role || "—";
+      }
+      document.getElementById("userDisplayEmail").textContent = currentUser.email;
+
+      // Navigation
+      document.querySelectorAll(".nav-link").forEach(link => {
+        link.addEventListener("click", () => switchView(link.dataset.view));
+      });
+
+      // Menu toggle
+      document.getElementById("menuToggle").addEventListener("click", () => {
+        document.getElementById("appContainer").classList.toggle("sidebar-open");
+      });
+
+      // Logout
+      document.getElementById("logoutBtn").addEventListener("click", async () => {
+        if (Auth.handleSignOut) {
+          await Auth.handleSignOut();
+        }
+        window.location.replace("./index.html");
+      });
+
+      // Create buttons
+      document.getElementById("createTicketBtn")?.addEventListener("click", () => {
+        // TODO: Open create ticket modal
+        showMessage("success", "Tính năng tạo phiếu đang được phát triển");
+      });
+
+      document.getElementById("createPeriodBtn")?.addEventListener("click", () => {
+        // TODO: Open create period modal
+        showMessage("success", "Tính năng tạo kỳ đang được phát triển");
+      });
+    }
+
+    // ============================================
+    // View Switching
+    // ============================================
+    function switchView(viewName) {
+      // Update nav links
+      document.querySelectorAll(".nav-link").forEach(link => {
+        link.classList.toggle("active", link.dataset.view === viewName);
+      });
+
+      // Hide all views
+      document.querySelectorAll(".view").forEach(view => {
+        view.classList.add("hidden");
+      });
+
+      // Show selected view
+      const view = document.getElementById(viewName);
+      if (view) {
+        view.classList.remove("hidden");
+      }
+
+      // Update title
+      const titles = {
+        dashboard: "Tổng quan",
+        evaluations: "Phiếu đánh giá",
+        periods: "Các kỳ đánh giá",
+        reports: "Báo cáo"
+      };
+      document.getElementById("pageTitle").textContent = titles[viewName] || "—";
+
+      // Close sidebar on mobile
+      if (window.innerWidth <= 768) {
+        document.getElementById("appContainer").classList.remove("sidebar-open");
+      }
+    }
+
+    // ============================================
+    // Load Data
+    // ============================================
+    async function loadDashboardData() {
+      try {
+        // TODO: Load tickets and stats from Database module
+        updateDashboardStats();
+        displayRecentTickets();
+      } catch (error) {
+        console.error("Error loading dashboard:", error);
+        showMessage("error", "Lỗi tải dữ liệu");
+      }
+    }
+
+    function updateDashboardStats() {
+      // TODO: Calculate stats from tickets
+      document.getElementById("statPending").textContent = "—";
+      document.getElementById("statFinalized").textContent = "—";
+      document.getElementById("statTotal").textContent = "—";
+    }
+
+    function displayRecentTickets() {
+      const tbody = document.querySelector("#recentTicketsTable tbody");
+      if (!tbody) return;
+
+      if (tickets.length === 0) {
+        tbody.innerHTML = '<tr class="empty-state"><td colspan="6">Chưa có phiếu nào</td></tr>';
+        return;
+      }
+
+      // TODO: Display tickets
+    }
+
+    // ============================================
+    // Messages
+    // ============================================
+    function showMessage(type, text, duration = 4000) {
+      const el = document.getElementById(type + "Message");
+      if (el) {
+        el.textContent = text;
+        el.classList.add("show");
+        if (duration) {
+          setTimeout(() => el.classList.remove("show"), duration);
+        }
+      }
+    }
+
+    // Initialize
+    initApp();
+  </script>
+</body>
+</html>
