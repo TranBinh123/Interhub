@@ -750,13 +750,20 @@
       const actor = actorInfo();
       const list = DemoStore.listTickets(actor, period.id);
       const mentors = DemoStore.mentorsOf(actor.department);
+      const mentorNotice = mentors.length ? "" :
+        `<tr><td colspan="5" class="empty-state">Bộ phận chưa có người hướng dẫn nào. Admin cần duyệt tài khoản người hướng dẫn, chọn đúng bộ phận ở tab "Tài khoản", rồi bấm "Làm mới".</td></tr>`;
+
+      if (!DemoStore.departmentKnown(actor.department)) {
+        box.innerHTML = `<tr class="empty-state"><td colspan="5">Bộ phận của bạn (${escapeHtml(actor.department || "chưa có")}) chưa có trong danh mục. Liên hệ Admin.</td></tr>`;
+        return;
+      }
 
       if (!list.length) {
         box.innerHTML = `<tr class="empty-state"><td colspan="5">Chưa có phiếu nào thuộc bộ phận của bạn.</td></tr>`;
         return;
       }
 
-      box.innerHTML = list.map(t => {
+      box.innerHTML = mentorNotice + list.map(t => {
         const p = DemoStore.permissionsFor(t, actor);
         const options = [
           `<option value="" ${!t.evaluatorUid ? "selected" : ""}>Trưởng bộ phận tự đánh giá</option>`,
@@ -813,6 +820,21 @@
       displayAllTickets();
     }
 
+    // Lý do cụ thể khi người dùng chưa thấy SVTT/phiếu nào
+    function todoHint(actor, period, todo) {
+      if (actor.role !== "supervisor" && actor.role !== "mentor") return "";
+      if (!DemoStore.departmentKnown(actor.department)) {
+        return `Bộ phận của bạn (${actor.department || "chưa có"}) chưa có trong danh mục bộ phận. Liên hệ Admin để gán đúng bộ phận.`;
+      }
+      if (todo.length) return "";
+      const total = DemoStore.listTickets(actor, period.id).length;
+      if (total) return "";
+      if (actor.role === "mentor") {
+        return `Chưa có phiếu nào được giao cho bạn. Trưởng bộ phận ${actor.department} cần giao phiếu ở mục "Phân công đánh giá".`;
+      }
+      return `Chưa có SVTT nào thuộc bộ phận ${actor.department} trong kỳ này. Admin cần nhập SVTT và tạo phiếu cho kỳ.`;
+    }
+
     // Việc cần làm theo vai trò (README mục 6, 7.2)
     function renderTodo(period, actor) {
       const box = document.getElementById("todoBox");
@@ -832,6 +854,7 @@
       }[actor.role] || "Tài khoản này chưa có việc cần làm trong kỳ này.";
 
       const todo = DemoStore.todoFor(actor, period.id);
+      const hint = todoHint(actor, period, todo);
       const rows = todo.slice(0, 10).map(t => `
         <tr>
           <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
@@ -842,6 +865,7 @@
       box.innerHTML = `
         <h2>Việc cần làm · ${escapeHtml(period.name)}</h2>
         <p>${escapeHtml(roleText)}</p>
+        ${hint ? `<div class="message show" style="background:#fff7ed;color:#9a3412;">${escapeHtml(hint)}</div>` : ""}
         <p><strong>${todo.length}</strong> phiếu cần xử lý.</p>
         ${todo.length ? `
         <div class="table-wrap">
