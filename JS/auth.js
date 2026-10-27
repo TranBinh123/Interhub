@@ -19,6 +19,7 @@ import {
   where,
   setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
@@ -416,6 +417,22 @@ export async function rejectUser(userId, reason) {
   }
 }
 
+// Xóa hồ sơ người dùng trên Firestore (Firebase Auth account vẫn còn; cần Firebase Console để vô hiệu hóa hẳn)
+export async function deleteUserProfile(userId) {
+  if (!isAdminEmail(currentUser)) {
+    showMessage("adminError", "Bạn không có quyền xóa tài khoản.");
+    return false;
+  }
+
+  try {
+    await deleteDoc(doc(db, COLLECTIONS.USERS, userId));
+    return true;
+  } catch (error) {
+    console.error("Delete user error:", error);
+    return false;
+  }
+}
+
 export async function handleSignOut() {
   try {
     await signOut(auth);
@@ -434,6 +451,7 @@ export const Auth = {
   adminLogin: handleAdminLogin,
   approveUser,
   rejectUser,
+  deleteUserProfile,
   signOut: handleSignOut,
   getCurrentUser: () => currentUser,
   getCurrentEmail: () => currentUser?.email || null

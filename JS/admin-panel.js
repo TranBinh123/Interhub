@@ -379,6 +379,10 @@ function userRow(user) {
       ${noDepartments}`;
   }
 
+  const deleteButton = `
+        <button type="button" class="ih-btn ih-btn--danger"
+          data-action="delete-user" data-user-id="${id}">Xóa tài khoản</button>`;
+
   return `
     <tr>
       <td>
@@ -393,7 +397,7 @@ function userRow(user) {
         </span>
       </td>
       <td>${dateText(user.createdAt)}</td>
-      <td>${controls}</td>
+      <td>${controls}${deleteButton}</td>
     </tr>
   `;
 }
@@ -879,6 +883,22 @@ async function handleAction(event) {
       }
 
       announce("Đã duyệt tài khoản và gán vai trò.");
+    } else if (action === "delete-user") {
+      const account = users.find(u => u.id === userId)?.email || userId;
+      if (!window.confirm(
+        `Xóa tài khoản ${account} khỏi hệ thống?\n\nHồ sơ trên Firestore sẽ bị xóa và không khôi phục được. Tài khoản Google vẫn tồn tại; muốn chặn đăng nhập hẳn, vô hiệu hóa trong Firebase Console.`
+      )) {
+        button.disabled = false;
+        return;
+      }
+
+      const ok = await Auth.deleteUserProfile(userId);
+      if (!ok) {
+        throw new Error("Không xóa được tài khoản. Kiểm tra quyền Admin và Firestore Rules.");
+      }
+
+      DemoStore.removeMember(userId);
+      announce("Đã xóa tài khoản.");
     } else if (action === "reject") {
       const reason = window.prompt(
         "Lý do từ chối tài khoản (bắt buộc):"

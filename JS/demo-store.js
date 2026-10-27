@@ -526,6 +526,21 @@ export function syncMembers(users) {
   return Object.keys(state.members).length;
 }
 
+// Gỡ tài khoản khỏi danh bạ và bỏ phân công của người đó ở các phiếu chưa chốt
+export function removeMember(uid) {
+  const state = read();
+  delete state.members[uid];
+  for (const t of Object.values(state.tickets)) {
+    if (t.evaluatorUid === uid && EDITABLE.includes(t.status)) {
+      t.evaluatorUid = null;
+      t.evaluatorName = defaultEvaluatorName(t.department);
+      addHistory(t, { name: "Admin" }, "Bỏ phân công", "Người đánh giá đã bị xóa khỏi hệ thống");
+    }
+  }
+  write(state);
+  return ok();
+}
+
 export function listMembers() {
   return Object.values(read().members).sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
@@ -900,6 +915,7 @@ export const DemoStore = {
   getMember,
   mentorsOf,
   updateMember,
+  removeMember,
   effectiveProfile,
   loadSampleData,
   resetDemo,
