@@ -425,6 +425,16 @@ Cấu trúc gợi ý:
 ```text
 InternHub/
 ├── README.md
+├── js/
+│   ├── admin-panel.js
+│   ├── auth.js
+│   ├── db.js
+│   ├── firebase-config.js
+│   ├── ticket-manager.js
+├── data/
+│   ├── DEPLOYMENT_GUIDE.md
+│   ├── firestore-schema.json
+│   ├── firestore.rules
 ├── docs/
 │   ├── business-requirements.md
 │   ├── screen-specification.md
@@ -436,7 +446,11 @@ InternHub/
 │   └── source-templates/
 │       └── README.md
 ├── prototype/
-└── app/                  # Chỉ tạo khi bắt đầu phát triển ứng dụng
+├── admin.html
+├── app.html
+├── evaluation-form.html
+├── index.html
+└── app/                 
 ```
 
 Không bắt buộc phải tạo toàn bộ cấu trúc ngay lập tức. Có thể bắt đầu với README và hai tài liệu nguồn; bổ sung các file đặc tả khi nội dung đã đủ chắc chắn.
