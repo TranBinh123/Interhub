@@ -9,6 +9,7 @@ import { getFirestore, collection, getDocs } from
 
 import { Auth } from "./auth.js";
 import { Database } from "./db.js";
+import { DemoStore, INTERN_COLUMNS } from "./demo-store.js";
 import { COLLECTIONS, ROLES, USER_STATUS } from "./firebase-config.js";
 
 const ADMIN_EMAIL = "dptbinh193@gmail.com";
@@ -49,6 +50,7 @@ let periods = [];
 let departments = [];
 let tickets = [];
 let loading = false;
+let lastImport = null;
 let loadError = "";
 
 const html = (value = "") => String(value).replace(/[&<>"']/g, c => ({
@@ -123,9 +125,8 @@ async function refreshData() {
   showLoading(true);
 
   try {
-    const [userSnapshot, periodRows, departmentRows] = await Promise.all([
+    const [userSnapshot, departmentRows] = await Promise.all([
       getDocs(collection(firestore, COLLECTIONS.USERS)),
-      Database.getAllPeriods(),
       Database.getAllDepartments()
     ]);
 
@@ -134,14 +135,10 @@ async function refreshData() {
       ...item.data()
     }));
 
-    periods = Array.isArray(periodRows) ? periodRows : [];
+    // Kỳ, SVTT và phiếu hiện là dữ liệu mô phỏng (JS/demo-store.js)
+    periods = DemoStore.listPeriods();
     departments = Array.isArray(departmentRows) ? departmentRows : [];
-
-    const byPeriod = await Promise.all(
-      periods.map(period => Database.getTicketsByPeriod(period.id))
-    );
-
-    tickets = byPeriod.flat().map(ticket => ({ ...ticket }));
+    tickets = DemoStore.listAllTickets();
   } catch (error) {
     console.error("[InternHub Admin] Load error", error);
 
@@ -181,6 +178,7 @@ function shell() {
       <nav class="ih-tabs" aria-label="Mục quản trị">
         <button type="button" data-tab="overview" class="is-active">Tổng quan</button>
         <button type="button" data-tab="users">Tài khoản</button>
+        <button type="button" data-tab="interns">Sinh viên TT</button>
         <button type="button" data-tab="periods">Kỳ đánh giá</button>
         <button type="button" data-tab="departments">Bộ phận</button>
       </nav>
@@ -206,6 +204,7 @@ function shell() {
 
   // Gắn một lần trên phần tử gốc.
   mountNode.addEventListener("click", handleAction);
+  mountNode.addEventListener("change", handleFileChange);
 }
 
 function card(title, count, caption) {
@@ -375,13 +374,24 @@ function userRow(user) {
 }
 
 function renderPeriods() {
+  const internCount = DemoStore.listInterns().length;
   return `
     <section class="ih-section">
       <div class="ih-section__heading">
         <div>
           <h2>Kỳ đánh giá</h2>
-          <p>Thống kê phiếu theo từng kỳ.</p>
+          <p>Tạo kỳ theo tháng, rồi tạo phiếu cho toàn bộ SVTT trong danh sách. Phiếu đã có sẽ không bị tạo trùng.</p>
         </div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+        <label>Tháng<br>
+          <input type="month" name="month" required>
+        </label>
+        <label>Tên kỳ (không bắt buộc)<br>
+          <input type="text" name="name" placeholder="Ví dụ: Đánh giá tháng 11">
+        </label>
+        <button type="button" class="ih-btn ih-btn--primary" data-action="create-period">Tạo kỳ</button>
       </div>
 
       <div class="ih-table-wrap">
@@ -390,44 +400,105 @@ function renderPeriods() {
             <tr>
               <th>Tên kỳ</th>
               <th>Trạng thái</th>
-              <th>Hạn gửi</th>
               <th>Tổng phiếu</th>
               <th>Chờ xác nhận</th>
               <th>Đã chốt</th>
+              <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
             ${periods.length
               ? periods.map(period => {
-                  const periodTickets = tickets.filter(
-                    ticket => ticket.periodId === period.id
-                  );
-
+                  const periodTickets = tickets.filter(t => t.periodId === period.id);
                   return `
                     <tr>
                       <td>
                         <strong>${html(period.name || period.id)}</strong>
                         <small>${html(period.id)}</small>
                       </td>
-                      <td>${html(period.status || "—")}</td>
-                      <td>${dateText(period.dueDate)}</td>
+                      <td>${period.status === "dang_mo" ? "Đang mở" : html(period.status || "—")}</td>
                       <td>${periodTickets.length}</td>
-                      <td>${periodTickets.filter(
-                        ticket => ticket.status === "cho_xac_nhan"
-                      ).length}</td>
-                      <td>${periodTickets.filter(
-                        ticket => ticket.status === "da_chot"
-                      ).length}</td>
+                      <td>${periodTickets.filter(t => t.status === "cho_xac_nhan").length}</td>
+                      <td>${periodTickets.filter(t => t.status === "da_chot").length}</td>
+                      <td>
+                        <button type="button" class="ih-btn ih-btn--secondary"
+                          data-action="generate-tickets"
+                          data-period-id="${html(period.id)}"
+                          ${internCount ? "" : "disabled"}>
+                          Tạo phiếu cho ${internCount} SVTT
+                        </button>
+                      </td>
                     </tr>
                   `;
                 }).join("")
               : `<tr><td colspan="6" class="ih-empty">
-                   Chưa có kỳ đánh giá.
+                   Chưa có kỳ đánh giá. Hãy tạo kỳ ở trên.
                  </td></tr>`
             }
           </tbody>
         </table>
       </div>
+      ${internCount ? "" : `<p class="ih-empty">Chưa có danh sách SVTT. Nhập ở tab "Sinh viên TT" trước khi tạo phiếu.</p>`}
+    </section>
+  `;
+}
+
+function importResultHtml() {
+  if (!lastImport) return "";
+  const errorItems = lastImport.errors.slice(0, 20)
+    .map(e => `<li>Dòng ${e.line}: ${html(e.message)}</li>`).join("");
+  return `
+    <div class="ih-notice" style="margin-top:12px;">
+      Lần nhập gần nhất: ${lastImport.added} SVTT mới, ${lastImport.skipped} đã có (giữ nguyên),
+      ${lastImport.errors.length} dòng lỗi (không nhập).
+      ${errorItems ? `<ul>${errorItems}</ul>` : ""}
+    </div>`;
+}
+
+function renderInterns() {
+  const interns = DemoStore.listInterns();
+  const departmentCount = new Set(interns.map(i => i.department)).size;
+  const preview = interns.slice(0, 50).map(i => `
+      <tr>
+        <td>${html(i.internId)}</td>
+        <td>${html(i.fullName)}</td>
+        <td>${html(i.school || "—")}</td>
+        <td>${html(i.department)}</td>
+      </tr>`).join("");
+
+  return `
+    <section class="ih-section">
+      <div class="ih-section__heading">
+        <div>
+          <h2>Sinh viên thực tập</h2>
+          <p>Nhập danh sách SVTT từ file CSV (trong Excel: Save As → CSV UTF-8). Dòng lỗi được báo lại và không nhập. SVTT đã có cùng Mã SV được giữ nguyên, không ghi đè.</p>
+        </div>
+      </div>
+
+      <p><strong>${interns.length}</strong> SVTT · ${departmentCount} bộ phận</p>
+      <p>Cột cần có: ${INTERN_COLUMNS.map(html).join(", ")}. Bắt buộc: Mã SV, Họ tên, Bộ phận.</p>
+
+      <div style="margin:12px 0;">
+        <input type="file" accept=".csv,text/csv" data-import-file>
+      </div>
+      ${importResultHtml()}
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
+        <button type="button" class="ih-btn ih-btn--secondary" data-action="load-sample">Nạp dữ liệu mẫu (520 SVTT)</button>
+        <button type="button" class="ih-btn ih-btn--secondary" data-action="reset-demo">Xóa toàn bộ dữ liệu mô phỏng</button>
+      </div>
+
+      ${interns.length ? `
+      <div class="ih-table-wrap">
+        <table class="ih-table">
+          <thead>
+            <tr><th>Mã SV</th><th>Họ tên</th><th>Trường</th><th>Bộ phận</th></tr>
+          </thead>
+          <tbody>${preview}</tbody>
+        </table>
+      </div>
+      ${interns.length > 50 ? `<p>Đang xem 50 SVTT đầu tiên trên tổng ${interns.length}.</p>` : ""}
+      ` : `<p class="ih-empty">Chưa có SVTT nào.</p>`}
     </section>
   `;
 }
@@ -487,6 +558,8 @@ function renderView() {
 
   if (currentTab === "users") {
     view.innerHTML = renderUsers();
+  } else if (currentTab === "interns") {
+    view.innerHTML = renderInterns();
   } else if (currentTab === "periods") {
     view.innerHTML = renderPeriods();
   } else if (currentTab === "departments") {
@@ -497,6 +570,89 @@ function renderView() {
 
   view.querySelector("[data-user-status-filter]")
     ?.addEventListener("change", renderView);
+}
+
+// ============================================
+// Thao tác với dữ liệu mô phỏng (kỳ, SVTT, phiếu)
+// ============================================
+async function handleDemoAction(action, button) {
+  const demoActions = ["create-period", "generate-tickets", "load-sample", "reset-demo"];
+  if (!demoActions.includes(action)) return false;
+
+  try {
+    ensureAdmin();
+  } catch (error) {
+    announce(error.message, "error");
+    return true;
+  }
+
+  if (action === "create-period") {
+    const month = mountNode.querySelector('[name="month"]')?.value;
+    const name = mountNode.querySelector('[name="name"]')?.value;
+    const result = DemoStore.createPeriod({ month, name });
+    announce(result.ok ? "Đã tạo kỳ đánh giá." : result.error, result.ok ? "success" : "error");
+  } else if (action === "generate-tickets") {
+    const result = DemoStore.generateTickets(button.dataset.periodId);
+    announce(
+      result.ok
+        ? `Đã tạo ${result.created} phiếu mới. ${result.existing} phiếu đã có được giữ nguyên.`
+        : result.error,
+      result.ok ? "success" : "error"
+    );
+  } else if (action === "load-sample") {
+    if (!window.confirm("Nạp dữ liệu mẫu sẽ THAY THẾ toàn bộ kỳ, SVTT và phiếu hiện có. Tiếp tục?")) return true;
+    DemoStore.loadSampleData();
+    lastImport = null;
+    announce("Đã nạp dữ liệu mẫu (dữ liệu giả lập).");
+  } else if (action === "reset-demo") {
+    if (!window.confirm("Xóa toàn bộ kỳ, SVTT và phiếu mô phỏng trên trình duyệt này?")) return true;
+    DemoStore.resetDemo();
+    lastImport = null;
+    announce("Đã xóa dữ liệu mô phỏng.");
+  }
+
+  await refreshData();
+  return true;
+}
+
+// Đọc file CSV của Admin, kiểm tra cột rồi nhập
+async function handleFileChange(event) {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || !input.matches("[data-import-file]")) return;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    ensureAdmin();
+    const parsed = DemoStore.parseCsv(await file.text());
+    const headers = parsed.headers.map(h => String(h).trim().toLowerCase());
+    const columnIndex = INTERN_COLUMNS.map(name => headers.indexOf(name.toLowerCase()));
+    const requiredIdx = [0, 1, 3]; // Mã SV, Họ tên, Bộ phận
+    const missing = requiredIdx.filter(i => columnIndex[i] === -1).map(i => INTERN_COLUMNS[i]);
+
+    if (missing.length) {
+      announce(`File thiếu cột bắt buộc: ${missing.join(", ")}.`, "error");
+      input.value = "";
+      return;
+    }
+
+    const rows = parsed.rows.map(row => ({
+      line: row.line,
+      cells: columnIndex.map(idx => (idx === -1 ? "" : row.cells[idx] ?? ""))
+    }));
+
+    lastImport = DemoStore.importInterns(rows);
+    announce(
+      `Đã nhập ${lastImport.added} SVTT mới, ${lastImport.skipped} đã có, ${lastImport.errors.length} dòng lỗi.`,
+      lastImport.errors.length ? "error" : "success"
+    );
+  } catch (error) {
+    console.error("[InternHub Admin] Import error", error);
+    announce("Không đọc được file. Vui lòng dùng file CSV.", "error");
+  }
+
+  input.value = "";
+  await refreshData();
 }
 
 async function handleAction(event) {
@@ -528,6 +684,8 @@ async function handleAction(event) {
     await refreshData();
     return;
   }
+
+  if (await handleDemoAction(action, button)) return;
 
   const userId = button.dataset.userId;
   if (!userId) return;
