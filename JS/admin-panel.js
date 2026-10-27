@@ -54,6 +54,7 @@ let tickets = [];
 let loading = false;
 let lastImport = null;
 let editingInternId = null;
+let followDate = "";
 let loadError = "";
 
 const html = (value = "") => String(value).replace(/[&<>"']/g, c => ({
@@ -182,6 +183,7 @@ function shell() {
         <button type="button" data-tab="overview" class="is-active">Tổng quan</button>
         <button type="button" data-tab="users">Tài khoản</button>
         <button type="button" data-tab="interns">Sinh viên TT</button>
+        <button type="button" data-tab="followup">Theo dõi</button>
         <button type="button" data-tab="periods">Kỳ đánh giá</button>
         <button type="button" data-tab="departments">Bộ phận</button>
       </nav>
@@ -403,7 +405,6 @@ function userRow(user) {
 }
 
 function renderPeriods() {
-  const internCount = DemoStore.listInterns().length;
   return `
     <section class="ih-section">
       <div class="ih-section__heading">
@@ -439,6 +440,8 @@ function renderPeriods() {
             ${periods.length
               ? periods.map(period => {
                   const periodTickets = tickets.filter(t => t.periodId === period.id);
+                  const groups = DemoStore.classifyInterns(period.id);
+                  const internCount = groups.eligible.length;
                   return `
                     <tr>
                       <td>
@@ -452,10 +455,13 @@ function renderPeriods() {
                       <td>
                         <button type="button" class="ih-btn ih-btn--secondary"
                           data-action="generate-tickets"
-                          data-period-id="${html(period.id)}"
-                          ${internCount ? "" : "disabled"}>
-                          Tạo phiếu cho ${internCount} SVTT
+                          data-period-id="${html(period.id)}">
+                          Đồng bộ phiếu
                         </button>
+                        <small>
+                          ${internCount} SVTT thuộc kỳ · ${groups.early} kết thúc sớm · ${groups.startMid} bắt đầu giữa tháng<br>
+                          ${groups.outside.length} ngoài tháng · ${groups.noDates.length} thiếu ngày
+                        </small>
                       </td>
                     </tr>
                   `;
@@ -467,7 +473,7 @@ function renderPeriods() {
           </tbody>
         </table>
       </div>
-      ${internCount ? "" : `<p class="ih-empty">Chưa có danh sách SVTT. Nhập ở tab "Sinh viên TT" trước khi tạo phiếu.</p>`}
+      ${DemoStore.listInterns().length ? "" : `<p class="ih-empty">Chưa có danh sách SVTT. Nhập ở tab "Sinh viên TT" trước khi tạo phiếu.</p>`}
     </section>
   `;
 }
@@ -493,6 +499,7 @@ function renderInterns() {
     .map(d => `<option value="${html(d.code)}" ${edit?.department === d.code ? "selected" : ""}>${html(d.code)} — ${html(d.name)}</option>`)
     .join("");
 
+  const followMap = new Map(DemoStore.followUp(followDate || DemoStore.todayIso()).map(r => [r.internId, r]));
   const rows = interns.map(i => `
       <tr>
         <td>${html(i.internId)}</td>
@@ -500,6 +507,7 @@ function renderInterns() {
         <td>${html(i.school || "—")}</td>
         <td>${html(departmentLabel(i.department))}</td>
         <td>${html(i.startDate || "—")} → ${html(i.endDate || "—")}</td>
+        <td>${followMap.get(i.internId)?.leavingSoon ? `<span class="ih-status ih-status--pending">Sắp về</span>` : "—"}</td>
         <td class="ih-actions">
           <button type="button" class="ih-btn ih-btn--secondary"
             data-action="edit-intern" data-intern-id="${html(i.internId)}">Sửa</button>
@@ -566,13 +574,74 @@ function renderInterns() {
       <div class="ih-table-wrap">
         <table class="ih-table">
           <thead>
-            <tr><th>Mã SV</th><th>Họ tên</th><th>Trường</th><th>Bộ phận</th><th>Thời gian thực tập</th><th>Thao tác</th></tr>
+            <tr><th>Mã SV</th><th>Họ tên</th><th>Trường</th><th>Bộ phận</th><th>Thời gian thực tập</th><th>Sắp về</th><th>Thao tác</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
       </div>` : `<p class="ih-empty">Chưa có SVTT nào.</p>`}
     </section>
   `;
+}
+
+function followBanner() {
+  const alerts = DemoStore.followUp(DemoStore.todayIso()).filter(r => r.level === "alert");
+  if (!alerts.length) return "";
+  return `
+    <div class="ih-error" style="margin-bottom:16px;">
+      Có <strong>${alerts.length}</strong> SVTT cần tạo phiếu hoặc đã về chưa có phiếu.
+      <button type="button" data-tab="followup">Xem theo dõi</button>
+    </div>`;
+}
+
+function renderFollowUp() {
+  const date = followDate || DemoStore.todayIso();
+  const rows = DemoStore.followUp(date);
+  const alerts = rows.filter(r => r.level === "alert");
+  const soon = rows.filter(r => r.leavingSoon);
+
+  const body = rows.length
+    ? rows.map(r => `
+        <tr>
+          <td><strong>${html(r.internName)}</strong><small>${html(r.internId)}</small></td>
+          <td>${html(departmentLabel(r.department))}</td>
+          <td>${html(r.endDate.split("-").reverse().join("/"))}</td>
+          <td>${r.daysLeft < 0 ? `Đã về ${-r.daysLeft} ngày trước` : `còn ${r.daysLeft} ngày`}</td>
+          <td>${r.leavingSoon ? `<span class="ih-status ih-status--pending">Sắp về</span>` : "—"}</td>
+          <td>${r.hasTicket ? "Đã có phiếu" : "Chưa có phiếu"}</td>
+          <td class="${r.level === "alert" ? "ih-error" : ""}">${html(r.message)}</td>
+        </tr>`).join("")
+    : `<tr><td colspan="7" class="ih-empty">Không có SVTT cần theo dõi vào ngày này.</td></tr>`;
+
+  return `
+    <section class="ih-section">
+      <div class="ih-section__heading">
+        <div>
+          <h2>Theo dõi SVTT sắp về</h2>
+          <p>Cảnh báo bắt đầu trước ngày về ${DemoStore.FOLLOW_UP_DAYS} ngày theo lịch (kể cả thứ 7, chủ nhật) để kịp tạo phiếu đánh giá cho kỳ có ngày về.</p>
+        </div>
+      </div>
+
+      <label>Ngày kiểm tra<br>
+        <input type="date" value="${html(date)}" data-follow-date>
+      </label>
+
+      <div class="ih-notice" style="margin:12px 0;">
+        <strong>${alerts.length}</strong> cần làm ngay ·
+        <strong>${soon.length}</strong> sắp về trong ${DemoStore.FOLLOW_UP_DAYS} ngày
+      </div>
+
+      <div class="ih-table-wrap">
+        <table class="ih-table">
+          <thead>
+            <tr>
+              <th>SVTT</th><th>Bộ phận</th><th>Ngày về</th><th>Thời gian</th>
+              <th>Sắp về</th><th>Phiếu</th><th>Cảnh báo</th>
+            </tr>
+          </thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </section>`;
 }
 
 function renderDepartments() {
@@ -646,12 +715,14 @@ function renderView() {
     view.innerHTML = renderUsers();
   } else if (currentTab === "interns") {
     view.innerHTML = renderInterns();
+  } else if (currentTab === "followup") {
+    view.innerHTML = renderFollowUp();
   } else if (currentTab === "periods") {
     view.innerHTML = renderPeriods();
   } else if (currentTab === "departments") {
     view.innerHTML = renderDepartments();
   } else {
-    view.innerHTML = renderOverview();
+    view.innerHTML = followBanner() + renderOverview();
   }
 
   view.querySelector("[data-user-status-filter]")
@@ -684,13 +755,20 @@ async function handleDemoAction(action, button) {
   if (action === "create-period") {
     const month = mountNode.querySelector('[name="month"]')?.value;
     const name = mountNode.querySelector('[name="name"]')?.value;
-    report(DemoStore.createPeriod({ month, name }), "Đã tạo kỳ đánh giá.");
+    const created = DemoStore.createPeriod({ month, name });
+    const sync = created.sync;
+    announce(
+      created.ok
+        ? `Đã tạo kỳ. Tự động tạo ${sync?.created ?? 0} phiếu cho ${sync?.eligible ?? 0} SVTT thuộc kỳ.`
+        : created.error,
+      created.ok ? "success" : "error"
+    );
 
   } else if (action === "generate-tickets") {
     const result = DemoStore.generateTickets(button.dataset.periodId);
     announce(
       result.ok
-        ? `Đã tạo ${result.created} phiếu mới. ${result.existing} phiếu đã có được giữ nguyên.`
+        ? `Đồng bộ xong: thêm ${result.created} phiếu, gỡ ${result.removed} phiếu chưa làm của SVTT ngoài kỳ, giữ ${result.kept} phiếu đã có tiến độ.`
         : result.error,
       result.ok ? "success" : "error"
     );
@@ -764,6 +842,11 @@ async function handleDemoAction(action, button) {
 // Đọc file CSV của Admin, kiểm tra cột rồi nhập
 async function handleFileChange(event) {
   const input = event.target;
+  if (input instanceof HTMLInputElement && input.matches("[data-follow-date]")) {
+    followDate = input.value;
+    renderView();
+    return;
+  }
   if (!(input instanceof HTMLInputElement) || !input.matches("[data-import-file]")) return;
   const file = input.files?.[0];
   if (!file) return;

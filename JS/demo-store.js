@@ -130,20 +130,12 @@ function read() {
         catalogV4: p.catalogV4 === true
       };
       if (!state.catalogV4) {
-        // Bản trước tự thêm 8 bộ phận mặc định mà Admin chưa tạo.
-        // Bỏ các mục đó nếu chưa có SVTT hoặc tài khoản nào dùng, để danh mục chỉ gồm bộ phận Admin tạo.
-        const inUse = code =>
-          Object.values(state.interns).some(i => i.department === code) ||
-          Object.values(state.members).some(m => m.department === code);
-        for (const d of DEFAULT_DEPARTMENTS) {
-          const cur = state.departments[d.code];
-          if (cur && cur.name === d.name && !inUse(d.code)) delete state.departments[d.code];
-        }
+        // Không xóa bộ phận nào khi nâng cấp dữ liệu; chỉ đánh dấu đã xử lý.
         state.catalogV4 = true;
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (error) {
-          // storage bị chặn: vẫn dùng danh mục trong bộ nhớ
+          // storage bị chặn
         }
       }
       // Chuyển từ bản cũ: tạo danh mục bộ phận từ dữ liệu SVTT đã nhập
@@ -279,25 +271,93 @@ export function createPeriod({ month, name }) {
     createdAt: now()
   };
   write(state);
-  return ok({ period: state.periods[id] });
+  const sync = syncPeriodTickets(id);
+  return ok({ period: state.periods[id], sync: sync.ok ? sync : null });
 }
 
 // Tạo phiếu cho mọi SVTT trong danh sách. Phiếu đã có thì giữ nguyên, không tạo trùng.
-export function generateTickets(periodId) {
+// ============================================
+// Phiếu theo kỳ — tự động, không chọn từng SVTT
+// ============================================
+// Giả định (chờ xác nhận README mục 13.4):
+//  - Một SVTT thuộc kỳ tháng M nếu có ít nhất 1 ngày thực tập trong tháng M.
+//  - Kết thúc sớm: ngày về rơi trong tháng M nhưng trước ngày cuối tháng → phiếu được đánh dấu để ưu tiên.
+//  - Về đúng ngày cuối tháng hoặc thực tập tiếp sang tháng sau → phiếu thường.
+//  - Bắt đầu giữa tháng: vẫn tính vào tháng đó, được đánh dấu để tham khảo.
+
+function monthBounds(month) {
+  const [y, m] = month.split("-").map(Number);
+  const pad = n => String(n).padStart(2, "0");
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return {
+    start: `${y}-${pad(m)}-01`,
+    end: `${y}-${pad(m)}-${pad(lastDay)}`
+  };
+}
+
+function fmtDate(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// true = thuộc kỳ, false = ngoài kỳ, null = thiếu ngày
+export function internshipInPeriod(intern, month) {
+  if (!intern.startDate || !intern.endDate) return null;
+  const { start, end } = monthBounds(month);
+  return intern.startDate <= end && intern.endDate >= start;
+}
+
+// Loại phiếu cho SVTT trong một tháng
+export function evaluationReason(intern, month) {
+  const { start, end } = monthBounds(month);
+  const monthPrefix = month;
+  if (intern.endDate && intern.endDate.startsWith(monthPrefix) && intern.endDate < end) {
+    return { type: "early_leave", note: `Kết thúc thực tập sớm, ngày về ${fmtDate(intern.endDate)}` };
+  }
+  if (intern.startDate && intern.startDate.startsWith(monthPrefix) && intern.startDate > start) {
+    return { type: "start_mid_month", note: `Bắt đầu thực tập ngày ${fmtDate(intern.startDate)}` };
+  }
+  return { type: "regular", note: "" };
+}
+
+// Phân loại toàn bộ SVTT theo kỳ
+export function classifyInterns(periodId) {
   const state = read();
-  if (!state.periods[periodId]) return fail("Kỳ đánh giá không tồn tại.");
+  const period = state.periods[periodId];
+  const result = { eligible: [], outside: [], noDates: [], early: 0, startMid: 0 };
+  if (!period) return result;
+  for (const intern of Object.values(state.interns)) {
+    const inside = internshipInPeriod(intern, period.month);
+    if (inside === null) { result.noDates.push(intern); continue; }
+    if (!inside) { result.outside.push(intern); continue; }
+    result.eligible.push(intern);
+    const reason = evaluationReason(intern, period.month);
+    if (reason.type === "early_leave") result.early += 1;
+    if (reason.type === "start_mid_month") result.startMid += 1;
+  }
+  return result;
+}
 
-  const interns = Object.values(state.interns);
-  if (interns.length === 0) return fail("Chưa có danh sách SVTT. Hãy nhập hoặc thêm SVTT trước.");
+// Đồng bộ phiếu của một kỳ với danh sách SVTT hiện tại:
+//  - tạo phiếu còn thiếu cho SVTT thuộc kỳ;
+//  - gỡ phiếu chưa được làm gì (chưa chấm, chưa gửi) của SVTT không còn thuộc kỳ.
+// Phiếu đã có tiến độ không bị xóa.
+export function syncPeriodTickets(periodId) {
+  const state = read();
+  const period = state.periods[periodId];
+  if (!period) return fail("Kỳ đánh giá không tồn tại.");
 
+  const groups = classifyInterns(periodId);
+  const eligibleIds = new Set(groups.eligible.map(i => i.internId));
   let created = 0;
   let existing = 0;
-  for (const intern of interns) {
+  let removed = 0;
+  let kept = 0;
+
+  for (const intern of groups.eligible) {
     const id = `${periodId}-${intern.internId}`;
-    if (state.tickets[id]) {
-      existing += 1;
-      continue;
-    }
+    if (state.tickets[id]) { existing += 1; continue; }
+    const reason = evaluationReason(intern, period.month);
     const stamp = now();
     state.tickets[id] = {
       id,
@@ -308,6 +368,8 @@ export function generateTickets(periodId) {
       department: intern.department,
       evaluatorUid: null,
       evaluatorName: defaultEvaluatorName(intern.department),
+      evaluationType: reason.type,
+      evaluationNote: reason.note,
       status: STATUS.NOT_STARTED,
       scores: Array(ITEMS.length).fill(null),
       textPart4: "",
@@ -322,8 +384,137 @@ export function generateTickets(periodId) {
     created += 1;
   }
 
+  for (const [id, t] of Object.entries(state.tickets)) {
+    if (t.periodId !== periodId || eligibleIds.has(t.internId)) continue;
+    const untouched = t.status === STATUS.NOT_STARTED && t.scores.every(v => v === null) && t.history.length === 0;
+    if (untouched) {
+      delete state.tickets[id];
+      removed += 1;
+    } else {
+      kept += 1;
+    }
+  }
+
   write(state);
-  return ok({ created, existing });
+  return ok({
+    created,
+    existing,
+    removed,
+    kept,
+    eligible: groups.eligible.length,
+    early: groups.early,
+    startMid: groups.startMid,
+    outside: groups.outside.length,
+    noDates: groups.noDates.length
+  });
+}
+
+// Chỉ tạo thêm phiếu còn thiếu (giữ tương thích với nút cũ)
+export function generateTickets(periodId) {
+  const state = read();
+  if (!state.periods[periodId]) return fail("Kỳ đánh giá không tồn tại.");
+  if (Object.keys(state.interns).length === 0) return fail("Chưa có danh sách SVTT. Hãy nhập hoặc thêm SVTT trước.");
+  const result = syncPeriodTickets(periodId);
+  if (result.ok && result.eligible === 0) return fail("Không có SVTT nào thực tập trong tháng của kỳ này.");
+  return result;
+}
+
+// ============================================
+// Theo dõi SVTT sắp về và cảnh báo tạo phiếu
+// ============================================
+// Cảnh báo bắt đầu trước ngày về 14 ngày (README mục 13.4 chờ xác nhận thời hạn chính thức).
+export const FOLLOW_UP_DAYS = 14;
+
+export function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`;
+}
+
+// Số ngày từ fromIso đến toIso (âm nếu toIso đã qua)
+function diffDays(fromIso, toIso) {
+  const [y1, m1, d1] = fromIso.split("-").map(Number);
+  const [y2, m2, d2] = toIso.split("-").map(Number);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+}
+
+// Theo dõi từng SVTT có ngày về, tính theo ngày kiểm tra today
+// level: "alert" (cần làm ngay), "info" (chưa đến hạn), null (đã có phiếu)
+export function followUp(today = todayIso()) {
+  const state = read();
+  const rows = [];
+  for (const intern of Object.values(state.interns)) {
+    if (!intern.endDate) continue;
+
+    const daysLeft = diffDays(today, intern.endDate);
+    const month = intern.endDate.slice(0, 7);
+    const periodId = `EV-${month}`;
+    const periodExists = !!state.periods[periodId];
+    const hasTicket = !!state.tickets[`${periodId}-${intern.internId}`];
+    const dueDate = addDays(intern.endDate, -FOLLOW_UP_DAYS);
+    const leavingSoon = daysLeft >= 0 && daysLeft <= FOLLOW_UP_DAYS;
+
+    // Đã về rồi mà vẫn chưa có phiếu: bỏ qua nếu phiếu đã có
+    if (daysLeft < 0 && hasTicket) continue;
+    // Chưa đến hạn và còn xa: không cần theo dõi ở đây
+    if (daysLeft > FOLLOW_UP_DAYS + 30 && !hasTicket) continue;
+
+    const monthLabel = `${month.slice(5)}/${month.slice(0, 4)}`;
+    let level = null;
+    let message = "";
+    if (hasTicket) {
+      message = "Đã có phiếu";
+    } else if (daysLeft < 0) {
+      level = "alert";
+      message = `Đã về ngày ${fmtDate(intern.endDate)} nhưng chưa có phiếu tháng ${monthLabel}`;
+    } else if (today >= dueDate) {
+      level = "alert";
+      message = `Đến hạn tạo phiếu tháng ${monthLabel} (về ngày ${fmtDate(intern.endDate)})`;
+    } else {
+      level = "info";
+      message = `Đến hạn tạo phiếu ngày ${fmtDate(dueDate)}`;
+    }
+    if (level === "alert" && !periodExists) {
+      message += ` — chưa có kỳ tháng ${monthLabel}, cần tạo kỳ`;
+    }
+
+    rows.push({
+      internId: intern.internId,
+      internName: intern.fullName,
+      department: intern.department,
+      endDate: intern.endDate,
+      daysLeft,
+      leavingSoon,
+      dueDate,
+      periodId,
+      periodExists,
+      hasTicket,
+      level,
+      message
+    });
+  }
+  return rows.sort((a, b) => a.endDate.localeCompare(b.endDate));
+}
+
+// Cảnh báo hiển thị theo vai trò: Phòng Nhân sự và Admin xem tất cả; Trưởng bộ phận chỉ xem bộ phận mình
+export function followUpFor(actor, today = todayIso()) {
+  if (!actor) return [];
+  const rows = followUp(today);
+  if (actor.role === "hr" || actor.role === "admin") return rows;
+  if (actor.role === "supervisor") return rows.filter(r => r.department === actor.department);
+  return [];
+}
+
+// Đồng bộ mọi kỳ đang mở; gọi khi SVTT thay đổi
+export function syncOpenPeriods() {
+  for (const period of Object.values(read().periods)) {
+    if (period.status === "dang_mo") syncPeriodTickets(period.id);
+  }
 }
 
 // ============================================
@@ -366,6 +557,7 @@ export function createIntern(input) {
 
   state.interns[value.internId] = { ...value, importedAt: now(), updatedAt: now() };
   write(state);
+  syncOpenPeriods();
   return ok({ intern: state.interns[value.internId] });
 }
 
@@ -400,6 +592,7 @@ export function updateIntern(internId, input) {
 
   state.interns[internId] = { ...existing, ...next, updatedAt: now() };
   write(state);
+  syncOpenPeriods();
   return ok({ intern: state.interns[internId] });
 }
 
@@ -444,6 +637,7 @@ export function importInterns(rows) {
   }
 
   write(state);
+  syncOpenPeriods();
   return { added, skipped, errors, total: rows.length };
 }
 
@@ -904,6 +1098,15 @@ export const DemoStore = {
   listPeriods,
   createPeriod,
   generateTickets,
+  syncPeriodTickets,
+  syncOpenPeriods,
+  classifyInterns,
+  evaluationReason,
+  followUp,
+  followUpFor,
+  todayIso,
+  FOLLOW_UP_DAYS,
+  internshipInPeriod,
   listInterns,
   createIntern,
   updateIntern,
