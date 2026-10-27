@@ -16,8 +16,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Tài khoản Admin kỹ thuật (khớp ADMIN_EMAIL trong JS/auth.js) không nhất thiết
+    // có document users/{uid} với role 'admin', nên được nhận diện theo email đã xác thực.
+    // Vẫn hỗ trợ role 'admin' trong users nếu có.
     function isAdmin(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin';
+      return (request.auth.token.email == 'dptbinh193@gmail.com'
+          && request.auth.token.email_verified == true)
+        || (exists(/databases/$(database)/documents/users/$(uid))
+          && get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin');
     }
 
     function isHR(uid) {
@@ -121,9 +127,11 @@ service cloud.firestore {
     // Periods Collection (Evaluation Cycles)
     // ============================================
     match /periods/{periodId} {
-      // Anyone signed in and approved can read periods
-      allow read: if isSignedIn() &&
-        isApproved(request.auth.uid);
+      // Anyone signed in and approved (or Admin) can read periods
+      allow read: if isSignedIn() && (
+        isAdmin(request.auth.uid) ||
+        isApproved(request.auth.uid)
+      );
 
       // Only admin can create/update periods
       allow create, update, delete: if isSignedIn() &&
@@ -134,9 +142,11 @@ service cloud.firestore {
     // Departments Collection
     // ============================================
     match /departments/{departmentId} {
-      // Anyone signed in can read departments
-      allow read: if isSignedIn() &&
-        isApproved(request.auth.uid);
+      // Anyone approved (or Admin) can read departments
+      allow read: if isSignedIn() && (
+        isAdmin(request.auth.uid) ||
+        isApproved(request.auth.uid)
+      );
 
       // Only admin can modify
       allow write: if isSignedIn() &&
