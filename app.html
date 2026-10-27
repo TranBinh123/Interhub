@@ -463,6 +463,8 @@
 
         <!-- Dashboard view -->
         <div id="dashboard" class="view">
+          <div class="card" id="todoBox"></div>
+
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-label">Phiếu đang xử lý</div>
@@ -704,10 +706,52 @@
     }
 
     function loadDashboardData() {
-      tickets = DemoStore.listTickets(actorInfo());
+      const actor = actorInfo();
+      const period = DemoStore.activePeriod();
+      tickets = period ? DemoStore.listTickets(actor, period.id) : [];
       updateDashboardStats();
+      renderTodo(period, actor);
       displayRecentTickets();
       displayAllTickets();
+    }
+
+    // Việc cần làm theo vai trò (README mục 6, 7.2)
+    function renderTodo(period, actor) {
+      const box = document.getElementById("todoBox");
+      if (!box) return;
+
+      if (!period) {
+        box.innerHTML = `
+          <h2>Việc cần làm</h2>
+          <p>Chưa có kỳ đánh giá đang mở. Admin cần tạo kỳ và nhập danh sách sinh viên thực tập.</p>`;
+        return;
+      }
+
+      const roleText = {
+        supervisor: "Đánh giá các sinh viên thuộc bộ phận của bạn: nhập 15 hạng mục, lưu nháp, rồi gửi phiếu. Phiếu bị trả về cần được bổ sung và gửi lại.",
+        hr: "Kiểm tra các phiếu đã gửi. Trả về kèm lý do để bổ sung, hoặc xác nhận chốt."
+      }[actor.role] || "Tài khoản này chưa có việc cần làm trong kỳ này.";
+
+      const todo = DemoStore.todoFor(actor, period.id);
+      const rows = todo.slice(0, 10).map(t => `
+        <tr>
+          <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
+          <td>${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
+          <td><a class="btn btn-secondary btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
+        </tr>`).join("");
+
+      box.innerHTML = `
+        <h2>Việc cần làm · ${escapeHtml(period.name)}</h2>
+        <p>${escapeHtml(roleText)}</p>
+        <p><strong>${todo.length}</strong> phiếu cần xử lý.</p>
+        ${todo.length ? `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Sinh viên</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${todo.length > 10 ? `<p>Hiển thị 10 phiếu đầu tiên trên tổng ${todo.length}.</p>` : ""}` : ""}`;
     }
 
     function updateDashboardStats() {
