@@ -9,7 +9,7 @@ import { getFirestore, collection, getDocs } from
 
 import { Auth } from "./auth.js";
 import { Database } from "./db.js";
-import { DemoStore, INTERN_COLUMNS } from "./demo-store.js";
+import { DemoStore, INTERN_COLUMNS, MEMBER_ROLES } from "./demo-store.js";
 import { COLLECTIONS, ROLES, USER_STATUS } from "./firebase-config.js";
 
 const ADMIN_EMAIL = "dptbinh193@gmail.com";
@@ -18,7 +18,8 @@ const firestore = getFirestore();
 // Chỉ hai vai trò này được phép gán khi duyệt tài khoản.
 const ASSIGNABLE_ROLES = {
   [ROLES.HR]: "Phòng Nhân sự",
-  [ROLES.SUPERVISOR]: "Trưởng bộ phận"
+  [ROLES.SUPERVISOR]: "Trưởng bộ phận",
+  [ROLES.MENTOR]: "Người hướng dẫn"
 };
 
 // Nhãn hiển thị, bao gồm cả các vai trò cũ nếu có trong dữ liệu.
@@ -26,6 +27,7 @@ const ROLE_LABELS = {
   [ROLES.ADMIN]: "Quản trị hệ thống",
   [ROLES.HR]: "Phòng Nhân sự",
   [ROLES.SUPERVISOR]: "Trưởng bộ phận",
+  [ROLES.MENTOR]: "Người hướng dẫn",
   [ROLES.INTERN]: "Sinh viên thực tập",
   [ROLES.USER]: "Người dùng"
 };
@@ -51,6 +53,7 @@ let departments = [];
 let tickets = [];
 let loading = false;
 let lastImport = null;
+let editingInternId = null;
 let loadError = "";
 
 const html = (value = "") => String(value).replace(/[&<>"']/g, c => ({
@@ -94,9 +97,9 @@ function announce(message, type = "success") {
   target.hidden = false;
 }
 
-function departmentLabel(id) {
-  const found = departments.find(item => item.id === id);
-  return found?.name || id || "—";
+function departmentLabel(code) {
+  const found = departments.find(item => item.code === code);
+  return found ? `${found.code} — ${found.name}` : (code || "—");
 }
 
 function ensureAdmin() {
@@ -125,19 +128,19 @@ async function refreshData() {
   showLoading(true);
 
   try {
-    const [userSnapshot, departmentRows] = await Promise.all([
-      getDocs(collection(firestore, COLLECTIONS.USERS)),
-      Database.getAllDepartments()
-    ]);
+    const userSnapshot = await getDocs(collection(firestore, COLLECTIONS.USERS));
 
     users = userSnapshot.docs.map(item => ({
       id: item.id,
       ...item.data()
     }));
 
+    // Đồng bộ tài khoản đã duyệt vào danh bạ mô phỏng (giữ vai trò Admin đã chỉnh)
+    DemoStore.syncMembers(users);
+
     // Kỳ, SVTT và phiếu hiện là dữ liệu mô phỏng (JS/demo-store.js)
     periods = DemoStore.listPeriods();
-    departments = Array.isArray(departmentRows) ? departmentRows : [];
+    departments = DemoStore.listDepartments();
     tickets = DemoStore.listAllTickets();
   } catch (error) {
     console.error("[InternHub Admin] Load error", error);
@@ -323,36 +326,46 @@ function renderUsers() {
 
 function userRow(user) {
   const status = user.status || USER_STATUS.PENDING;
+  const id = html(user.id);
+  const member = DemoStore.getMember(user.id);
+  const role = member?.role || user.role;
+  const deptCode = member ? member.department : user.department;
 
-  const roleOptions = Object.entries(ASSIGNABLE_ROLES)
-    .map(([role, label]) => `
-      <option value="${html(role)}"
-        ${user.role === role ? "selected" : ""}>
-        ${html(label)}
-      </option>
-    `).join("");
+  let controls = "—";
 
-  const controls = status === USER_STATUS.PENDING
-    ? `
+  if (status === USER_STATUS.PENDING) {
+    const roleOptions = Object.entries(ASSIGNABLE_ROLES)
+      .map(([value, label]) => `<option value="${html(value)}">${html(label)}</option>`)
+      .join("");
+    controls = `
       <div class="ih-actions">
-        <select aria-label="Vai trò cần gán"
-          data-role-for="${html(user.id)}">
+        <select aria-label="Vai trò cần gán" data-role-for="${id}">
           <option value="">Chọn vai trò</option>
           ${roleOptions}
         </select>
-
-        <button type="button"
-          class="ih-btn ih-btn--primary"
-          data-action="approve"
-          data-user-id="${html(user.id)}">Duyệt</button>
-
-        <button type="button"
-          class="ih-btn ih-btn--danger"
-          data-action="reject"
-          data-user-id="${html(user.id)}">Từ chối</button>
-      </div>
-    `
-    : "—";
+        <button type="button" class="ih-btn ih-btn--primary"
+          data-action="approve" data-user-id="${id}">Duyệt</button>
+        <button type="button" class="ih-btn ih-btn--danger"
+          data-action="reject" data-user-id="${id}">Từ chối</button>
+      </div>`;
+  } else if (status === USER_STATUS.APPROVED && member) {
+    const roleOptions = Object.entries(MEMBER_ROLES)
+      .map(([value, label]) => `<option value="${html(value)}" ${role === value ? "selected" : ""}>${html(label)}</option>`)
+      .join("");
+    const deptOptions = departments
+      .map(d => `<option value="${html(d.code)}" ${deptCode === d.code ? "selected" : ""}>${html(d.code)} — ${html(d.name)}</option>`)
+      .join("");
+    controls = `
+      <div class="ih-actions">
+        <select aria-label="Vai trò" data-member-role-for="${id}">${roleOptions}</select>
+        <select aria-label="Bộ phận" data-member-dept-for="${id}">
+          <option value="">— Không thuộc bộ phận —</option>
+          ${deptOptions}
+        </select>
+        <button type="button" class="ih-btn ih-btn--secondary"
+          data-action="save-member" data-user-id="${id}">Lưu</button>
+      </div>`;
+  }
 
   return `
     <tr>
@@ -360,8 +373,8 @@ function userRow(user) {
         <strong>${html(user.fullName || "Chưa cập nhật")}</strong>
         <small>${html(user.email || "")}</small>
       </td>
-      <td>${html(departmentLabel(user.department))}</td>
-      <td>${html(ROLE_LABELS[user.role] || "Chưa gán")}</td>
+      <td>${html(departmentLabel(deptCode))}</td>
+      <td>${html(ROLE_LABELS[role] || "Chưa gán")}</td>
       <td>
         <span class="ih-status ih-status--${html(status)}">
           ${html(STATUS_LABELS[status] || status)}
@@ -457,13 +470,26 @@ function importResultHtml() {
 
 function renderInterns() {
   const interns = DemoStore.listInterns();
-  const departmentCount = new Set(interns.map(i => i.department)).size;
-  const preview = interns.slice(0, 50).map(i => `
+  const edit = editingInternId ? interns.find(i => i.internId === editingInternId) : null;
+  const v = field => html(edit?.[field] ?? "");
+
+  const deptOptions = departments
+    .map(d => `<option value="${html(d.code)}" ${edit?.department === d.code ? "selected" : ""}>${html(d.code)} — ${html(d.name)}</option>`)
+    .join("");
+
+  const rows = interns.map(i => `
       <tr>
         <td>${html(i.internId)}</td>
         <td>${html(i.fullName)}</td>
         <td>${html(i.school || "—")}</td>
-        <td>${html(i.department)}</td>
+        <td>${html(departmentLabel(i.department))}</td>
+        <td>${html(i.startDate || "—")} → ${html(i.endDate || "—")}</td>
+        <td class="ih-actions">
+          <button type="button" class="ih-btn ih-btn--secondary"
+            data-action="edit-intern" data-intern-id="${html(i.internId)}">Sửa</button>
+          <button type="button" class="ih-btn ih-btn--danger"
+            data-action="delete-intern" data-intern-id="${html(i.internId)}">Xóa</button>
+        </td>
       </tr>`).join("");
 
   return `
@@ -471,12 +497,13 @@ function renderInterns() {
       <div class="ih-section__heading">
         <div>
           <h2>Sinh viên thực tập</h2>
-          <p>Nhập danh sách SVTT từ file CSV (trong Excel: Save As → CSV UTF-8). Dòng lỗi được báo lại và không nhập. SVTT đã có cùng Mã SV được giữ nguyên, không ghi đè.</p>
+          <p>Nhập từ CSV (Excel: Save As → CSV UTF-8) hoặc thêm, sửa, xóa thủ công. Bộ phận phải có trong danh mục.</p>
         </div>
       </div>
 
-      <p><strong>${interns.length}</strong> SVTT · ${departmentCount} bộ phận</p>
-      <p>Cột cần có: ${INTERN_COLUMNS.map(html).join(", ")}. Bắt buộc: Mã SV, Họ tên, Bộ phận.</p>
+      <p><strong>${interns.length}</strong> SVTT · ${departments.length} bộ phận trong danh mục</p>
+      <p>Cột CSV: ${INTERN_COLUMNS.map(html).join(", ")}. Bắt buộc: Mã SV, Họ tên, Bộ phận.
+         Dòng lỗi không được nhập; SVTT trùng Mã SV được giữ nguyên.</p>
 
       <div style="margin:12px 0;">
         <input type="file" accept=".csv,text/csv" data-import-file>
@@ -488,53 +515,96 @@ function renderInterns() {
         <button type="button" class="ih-btn ih-btn--secondary" data-action="reset-demo">Xóa toàn bộ dữ liệu mô phỏng</button>
       </div>
 
+      <div data-intern-form style="border:1px solid #d6dde5;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <h3 style="margin-top:0;">${edit ? `Sửa SVTT ${html(edit.internId)}` : "Thêm SVTT thủ công"}</h3>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+          <label>Mã SV<br>
+            <input type="text" name="internId" value="${v("internId")}" ${edit ? "readonly" : ""}>
+          </label>
+          <label>Họ tên<br>
+            <input type="text" name="fullName" value="${v("fullName")}">
+          </label>
+          <label>Trường<br>
+            <input type="text" name="school" value="${v("school")}">
+          </label>
+          <label>Bộ phận<br>
+            <select name="department">
+              <option value="">— Chọn bộ phận —</option>
+              ${deptOptions}
+            </select>
+          </label>
+          <label>Ngày bắt đầu<br>
+            <input type="date" name="startDate" value="${v("startDate")}">
+          </label>
+          <label>Ngày kết thúc<br>
+            <input type="date" name="endDate" value="${v("endDate")}">
+          </label>
+          <button type="button" class="ih-btn ih-btn--primary" data-action="submit-intern">
+            ${edit ? "Lưu thay đổi" : "Thêm SVTT"}
+          </button>
+          ${edit ? `<button type="button" class="ih-btn ih-btn--secondary" data-action="cancel-intern-edit">Hủy sửa</button>` : ""}
+        </div>
+      </div>
+
       ${interns.length ? `
       <div class="ih-table-wrap">
         <table class="ih-table">
           <thead>
-            <tr><th>Mã SV</th><th>Họ tên</th><th>Trường</th><th>Bộ phận</th></tr>
+            <tr><th>Mã SV</th><th>Họ tên</th><th>Trường</th><th>Bộ phận</th><th>Thời gian thực tập</th><th>Thao tác</th></tr>
           </thead>
-          <tbody>${preview}</tbody>
+          <tbody>${rows}</tbody>
         </table>
-      </div>
-      ${interns.length > 50 ? `<p>Đang xem 50 SVTT đầu tiên trên tổng ${interns.length}.</p>` : ""}
-      ` : `<p class="ih-empty">Chưa có SVTT nào.</p>`}
+      </div>` : `<p class="ih-empty">Chưa có SVTT nào.</p>`}
     </section>
   `;
 }
 
 function renderDepartments() {
+  const interns = DemoStore.listInterns();
+  const members = DemoStore.listMembers();
+
+  const rows = departments.map(d => {
+    const internCount = interns.filter(i => i.department === d.code).length;
+    const memberCount = members.filter(m => m.department === d.code).length;
+    return `
+      <tr>
+        <td><strong>${html(d.code)}</strong></td>
+        <td>${html(d.name)}</td>
+        <td>${internCount}</td>
+        <td>${memberCount}</td>
+        <td>
+          <button type="button" class="ih-btn ih-btn--danger"
+            data-action="delete-department" data-code="${html(d.code)}">Xóa</button>
+        </td>
+      </tr>`;
+  }).join("");
+
   return `
     <section class="ih-section">
       <div class="ih-section__heading">
         <div>
-          <h2>Bộ phận</h2>
-          <p>Danh mục bộ phận trong Firestore.</p>
+          <h2>Danh mục bộ phận</h2>
+          <p>Bộ phận dùng cho SVTT, tài khoản và phân công. Không xóa được bộ phận đang có SVTT hoặc tài khoản.</p>
         </div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+        <label>Mã bộ phận<br>
+          <input type="text" name="deptCode" maxlength="12" placeholder="Ví dụ: LT">
+        </label>
+        <label>Tên bộ phận<br>
+          <input type="text" name="deptName" placeholder="Ví dụ: Lễ tân">
+        </label>
+        <button type="button" class="ih-btn ih-btn--primary" data-action="create-department">Thêm bộ phận</button>
       </div>
 
       <div class="ih-table-wrap">
         <table class="ih-table">
           <thead>
-            <tr>
-              <th>Mã</th>
-              <th>Tên bộ phận</th>
-              <th>Người quản lý</th>
-            </tr>
+            <tr><th>Mã</th><th>Tên bộ phận</th><th>SVTT</th><th>Tài khoản</th><th>Thao tác</th></tr>
           </thead>
           <tbody>
-            ${departments.length
-              ? departments.map(item => `
-                  <tr>
-                    <td>${html(item.id)}</td>
-                    <td><strong>${html(item.name || "Chưa đặt tên")}</strong></td>
-                    <td>${html(item.manager || "—")}</td>
-                  </tr>
-                `).join("")
-              : `<tr><td colspan="3" class="ih-empty">
-                   Chưa có dữ liệu bộ phận.
-                 </td></tr>`
-            }
+            ${rows || `<tr><td colspan="5" class="ih-empty">Chưa có bộ phận nào.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -576,7 +646,12 @@ function renderView() {
 // Thao tác với dữ liệu mô phỏng (kỳ, SVTT, phiếu)
 // ============================================
 async function handleDemoAction(action, button) {
-  const demoActions = ["create-period", "generate-tickets", "load-sample", "reset-demo"];
+  const demoActions = [
+    "create-period", "generate-tickets", "load-sample", "reset-demo",
+    "create-department", "delete-department",
+    "submit-intern", "edit-intern", "cancel-intern-edit", "delete-intern",
+    "save-member"
+  ];
   if (!demoActions.includes(action)) return false;
 
   try {
@@ -586,11 +661,15 @@ async function handleDemoAction(action, button) {
     return true;
   }
 
+  const report = (result, okText) => {
+    announce(result.ok ? okText : result.error, result.ok ? "success" : "error");
+  };
+
   if (action === "create-period") {
     const month = mountNode.querySelector('[name="month"]')?.value;
     const name = mountNode.querySelector('[name="name"]')?.value;
-    const result = DemoStore.createPeriod({ month, name });
-    announce(result.ok ? "Đã tạo kỳ đánh giá." : result.error, result.ok ? "success" : "error");
+    report(DemoStore.createPeriod({ month, name }), "Đã tạo kỳ đánh giá.");
+
   } else if (action === "generate-tickets") {
     const result = DemoStore.generateTickets(button.dataset.periodId);
     announce(
@@ -599,16 +678,63 @@ async function handleDemoAction(action, button) {
         : result.error,
       result.ok ? "success" : "error"
     );
+
   } else if (action === "load-sample") {
-    if (!window.confirm("Nạp dữ liệu mẫu sẽ THAY THẾ toàn bộ kỳ, SVTT và phiếu hiện có. Tiếp tục?")) return true;
+    if (!window.confirm("Nạp dữ liệu mẫu sẽ THAY THẾ toàn bộ bộ phận, kỳ, SVTT và phiếu hiện có. Tiếp tục?")) return true;
     DemoStore.loadSampleData();
     lastImport = null;
+    editingInternId = null;
     announce("Đã nạp dữ liệu mẫu (dữ liệu giả lập).");
+
   } else if (action === "reset-demo") {
-    if (!window.confirm("Xóa toàn bộ kỳ, SVTT và phiếu mô phỏng trên trình duyệt này?")) return true;
+    if (!window.confirm("Xóa toàn bộ dữ liệu mô phỏng (bộ phận, SVTT, kỳ, phiếu, phân vai trò) trên trình duyệt này?")) return true;
     DemoStore.resetDemo();
     lastImport = null;
+    editingInternId = null;
     announce("Đã xóa dữ liệu mô phỏng.");
+
+  } else if (action === "create-department") {
+    const code = mountNode.querySelector('[name="deptCode"]')?.value;
+    const name = mountNode.querySelector('[name="deptName"]')?.value;
+    report(DemoStore.createDepartment({ code, name }), "Đã thêm bộ phận.");
+
+  } else if (action === "delete-department") {
+    if (!window.confirm(`Xóa bộ phận ${button.dataset.code}?`)) return true;
+    report(DemoStore.deleteDepartment(button.dataset.code), "Đã xóa bộ phận.");
+
+  } else if (action === "submit-intern") {
+    const form = mountNode.querySelector("[data-intern-form]");
+    const get = name => form?.querySelector(`[name="${name}"]`)?.value ?? "";
+    const data = {
+      internId: get("internId"),
+      fullName: get("fullName"),
+      school: get("school"),
+      department: get("department"),
+      startDate: get("startDate"),
+      endDate: get("endDate")
+    };
+    const result = editingInternId
+      ? DemoStore.updateIntern(editingInternId, data)
+      : DemoStore.createIntern(data);
+    if (result.ok) editingInternId = null;
+    report(result, "Đã lưu SVTT.");
+
+  } else if (action === "edit-intern") {
+    editingInternId = button.dataset.internId;
+
+  } else if (action === "cancel-intern-edit") {
+    editingInternId = null;
+
+  } else if (action === "delete-intern") {
+    if (!window.confirm(`Xóa SVTT ${button.dataset.internId}?`)) return true;
+    if (editingInternId === button.dataset.internId) editingInternId = null;
+    report(DemoStore.deleteIntern(button.dataset.internId), "Đã xóa SVTT.");
+
+  } else if (action === "save-member") {
+    const uid = button.dataset.userId;
+    const role = mountNode.querySelector(`[data-member-role-for="${CSS.escape(uid)}"]`)?.value;
+    const department = mountNode.querySelector(`[data-member-dept-for="${CSS.escape(uid)}"]`)?.value;
+    report(DemoStore.updateMember(uid, { role, department }), "Đã cập nhật vai trò và bộ phận (mô phỏng).");
   }
 
   await refreshData();
