@@ -111,8 +111,8 @@ function redirectToApp(role) {
     return;
   }
 
-  // HR & Supervisor chuyển sang app.html
-  if (role === ROLES.HR || role === ROLES.SUPERVISOR) {
+  // HR, Trưởng bộ phận và Người hướng dẫn chuyển sang app.html
+  if (role === ROLES.HR || role === ROLES.SUPERVISOR || role === ROLES.MENTOR) {
     setTimeout(() => {
   window.location.href = "./app.html";
 }, 100);
@@ -373,7 +373,7 @@ export async function approveUser(userId, role) {
     return false;
   }
 
-  if (![ROLES.HR, ROLES.SUPERVISOR].includes(role)) {
+  if (![ROLES.HR, ROLES.SUPERVISOR, ROLES.MENTOR].includes(role)) {
     showMessage("adminError", "Vai trò được chọn không hợp lệ.");
     return false;
   }
