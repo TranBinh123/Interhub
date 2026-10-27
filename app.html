@@ -572,7 +572,7 @@
 
   <script type="module">
     import { Auth } from "./JS/auth.js";
-    import { Database } from "./JS/db.js";
+    import { DemoStore, STATUS_LABEL, STATUS, formatDateTime, DEMO_BANNER } from "./JS/demo-store.js";
 
     // State
     let currentUser = null;
@@ -693,37 +693,74 @@
     }
 
     // ============================================
-    // Load Data
+    // Load Data (dữ liệu mô phỏng — xem JS/demo-store.js)
     // ============================================
-    async function loadDashboardData() {
-      try {
-        // TODO: Load tickets and stats from Database module
-        updateDashboardStats();
-        displayRecentTickets();
-      } catch (error) {
-        console.error("Error loading dashboard:", error);
-        showMessage("error", "Lỗi tải dữ liệu");
-      }
+    function actorInfo() {
+      return {
+        name: userProfile?.fullName || currentUser?.email,
+        role: userProfile?.role,
+        department: userProfile?.department
+      };
+    }
+
+    function loadDashboardData() {
+      tickets = DemoStore.listTickets(actorInfo());
+      updateDashboardStats();
+      displayRecentTickets();
+      displayAllTickets();
     }
 
     function updateDashboardStats() {
-      // TODO: Calculate stats from tickets
-      document.getElementById("statPending").textContent = "—";
-      document.getElementById("statFinalized").textContent = "—";
-      document.getElementById("statTotal").textContent = "—";
+      const s = DemoStore.stats(tickets);
+      document.getElementById("statPending").textContent = s.pending;
+      document.getElementById("statFinalized").textContent = s.finalized;
+      document.getElementById("statTotal").textContent = s.total;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function ticketRow(ticket, dateField) {
+      return `
+        <tr>
+          <td>${escapeHtml(ticket.id)}</td>
+          <td>${escapeHtml(ticket.internName)}<br><small>${escapeHtml(ticket.internId)}</small></td>
+          <td>${escapeHtml(ticket.department)}</td>
+          <td>${escapeHtml(STATUS_LABEL[ticket.status] || ticket.status)}</td>
+          <td>${formatDateTime(ticket[dateField])}</td>
+          <td><a class="btn btn-secondary btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(ticket.id)}">Mở phiếu</a></td>
+        </tr>`;
+    }
+
+    function fillTable(tableId, rows, emptyText) {
+      const tbody = document.querySelector(`#${tableId} tbody`);
+      if (!tbody) return;
+      tbody.innerHTML = rows.length
+        ? rows.join("")
+        : `<tr class="empty-state"><td colspan="6">${emptyText}</td></tr>`;
     }
 
     function displayRecentTickets() {
-      const tbody = document.querySelector("#recentTicketsTable tbody");
-      if (!tbody) return;
-
-      if (tickets.length === 0) {
-        tbody.innerHTML = '<tr class="empty-state"><td colspan="6">Chưa có phiếu nào</td></tr>';
-        return;
-      }
-
-      // TODO: Display tickets
+      const rows = tickets.slice(0, 8).map(t => ticketRow(t, "updatedAt"));
+      fillTable("recentTicketsTable", rows, "Chưa có phiếu nào");
     }
+
+    function displayAllTickets() {
+      const rows = tickets.map(t => ticketRow(t, "createdAt"));
+      fillTable("ticketsTable", rows, "Chưa có phiếu nào");
+    }
+
+    // Banner mô phỏng đặt ngay trên khu vực thông báo
+    (function showDemoBanner() {
+      const anchor = document.getElementById("successMessage");
+      if (anchor) {
+        anchor.insertAdjacentHTML("beforebegin",
+          `<div class="message show" style="background:#fff7ed;color:#9a3412;">${escapeHtml(DEMO_BANNER)}</div>`);
+      }
+    })();
 
     // ============================================
     // Messages

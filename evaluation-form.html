@@ -435,239 +435,41 @@
   </div>
 
   <script type="module">
-    import { TicketManager } from "./JS/ticket-manager.js";
     import { Auth } from "./JS/auth.js";
+    import {
+      DemoStore, ITEMS, PARTS, STATUS, STATUS_LABEL,
+      SCORE_MIN, SCORE_MAX, SCORE_STEP, DEMO_BANNER,
+      partScore, formatDateTime
+    } from "./JS/demo-store.js";
 
-    let currentTicket = null;
-    let currentScores = Array(15).fill(null);
-    let userProfile = null;
-
-    // ============================================
-    // Get ticket ID from URL
-    // (Không dùng "return" ở cấp module: đó là lỗi cú pháp và làm hỏng cả script)
-    // ============================================
+    const $ = id => document.getElementById(id);
     const ticketId = new URLSearchParams(window.location.search).get("id");
 
-    // ============================================
-    // Initialize
-    // ============================================
-    async function initForm() {
-      try {
-        const ticket = await TicketManager.get(ticketId);
-        if (!ticket) {
-          throw new Error("Phiếu không tồn tại");
-        }
+    let actor = null;
+    let currentTicket = null;
+    let currentScores = Array(ITEMS.length).fill(null);
 
-        currentTicket = ticket;
-        currentScores = [...ticket.scores];
-
-        document.getElementById("loadingState").classList.add("hidden");
-        document.getElementById("evaluationForm").classList.remove("hidden");
-
-        populateForm();
-        renderScoresTable();
-        updateResults();
-      } catch (error) {
-        console.error("Error loading form:", error);
-        document.getElementById("loadingState").innerHTML = "❌ " + error.message;
-      }
+    function esc(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
-    // ============================================
-    // Populate Form
-    // ============================================
-    function populateForm() {
-      document.getElementById("ticketId").value = currentTicket.id;
-      document.getElementById("internId").value = currentTicket.internId;
-      document.getElementById("internName").value = currentTicket.internName;
-      document.getElementById("department").value = currentTicket.department;
-
-      renderRoleNotes();
-    }
-
-    // ============================================
-    // Render Role-specific Notes
-    // ============================================
-    function renderRoleNotes() {
-      // Vai trò nằm trong hồ sơ Firestore (users/{uid}), không nằm trên đối tượng user của Firebase
-      const userRole = userProfile?.role;
-      const container = document.getElementById("roleNotesContainer");
-      let html = "";
-
-      if (userRole === "supervisor") {
-        html = `
-          <div class="form-group">
-            <label>Nhận xét Phần IV (Trưởng bộ phận)</label>
-            <textarea id="textPart4" placeholder="Nhận xét của trưởng bộ phận...">${currentTicket.textPart4 || ""}</textarea>
-          </div>
-        `;
-      } else if (userRole === "hr") {
-        html = `
-          <div class="form-group">
-            <label>Nhận xét Phần V</label>
-            <textarea id="textPart5" placeholder="Nhận xét của Phòng Nhân sự...">${currentTicket.textPart5 || ""}</textarea>
-          </div>
-          <div class="form-group">
-            <label>Nhận xét Tổ công tác sinh viên</label>
-            <textarea id="textCommittee" placeholder="Nhận xét của tổ công tác...">${currentTicket.textCommittee || ""}</textarea>
-          </div>
-        `;
-      }
-
-      container.innerHTML = html;
-    }
-
-    // ============================================
-    // Render Scores Table
-    // ============================================
-    function renderScoresTable() {
-      const tbody = document.getElementById("scoresTable");
-      let html = "";
-
-      TicketManager.items.forEach((item, idx) => {
-        const parts = ["Phần I: Thái độ", "Phần II: Năng lực", "Phần III: Phát triển"];
-        const isNewPart = idx === 0 || item.part !== TicketManager.items[idx - 1].part;
-
-        if (isNewPart) {
-          html += `
-            <tr class="part-header">
-              <td colspan="3"><span class="part-label">${parts[item.part]}</span></td>
-            </tr>
-          `;
-        }
-
-        const score = currentScores[idx] || "";
-        html += `
-          <tr>
-            <td>${item.key}</td>
-            <td>${item.label}</td>
-            <td>
-              <input type="number"
-                     class="score-input"
-                     min="1" max="5"
-                     step="0.5"
-                     value="${score}"
-                     data-index="${idx}"
-                     onchange="handleScoreChange(this)">
-            </td>
-          </tr>
-        `;
-      });
-
-      tbody.innerHTML = html;
-    }
-
-    // ============================================
-    // Handle Score Change
-    // ============================================
-    window.handleScoreChange = function(input) {
-      const idx = parseInt(input.dataset.index);
-      const value = input.value ? parseFloat(input.value) : null;
-
-      if (value && (value < 1 || value > 5)) {
-        showMessage("error", "Điểm phải từ 1-5");
-        input.value = currentScores[idx] || "";
-        return;
-      }
-
-      currentScores[idx] = value;
-      updateResults();
-    };
-
-    // ============================================
-    // Update Results
-    // ============================================
-    function updateResults() {
-      const result = TicketManager.calculateFinalScore(currentScores);
-
-      if (result) {
-        document.getElementById("resultA").textContent = result.A.toFixed(2);
-        document.getElementById("resultB").textContent = result.B.toFixed(2);
-        document.getElementById("resultC").textContent = result.C.toFixed(2);
-        document.getElementById("resultFinal").textContent = result.final.toFixed(2);
-        document.getElementById("resultGrade").textContent = result.grade;
-      } else {
-        document.getElementById("resultA").textContent = "—";
-        document.getElementById("resultB").textContent = "—";
-        document.getElementById("resultC").textContent = "—";
-        document.getElementById("resultFinal").textContent = "—";
-        document.getElementById("resultGrade").textContent = "—";
-      }
-    }
-
-    // ============================================
-    // Save Scores
-    // ============================================
-    document.getElementById("evaluationForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      try {
-        await TicketManager.updateScores(ticketId, currentScores);
-
-        // Save notes
-        const textPart4 = document.getElementById("textPart4");
-        if (textPart4?.value) {
-          await TicketManager.updateNotes(ticketId, 4, textPart4.value);
-        }
-
-        const textPart5 = document.getElementById("textPart5");
-        if (textPart5?.value) {
-          await TicketManager.updateNotes(ticketId, 5, textPart5.value);
-        }
-
-        const textCommittee = document.getElementById("textCommittee");
-        if (textCommittee?.value) {
-          await TicketManager.updateNotes(ticketId, "committee", textCommittee.value);
-        }
-
-        showMessage("success", "✓ Lưu thành công");
-      } catch (error) {
-        showMessage("error", "❌ " + error.message);
-      }
-    });
-
-    // ============================================
-    // Submit for Review
-    // ============================================
-    document.getElementById("submitForReviewBtn")?.addEventListener("click", async () => {
-      try {
-        await TicketManager.submit(ticketId);
-        showMessage("success", "✓ Gửi phê duyệt thành công");
-        setTimeout(() => window.history.back(), 1500);
-      } catch (error) {
-        showMessage("error", "❌ " + error.message);
-      }
-    });
-
-    // ============================================
-    // Reset Form
-    // ============================================
-    document.getElementById("resetBtn")?.addEventListener("click", () => {
-      currentScores = [...currentTicket.scores];
-      document.getElementById("evaluationForm").reset();
-      renderScoresTable();
-      updateResults();
-    });
-
-    // ============================================
-    // Messages
-    // ============================================
     function showMessage(type, text) {
-      const el = document.getElementById(type + "Message");
-      if (el) {
-        el.textContent = text;
-        el.classList.add("show");
-        setTimeout(() => el.classList.remove("show"), 3000);
-      }
+      const el = $(type + "Message");
+      if (!el) return;
+      el.textContent = text;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 3000);
     }
 
     // ============================================
-    // Bootstrap: kiểm tra đăng nhập và quyền trước khi tải phiếu
+    // Khởi động: kiểm tra đăng nhập và hồ sơ đã duyệt trước khi tải phiếu
     // ============================================
     async function bootstrap() {
       if (!ticketId) {
-        document.getElementById("evaluationForm").classList.add("hidden");
-        document.getElementById("loadingState").innerHTML = "❌ Không tìm thấy phiếu";
+        $("evaluationForm").classList.add("hidden");
+        $("loadingState").innerHTML = "❌ Không tìm thấy phiếu";
         return;
       }
 
@@ -677,24 +479,298 @@
       } catch (error) {
         console.error("Không thể kiểm tra đăng nhập:", error);
       }
-
       if (!user) {
         window.location.replace("./index.html");
         return;
       }
 
+      let profile = null;
       try {
-        userProfile = await Auth.getProfile(user.uid);
+        profile = await Auth.getProfile(user.uid);
       } catch (error) {
         console.error("Không thể tải hồ sơ người dùng:", error);
       }
-
-      if (!userProfile || userProfile.status !== "approved" || userProfile.isActive !== true) {
+      if (!profile || profile.status !== "approved" || profile.isActive !== true) {
         window.location.replace("./index.html");
         return;
       }
 
-      await initForm();
+      actor = {
+        name: profile.fullName || user.email,
+        role: profile.role,
+        department: profile.department
+      };
+
+      loadTicket();
+    }
+
+    function loadTicket() {
+      const ticket = DemoStore.getTicket(ticketId);
+      if (!ticket) {
+        $("evaluationForm").classList.add("hidden");
+        $("loadingState").innerHTML = "❌ Phiếu không tồn tại";
+        return;
+      }
+      if (!DemoStore.canView(ticket, actor)) {
+        $("evaluationForm").classList.add("hidden");
+        $("loadingState").innerHTML = "❌ Bạn không có quyền xem phiếu này";
+        return;
+      }
+
+      currentTicket = ticket;
+      currentScores = [...ticket.scores];
+
+      $("loadingState").classList.add("hidden");
+      $("evaluationForm").classList.remove("hidden");
+
+      renderHeader();
+      populateForm();
+      renderScoresTable();
+      renderRoleNotes();
+      refresh();
+    }
+
+    // Banner mô phỏng và trạng thái phiếu, đặt ngay trên form
+    function renderHeader() {
+      if (!$("demoBanner")) {
+        $("evaluationForm").insertAdjacentHTML("beforebegin", `
+          <div id="demoBanner" class="message show" style="background:#fff7ed;color:#9a3412;">
+            ${esc(DEMO_BANNER)}
+          </div>
+          <div id="statusLine" class="message show" style="background:#f0f9ff;color:#075985;"></div>
+        `);
+      }
+      $("statusLine").textContent =
+        `Trạng thái: ${STATUS_LABEL[currentTicket.status]} · Đã gửi ${currentTicket.sendCount} lần · Cập nhật ${formatDateTime(currentTicket.updatedAt)}`;
+    }
+
+    function populateForm() {
+      $("ticketId").value = currentTicket.id;
+      $("internId").value = currentTicket.internId;
+      $("internName").value = currentTicket.internName;
+      $("department").value = currentTicket.department;
+    }
+
+    // ============================================
+    // Ô nhận xét theo vai trò
+    // ============================================
+    function renderRoleNotes() {
+      let html = "";
+
+      if (actor.role === "supervisor") {
+        html = `
+          <div class="form-group">
+            <label>Nhận xét Phần IV (Trưởng bộ phận)</label>
+            <textarea id="textPart4" placeholder="Nhận xét của trưởng bộ phận...">${esc(currentTicket.textPart4)}</textarea>
+          </div>
+        `;
+      } else if (actor.role === "hr") {
+        html = `
+          <div class="form-group">
+            <label>Nhận xét Phần V</label>
+            <textarea id="textPart5" placeholder="Nhận xét của Phòng Nhân sự...">${esc(currentTicket.textPart5)}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Nhận xét Tổ công tác sinh viên</label>
+            <textarea id="textCommittee" placeholder="Nhận xét của tổ công tác...">${esc(currentTicket.textCommittee)}</textarea>
+          </div>
+        `;
+      }
+
+      $("roleNotesContainer").innerHTML = html;
+    }
+
+    // ============================================
+    // Bảng điểm: 15 hạng mục chia 3 phần
+    // ============================================
+    function renderScoresTable() {
+      let html = "";
+      PARTS.forEach(part => {
+        html += `
+          <tr class="part-header">
+            <td colspan="3"><span class="part-label">${esc(part.name)}</span></td>
+          </tr>`;
+        for (let idx = part.from; idx <= part.to; idx++) {
+          const item = ITEMS[idx];
+          const value = currentScores[idx] ?? "";
+          html += `
+            <tr>
+              <td>${item.key}</td>
+              <td>${esc(item.label)}</td>
+              <td>
+                <input type="number" class="score-input"
+                       min="${SCORE_MIN}" max="${SCORE_MAX}" step="${SCORE_STEP}"
+                       value="${value}" data-index="${idx}">
+              </td>
+            </tr>`;
+        }
+      });
+      $("scoresTable").innerHTML = html;
+    }
+
+    $("scoresTable").addEventListener("change", event => {
+      const input = event.target;
+      if (!input.matches(".score-input")) return;
+
+      const idx = Number(input.dataset.index);
+      if (input.value === "") {
+        currentScores[idx] = null;
+      } else {
+        const value = Number(input.value);
+        if (Number.isNaN(value) || value < SCORE_MIN || value > SCORE_MAX) {
+          showMessage("error", `Điểm phải từ ${SCORE_MIN} đến ${SCORE_MAX}`);
+          input.value = currentScores[idx] ?? "";
+          return;
+        }
+        currentScores[idx] = value;
+      }
+      updateResults();
+    });
+
+    // Điểm từng phần và điểm cuối theo README mục 2.4. Không xếp loại (chờ xác nhận).
+    function updateResults() {
+      const fmt = v => (v === null || v === undefined ? "—" : v.toFixed(2));
+      const A = partScore(currentScores, 0);
+      const B = partScore(currentScores, 1);
+      const C = partScore(currentScores, 2);
+      const final = A !== null && B !== null && C !== null ? (A + B + C) / 3 : null;
+
+      $("resultA").textContent = fmt(A);
+      $("resultB").textContent = fmt(B);
+      $("resultC").textContent = fmt(C);
+      $("resultFinal").textContent = fmt(final);
+      $("resultGrade").textContent = final === null ? "—" : "Chờ xác nhận thang xếp loại";
+    }
+
+    // ============================================
+    // Quyền thao tác: khoá ô không được sửa
+    // ============================================
+    function applyPermissions() {
+      const p = DemoStore.permissionsFor(currentTicket, actor);
+
+      document.querySelectorAll(".score-input").forEach(input => {
+        input.disabled = !p.scores;
+      });
+      $("textPart4") && ($("textPart4").disabled = !p.part4);
+      $("textPart5") && ($("textPart5").disabled = !p.part5);
+      $("textCommittee") && ($("textCommittee").disabled = !p.committee);
+
+      $("submitBtn").disabled = !p.scores;
+      $("resetBtn").disabled = !p.scores;
+      $("submitForReviewBtn").disabled = !p.submit;
+    }
+
+    // ============================================
+    // Lưu nháp, gửi phiếu
+    // ============================================
+    function collectNotes() {
+      const notes = {};
+      if ($("textPart4")) notes.textPart4 = $("textPart4").value;
+      if ($("textPart5")) notes.textPart5 = $("textPart5").value;
+      if ($("textCommittee")) notes.textCommittee = $("textCommittee").value;
+      return notes;
+    }
+
+    function saveDraft() {
+      const p = DemoStore.permissionsFor(currentTicket, actor);
+      const result = DemoStore.saveDraft(ticketId, actor, {
+        scores: p.scores ? currentScores : null,
+        notes: collectNotes()
+      });
+      if (!result.ok) {
+        showMessage("error", "❌ " + result.error);
+        return false;
+      }
+      currentTicket = result.ticket;
+      return true;
+    }
+
+    $("evaluationForm").addEventListener("submit", event => {
+      event.preventDefault();
+      if (saveDraft()) {
+        refresh();
+        showMessage("success", "✓ Đã lưu nháp (dữ liệu mô phỏng)");
+      }
+    });
+
+    $("submitForReviewBtn").addEventListener("click", () => {
+      if (!saveDraft()) return;
+      const result = DemoStore.submit(ticketId, actor);
+      if (!result.ok) {
+        showMessage("error", "❌ " + result.error);
+        return;
+      }
+      currentTicket = result.ticket;
+      refresh();
+      showMessage("success", "✓ Đã gửi phiếu, chờ Đào tạo xác nhận (dữ liệu mô phỏng)");
+    });
+
+    $("resetBtn").addEventListener("click", () => {
+      currentScores = [...currentTicket.scores];
+      renderScoresTable();
+      updateResults();
+      applyPermissions();
+    });
+
+    // ============================================
+    // Đào tạo (HR): trả về hoặc chốt, và lịch sử
+    // ============================================
+    function renderReviewPanel() {
+      let panel = $("reviewPanel");
+      if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "reviewPanel";
+        panel.className = "card";
+        $("evaluationForm").appendChild(panel);
+      }
+
+      const p = DemoStore.permissionsFor(currentTicket, actor);
+      const history = [...currentTicket.history].reverse().slice(0, 10);
+      const historyHtml = history.length
+        ? history.map(h => `<li>${formatDateTime(h.at)} — <strong>${esc(h.action)}</strong> bởi ${esc(h.by)}${h.note ? `: ${esc(h.note)}` : ""}</li>`).join("")
+        : "<li>Chưa có lịch sử thao tác.</li>";
+
+      const actionsHtml = p.finalize || p.returnTicket ? `
+        <div class="form-group">
+          <label>Lý do trả về (bắt buộc khi trả phiếu)</label>
+          <textarea id="returnReason" placeholder="Nêu rõ nội dung cần bổ sung..."></textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-secondary" id="returnBtn">Trả về bổ sung</button>
+          <button type="button" class="btn btn-primary" id="finalizeBtn">Xác nhận chốt</button>
+        </div>` : "";
+
+      panel.innerHTML = `
+        <h3 style="margin-top:0;">Đào tạo kiểm tra</h3>
+        ${actionsHtml}
+        <h4>Lịch sử thao tác</h4>
+        <ul>${historyHtml}</ul>
+      `;
+
+      $("returnBtn")?.addEventListener("click", () => {
+        const result = DemoStore.returnTicket(ticketId, actor, $("returnReason").value);
+        if (!result.ok) return showMessage("error", "❌ " + result.error);
+        currentTicket = result.ticket;
+        refresh();
+        showMessage("success", "✓ Đã trả phiếu về người đánh giá (dữ liệu mô phỏng)");
+      });
+
+      $("finalizeBtn")?.addEventListener("click", () => {
+        if (!confirm("Xác nhận chốt phiếu này?")) return;
+        const result = DemoStore.finalize(ticketId, actor);
+        if (!result.ok) return showMessage("error", "❌ " + result.error);
+        currentTicket = result.ticket;
+        refresh();
+        showMessage("success", "✓ Đã chốt phiếu (dữ liệu mô phỏng)");
+      });
+    }
+
+    function refresh() {
+      renderHeader();
+      renderRoleNotes();
+      applyPermissions();
+      updateResults();
+      renderReviewPanel();
     }
 
     bootstrap();
