@@ -514,6 +514,7 @@
           <div class="card">
             <h2>Phân công đánh giá</h2>
             <p>Giao từng phiếu của bộ phận cho một người hướng dẫn. Phiếu chưa giao thì bạn tự đánh giá. Chỉ phân công được khi phiếu chưa gửi.</p>
+            <p id="assignSummary" style="font-weight:600;"></p>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -750,6 +751,8 @@
       const actor = actorInfo();
       const list = DemoStore.listTickets(actor, period.id);
       const mentors = DemoStore.mentorsOf(actor.department);
+      const summary = `Bộ phận ${actor.department || "—"}: ${list.length} phiếu · ${mentors.length} người hướng dẫn · ${list.filter(t => !t.evaluatorUid).length} phiếu chưa giao.`;
+      document.getElementById("assignSummary").textContent = summary;
       const mentorNotice = mentors.length ? "" :
         `<tr><td colspan="5" class="empty-state">Bộ phận chưa có người hướng dẫn nào. Admin cần duyệt tài khoản người hướng dẫn, chọn đúng bộ phận ở tab "Tài khoản", rồi bấm "Làm mới".</td></tr>`;
 
@@ -866,6 +869,11 @@
         <h2>Việc cần làm · ${escapeHtml(period.name)}</h2>
         <p>${escapeHtml(roleText)}</p>
         ${hint ? `<div class="message show" style="background:#fff7ed;color:#9a3412;">${escapeHtml(hint)}</div>` : ""}
+        ${actor.role === "supervisor" ? `
+        <p>Bộ phận <strong>${escapeHtml(actor.department || "—")}</strong>:
+           <strong>${DemoStore.listTickets(actor, period.id).length}</strong> phiếu ·
+           <strong>${DemoStore.mentorsOf(actor.department).length}</strong> người hướng dẫn ·
+           <button type="button" class="btn btn-secondary btn-sm" data-go-assign>Mở phân công đánh giá</button></p>` : ""}
         <p><strong>${todo.length}</strong> phiếu cần xử lý.</p>
         ${todo.length ? `
         <div class="table-wrap">
@@ -875,6 +883,8 @@
           </table>
         </div>
         ${todo.length > 10 ? `<p>Hiển thị 10 phiếu đầu tiên trên tổng ${todo.length}.</p>` : ""}` : ""}`;
+
+      box.querySelector("[data-go-assign]")?.addEventListener("click", () => switchView("assignments"));
     }
 
     function updateDashboardStats() {
