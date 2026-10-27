@@ -495,7 +495,11 @@
         return;
       }
 
+      // Áp dụng vai trò/bộ phận Admin đã chỉnh (mô phỏng) lên hồ sơ Firestore
+      profile = DemoStore.effectiveProfile(user.uid, profile);
+
       actor = {
+        uid: user.uid,
         name: profile.fullName || user.email,
         role: profile.role,
         department: profile.department
@@ -541,7 +545,7 @@
         `);
       }
       $("statusLine").textContent =
-        `Trạng thái: ${STATUS_LABEL[currentTicket.status]} · Đã gửi ${currentTicket.sendCount} lần · Cập nhật ${formatDateTime(currentTicket.updatedAt)}`;
+        `Người đánh giá: ${currentTicket.evaluatorName || "—"} · Trạng thái: ${STATUS_LABEL[currentTicket.status]} · Đã gửi ${currentTicket.sendCount} lần · Cập nhật ${formatDateTime(currentTicket.updatedAt)}`;
     }
 
     function populateForm() {
@@ -557,7 +561,7 @@
     function renderRoleNotes() {
       let html = "";
 
-      if (actor.role === "supervisor") {
+      if (actor.role === "supervisor" || actor.role === "mentor") {
         html = `
           <div class="form-group">
             <label>Nhận xét Phần IV (Trưởng bộ phận)</label>

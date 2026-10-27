@@ -425,6 +425,11 @@
             📋 Phiếu đánh giá
           </button>
         </li>
+        <li class="nav-item" id="navAssignments" hidden>
+          <button class="nav-link" data-view="assignments">
+            🧭 Phân công đánh giá
+          </button>
+        </li>
         <li class="nav-item">
           <button class="nav-link" data-view="periods">
             📅 Kỳ đánh giá
@@ -499,6 +504,28 @@
                     <td colspan="6">Chưa có phiếu nào</td>
                   </tr>
                 </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assignments view (Trưởng bộ phận) -->
+        <div id="assignments" class="view hidden">
+          <div class="card">
+            <h2>Phân công đánh giá</h2>
+            <p>Giao từng phiếu của bộ phận cho một người hướng dẫn. Phiếu chưa giao thì bạn tự đánh giá. Chỉ phân công được khi phiếu chưa gửi.</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sinh viên</th>
+                    <th>Trạng thái</th>
+                    <th>Người đánh giá hiện tại</th>
+                    <th>Giao cho</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="assignTable"></tbody>
               </table>
             </div>
           </div>
@@ -612,6 +639,9 @@
         return;
       }
 
+      // Áp dụng vai trò/bộ phận Admin đã chỉnh (mô phỏng) lên hồ sơ Firestore
+      profile = DemoStore.effectiveProfile(user.uid, profile);
+
       currentUser = user;
       userProfile = profile;
       setupUI();
@@ -625,9 +655,12 @@
       // Display user info
       if (userProfile) {
         document.getElementById("userDisplayName").textContent = userProfile.fullName || "—";
-        document.getElementById("userDisplayRole").textContent = userProfile.role || "—";
+        const roleText = { hr: "Phòng Nhân sự", supervisor: "Trưởng bộ phận", mentor: "Người hướng dẫn" };
+        document.getElementById("userDisplayRole").textContent = roleText[userProfile.role] || userProfile.role || "—";
       }
       document.getElementById("userDisplayEmail").textContent = currentUser.email;
+      document.getElementById("navAssignments").hidden = userProfile?.role !== "supervisor";
+      document.getElementById("assignments").addEventListener("click", handleAssignClick);
 
       // Navigation
       document.querySelectorAll(".nav-link").forEach(link => {
@@ -683,11 +716,14 @@
         view.classList.remove("hidden");
       }
 
+      if (viewName === "assignments") renderAssignments();
+
       // Update title
       const titles = {
         dashboard: "Tổng quan",
         evaluations: "Phiếu đánh giá",
         periods: "Các kỳ đánh giá",
+        assignments: "Phân công đánh giá",
         reports: "Báo cáo"
       };
       document.getElementById("pageTitle").textContent = titles[viewName] || "—";
@@ -699,10 +735,68 @@
     }
 
     // ============================================
+    // Phân công đánh giá (Trưởng bộ phận)
+    // ============================================
+    function renderAssignments() {
+      const box = document.getElementById("assignTable");
+      if (!box) return;
+
+      const period = DemoStore.activePeriod();
+      if (!period) {
+        box.innerHTML = `<tr class="empty-state"><td colspan="5">Chưa có kỳ đánh giá đang mở.</td></tr>`;
+        return;
+      }
+
+      const actor = actorInfo();
+      const list = DemoStore.listTickets(actor, period.id);
+      const mentors = DemoStore.mentorsOf(actor.department);
+
+      if (!list.length) {
+        box.innerHTML = `<tr class="empty-state"><td colspan="5">Chưa có phiếu nào thuộc bộ phận của bạn.</td></tr>`;
+        return;
+      }
+
+      box.innerHTML = list.map(t => {
+        const p = DemoStore.permissionsFor(t, actor);
+        const options = [
+          `<option value="" ${!t.evaluatorUid ? "selected" : ""}>Trưởng bộ phận tự đánh giá</option>`,
+          ...mentors.map(m => `<option value="${escapeHtml(m.uid)}" ${t.evaluatorUid === m.uid ? "selected" : ""}>${escapeHtml(m.fullName)}</option>`)
+        ].join("");
+        const disabled = p.assign ? "" : "disabled";
+        return `
+          <tr>
+            <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
+            <td>${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
+            <td>${escapeHtml(t.evaluatorName || "—")}</td>
+            <td><select data-assign-for="${escapeHtml(t.id)}" ${disabled}>${options}</select></td>
+            <td><button type="button" class="btn btn-secondary btn-sm" data-action="assign"
+                  data-ticket-id="${escapeHtml(t.id)}" ${disabled}>Lưu</button></td>
+          </tr>`;
+      }).join("");
+    }
+
+    function handleAssignClick(event) {
+      const button = event.target.closest("[data-action='assign']");
+      if (!button) return;
+
+      const id = button.dataset.ticketId;
+      const select = document.querySelector(`[data-assign-for="${CSS.escape(id)}"]`);
+      const result = DemoStore.assignEvaluator(id, actorInfo(), select?.value || null);
+
+      if (result.ok) {
+        showMessage("success", "Đã lưu phân công (dữ liệu mô phỏng)");
+      } else {
+        showMessage("error", result.error);
+      }
+      renderAssignments();
+    }
+
+    // ============================================
     // Load Data (dữ liệu mô phỏng — xem JS/demo-store.js)
     // ============================================
     function actorInfo() {
       return {
+        uid: currentUser?.uid,
         name: userProfile?.fullName || currentUser?.email,
         role: userProfile?.role,
         department: userProfile?.department
@@ -732,7 +826,8 @@
       }
 
       const roleText = {
-        supervisor: "Đánh giá các sinh viên thuộc bộ phận của bạn: nhập 15 hạng mục, lưu nháp, rồi gửi phiếu. Phiếu bị trả về cần được bổ sung và gửi lại.",
+        supervisor: "Phiếu của bộ phận chưa giao người hướng dẫn: giao ở mục Phân công đánh giá, hoặc tự đánh giá. Phiếu bị trả về cần được bổ sung và gửi lại.",
+        mentor: "Các phiếu được Trưởng bộ phận giao cho bạn: nhập 15 hạng mục, lưu nháp, rồi gửi phiếu. Phiếu bị trả về cần được bổ sung và gửi lại.",
         hr: "Kiểm tra các phiếu đã gửi. Trả về kèm lý do để bổ sung, hoặc xác nhận chốt."
       }[actor.role] || "Tài khoản này chưa có việc cần làm trong kỳ này.";
 
