@@ -41,7 +41,7 @@ const STATUS_LABELS = {
 const TICKET_STATUS_LABELS = {
   chua_bat_dau: "Chưa bắt đầu",
   dang_thuc_hien: "Đang thực hiện",
-  cho_xac_nhan: "Chờ Đào tạo xác nhận",
+  cho_xac_nhan: "Chờ Phòng Nhân sự xác nhận",
   da_chot: "Đã chốt"
 };
 
@@ -257,7 +257,7 @@ function renderOverview() {
         ${card("Tài khoản", users.length, "Tổng người dùng")}
         ${card("Chờ duyệt", pendingUsers, "Tài khoản cần xử lý")}
         ${card("Kỳ đang mở", activePeriods, "Kỳ đánh giá")}
-        ${card("Chờ xác nhận", pendingTickets, "Phiếu gửi Đào tạo")}
+        ${card("Chờ xác nhận", pendingTickets, "Phiếu gửi Phòng Nhân sự")}
         ${card("Đã chốt", finalizedTickets, "Phiếu hoàn tất")}
       </div>
 
@@ -270,7 +270,7 @@ function renderOverview() {
           <span>${activePeriods} kỳ đang mở</span><b>›</b>
         </button>
         <div class="ih-link-row">
-          <span>${pendingTickets} phiếu chờ Đào tạo xác nhận</span>
+          <span>${pendingTickets} phiếu chờ Phòng Nhân sự xác nhận</span>
         </div>
       </section>
     </section>
@@ -503,10 +503,16 @@ function importResultHtml() {
     </div>`;
 }
 
+// Hiển thị ngày dạng dd/mm/yyyy (dữ liệu lưu dạng yyyy-mm-dd)
+function viewDate(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || "");
+}
+
 function renderInterns() {
   const interns = DemoStore.listInterns();
   const edit = editingInternId ? interns.find(i => i.internId === editingInternId) : null;
-  const v = field => html(edit?.[field] ?? "");
+  const v = field => html(field === "startDate" || field === "endDate" ? viewDate(edit?.[field]) : (edit?.[field] ?? ""));
 
   const deptOptions = departments
     .map(d => `<option value="${html(d.code)}" ${edit?.department === d.code ? "selected" : ""}>${html(d.code)} — ${html(d.name)}</option>`)
@@ -519,7 +525,7 @@ function renderInterns() {
         <td>${html(i.fullName)}</td>
         <td>${html(i.school || "—")}</td>
         <td>${html(departmentLabel(i.department))}</td>
-        <td>${html(i.startDate || "—")} → ${html(i.endDate || "—")}</td>
+        <td>${html(viewDate(i.startDate) || "—")} → ${html(viewDate(i.endDate) || "—")}</td>
         <td>${followMap.get(i.internId)?.leavingSoon ? `<span class="ih-status ih-status--pending">Sắp về</span>` : "—"}</td>
         <td class="ih-actions">
           <button type="button" class="ih-btn ih-btn--secondary"
@@ -542,9 +548,11 @@ function renderInterns() {
       <p>Cột CSV: ${INTERN_COLUMNS.map(html).join(", ")}. Bắt buộc: Mã SV, Họ tên, Bộ phận.
          Dòng lỗi không được nhập; SVTT trùng Mã SV được giữ nguyên.</p>
 
-      <div style="margin:12px 0;">
+      <label class="ih-file">
         <input type="file" accept=".csv,text/csv" data-import-file>
-      </div>
+        <span class="ih-file__btn">📄 Chọn file CSV</span>
+        <span class="ih-file__hint">Định dạng .csv, mã hóa UTF-8</span>
+      </label>
       ${importResultHtml()}
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
@@ -552,34 +560,47 @@ function renderInterns() {
         <button type="button" class="ih-btn ih-btn--secondary" data-action="reset-demo">Xóa toàn bộ dữ liệu mô phỏng</button>
       </div>
 
-      <div data-intern-form style="border:1px solid #d6dde5;border-radius:8px;padding:12px;margin-bottom:16px;">
-        <h3 style="margin-top:0;">${edit ? `Sửa SVTT ${html(edit.internId)}` : "Thêm SVTT thủ công"}</h3>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-          <label>Mã SV<br>
-            <input type="text" name="internId" value="${v("internId")}" ${edit ? "readonly" : ""}>
-          </label>
-          <label>Họ tên<br>
-            <input type="text" name="fullName" value="${v("fullName")}">
-          </label>
-          <label>Trường<br>
-            <input type="text" name="school" value="${v("school")}">
-          </label>
-          <label>Bộ phận<br>
-            <select name="department">
+      <div data-intern-form class="ih-form">
+        <h3>${edit ? `Sửa SVTT ${html(edit.internId)}` : "Thêm SVTT thủ công"}</h3>
+        <div class="ih-form-grid">
+          <div class="ih-field">
+            <label for="fMaSv">Mã SV</label>
+            <input id="fMaSv" class="ih-input" type="text" name="internId" value="${v("internId")}"
+              placeholder="Ví dụ: SV001" ${edit ? "readonly" : ""}>
+          </div>
+          <div class="ih-field">
+            <label for="fHoTen">Họ tên</label>
+            <input id="fHoTen" class="ih-input" type="text" name="fullName" value="${v("fullName")}"
+              placeholder="Nguyễn Văn A">
+          </div>
+          <div class="ih-field">
+            <label for="fTruong">Trường</label>
+            <input id="fTruong" class="ih-input" type="text" name="school" value="${v("school")}"
+              placeholder="Tên trường">
+          </div>
+          <div class="ih-field">
+            <label for="fBoPhan">Bộ phận</label>
+            <select id="fBoPhan" class="ih-select" name="department">
               <option value="">— Chọn bộ phận —</option>
               ${deptOptions}
             </select>
-          </label>
-          <label>Ngày bắt đầu<br>
-            <input type="date" name="startDate" value="${v("startDate")}">
-          </label>
-          <label>Ngày kết thúc<br>
-            <input type="date" name="endDate" value="${v("endDate")}">
-          </label>
+          </div>
+          <div class="ih-field">
+            <label for="fStart">Ngày bắt đầu</label>
+            <input id="fStart" class="ih-input" type="text" name="startDate" value="${v("startDate")}"
+              placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10">
+          </div>
+          <div class="ih-field">
+            <label for="fEnd">Ngày kết thúc</label>
+            <input id="fEnd" class="ih-input" type="text" name="endDate" value="${v("endDate")}"
+              placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10">
+          </div>
+        </div>
+        <div class="ih-form-actions">
+          ${edit ? `<button type="button" class="ih-btn ih-btn--secondary" data-action="cancel-intern-edit">Hủy sửa</button>` : ""}
           <button type="button" class="ih-btn ih-btn--primary" data-action="submit-intern">
             ${edit ? "Lưu thay đổi" : "Thêm SVTT"}
           </button>
-          ${edit ? `<button type="button" class="ih-btn ih-btn--secondary" data-action="cancel-intern-edit">Hủy sửa</button>` : ""}
         </div>
       </div>
 

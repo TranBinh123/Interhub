@@ -43,7 +43,7 @@ export const STATUS = {
 export const STATUS_LABEL = {
   chua_bat_dau: "Chưa bắt đầu",
   dang_thuc_hien: "Đang thực hiện",
-  cho_xac_nhan: "Chờ Đào tạo xác nhận",
+  cho_xac_nhan: "Chờ Phòng Nhân sự xác nhận",
   tra_ve: "Trả về bổ sung",
   da_chot: "Đã chốt"
 };
