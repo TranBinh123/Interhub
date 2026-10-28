@@ -817,13 +817,14 @@ export function canView(ticket, actor) {
 export function permissionsFor(ticket, actor) {
   const none = {
     scores: false, part4: false, part5: false, committee: false,
-    submit: false, returnTicket: false, finalize: false, assign: false
+    submit: false, returnTicket: false, finalize: false, reopen: false, assign: false
   };
   if (!ticket || !actor) return none;
 
   if (actor.role === "hr") {
     const waiting = ticket.status === STATUS.WAITING;
-    return { ...none, part5: waiting, committee: waiting, returnTicket: waiting, finalize: waiting };
+    const finalized = ticket.status === STATUS.FINALIZED;
+    return { ...none, part5: waiting, committee: waiting, returnTicket: waiting, finalize: waiting, reopen: finalized };
   }
 
   if (!canView(ticket, actor)) return none;
@@ -1011,6 +1012,22 @@ export function returnTicket(id, actor, reason) {
   return ok({ ticket: { ...ticket } });
 }
 
+// Phòng Nhân sự mở lại phiếu đã chốt để chỉnh sửa; bắt buộc có lý do (ghi vào lịch sử)
+export function reopen(id, actor, reason) {
+  const all = read();
+  const ticket = all.tickets[id];
+  if (!ticket) return fail("Phiếu không tồn tại.");
+  if (!permissionsFor(ticket, actor).reopen) return fail("Chỉ phiếu đã chốt mới được mở lại.");
+  const text = String(reason || "").trim();
+  if (text.length < 10) return fail("Nhập lý do mở lại, ít nhất 10 ký tự.");
+
+  ticket.status = STATUS.RETURNED;
+  ticket.returnReason = `Mở lại sau khi chốt: ${text}`;
+  addHistory(ticket, actor, "Mở lại phiếu", text);
+  write(all);
+  return ok({ ticket: { ...ticket } });
+}
+
 export function finalize(id, actor) {
   const all = read();
   const ticket = all.tickets[id];
@@ -1183,6 +1200,7 @@ export const DemoStore = {
   submit,
   returnTicket,
   finalize,
+  reopen,
   stats,
   formatDateTime
 };
