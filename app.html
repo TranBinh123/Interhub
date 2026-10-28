@@ -684,6 +684,95 @@
     .assign-table td small {
       color: var(--text-muted);
     }
+    /* ===== Phòng Nhân sự (theo prototype) ===== */
+    .hr-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+    .hr-head h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+    .hr-sub { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; }
+    .hr-field { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
+    .hr-field label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .hr-input, .hr-select {
+      font: inherit; font-size: 14px; padding: 9px 12px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); color: var(--text); outline: none;
+    }
+    .hr-input:focus, .hr-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(10, 106, 115, 0.15); }
+    .hr-select {
+      appearance: none; -webkit-appearance: none; padding-right: 32px; cursor: pointer;
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+        linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+      background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+      background-size: 5px 5px; background-repeat: no-repeat;
+    }
+    .hr-grow { flex: 1 1 260px; }
+    .hr-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 14px; }
+    .hr-periods { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .hr-pcard {
+      display: flex; flex-direction: column; gap: 8px; text-align: left; padding: 14px;
+      border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+      color: var(--text); font: inherit; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .hr-pcard:hover { border-color: var(--primary); }
+    .hr-pcard.is-selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(10, 106, 115, 0.15); }
+    .hr-pcard__top { display: flex; justify-content: space-between; align-items: center; }
+    .hr-code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; }
+    .hr-chip { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-muted); }
+    .hr-chip.is-open { background: rgba(45, 140, 127, 0.14); color: #2d8c7f; }
+    .hr-meta { font-size: 12px; color: var(--text-muted); }
+    .hr-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2); width: 100%; }
+    .hr-bar i { display: block; height: 100%; }
+    .hr-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .hr-cols { grid-template-columns: 1fr; } }
+    .hr-panel {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 16px;
+    }
+    .hr-panel__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .hr-panel__head h2 { margin: 0; font-size: 16px; }
+    .hr-big { font-size: 34px; font-weight: 700; color: var(--primary); margin-top: 4px; }
+    .hr-legend { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 4px; }
+    .hr-legend button {
+      display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px;
+      border: none; border-radius: 6px; background: transparent; color: var(--text);
+      font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    }
+    .hr-legend button:hover { background: var(--surface-2); }
+    .hr-legend b { margin-left: auto; font-variant-numeric: tabular-nums; }
+    .hr-sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .hr-queue { list-style: none; margin: 0; padding: 0; }
+    .hr-queue li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .hr-queue li:last-child { border-bottom: 0; }
+    .hr-queue small { display: block; color: var(--text-muted); font-size: 12px; }
+    .hr-btn-sm {
+      display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 8px;
+      background: var(--primary); color: #fff; font-size: 12px; font-weight: 600;
+      text-decoration: none; white-space: nowrap;
+    }
+    .hr-btn-ghost {
+      font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--border);
+      border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer;
+    }
+    .hr-btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+    .hr-table-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: auto; background: var(--surface); }
+    .hr-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+    .hr-table th, .hr-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+    .hr-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); background: var(--surface-2); white-space: nowrap; }
+    .hr-table tbody tr:hover { background: var(--primary-soft); }
+    .hr-table tbody tr:last-child td { border-bottom: 0; }
+    .hr-table .r { text-align: right; }
+    .hr-table .hr-w { min-width: 160px; }
+    .hr-table tr[data-hr-open-dept] { cursor: pointer; }
+    .hr-num { font-family: "IBM Plex Mono", ui-monospace, monospace; white-space: nowrap; }
+    .hr-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text-muted); white-space: nowrap; }
+    .hr-badge--cho_xac_nhan { background: rgba(224, 165, 38, 0.16); color: #9a6700; }
+    .hr-badge--dang_thuc_hien { background: rgba(59, 130, 246, 0.14); color: #1d4ed8; }
+    .hr-badge--tra_ve { background: rgba(224, 90, 74, 0.14); color: #b42318; }
+    .hr-badge--da_chot { background: rgba(45, 140, 127, 0.16); color: #17675c; }
+    .hr-pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; color: var(--text-muted); }
+    .hr-pager__btns { display: flex; align-items: center; gap: 10px; }
+    .hr-empty { color: var(--text-muted); font-size: 13px; }
+    .hr-empty-box { text-align: center; padding: 32px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 13px; }
+    .hr-empty-box strong { display: block; color: var(--text); margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -724,12 +813,12 @@
             🧭 Phân công đánh giá
           </button>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" id="navPeriods">
           <button class="nav-link" data-view="periods">
             📅 Kỳ đánh giá
           </button>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" id="navReports">
           <button class="nav-link" data-view="reports">
             📈 Báo cáo
           </button>
@@ -762,10 +851,11 @@
 
         <!-- Dashboard view -->
         <div id="dashboard" class="view">
+          <div id="hrDashboard" class="hidden"></div>
           <div class="card hidden" id="followBox"></div>
           <div class="card" id="todoBox"></div>
 
-          <div class="stats-grid">
+          <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
               <div class="stat-label">Phiếu đang xử lý</div>
               <div class="stat-value" id="statPending">—</div>
@@ -780,7 +870,7 @@
             </div>
           </div>
 
-          <div class="card">
+          <div class="card" id="recentCard">
             <h2>Phiếu gần đây</h2>
             <div class="table-wrap">
               <table id="recentTicketsTable">
@@ -855,7 +945,9 @@
               <span>Danh sách phiếu đánh giá</span>
               <a class="btn btn-primary btn-sm" id="createTicketBtn" href="./admin.html" hidden>+ Tạo phiếu</a>
             </h2>
-            <div class="table-wrap">
+            <div id="hrTicketFilters" class="hidden"></div>
+            <div id="hrTicketRows" class="hidden"></div>
+            <div class="table-wrap" id="ticketsTableWrap">
               <table id="ticketsTable">
                 <thead>
                   <tr>
@@ -984,6 +1076,12 @@
       document.getElementById("createTicketBtn").hidden = !isHR;
       document.getElementById("createPeriodBtn").hidden = !isHR;
       document.getElementById("assignments").addEventListener("click", handleAssignClick);
+      ["dashboard", "evaluations"].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener("click", handleHrClick);
+        el.addEventListener("change", handleHrChange);
+        el.addEventListener("input", handleHrInput);
+      });
       document.getElementById("assignments").addEventListener("change", handleAssignChange);
       document.getElementById("assignSearch").addEventListener("input", () => { renderAssignments(); });
 
@@ -1012,6 +1110,392 @@
     }
 
     // ============================================
+    // Phòng Nhân sự: Tổng quan và Phiếu đánh giá (theo prototype)
+    // ============================================
+    const HR_PER_PAGE = 25;
+    const HR_ORDER = ["cho_xac_nhan", "dang_thuc_hien", "tra_ve", "chua_bat_dau", "da_chot"];
+    const HR_COLOR = {
+      cho_xac_nhan: "#e0a526",
+      dang_thuc_hien: "#3b82f6",
+      tra_ve: "#e05a4a",
+      chua_bat_dau: "#cbd5e1",
+      da_chot: "#2d8c7f"
+    };
+    const hrState = { periodId: "", dept: "", status: "", evaluator: "", q: "", page: 1 };
+
+    function isHR() {
+      return userProfile?.role === "hr";
+    }
+
+    function hrEnsurePeriod() {
+      const periods = DemoStore.listPeriods();
+      if (!periods.some(p => p.id === hrState.periodId)) {
+        hrState.periodId = (DemoStore.activePeriod() || periods[0] || {}).id || "";
+      }
+      return periods.find(p => p.id === hrState.periodId) || null;
+    }
+
+    function hrAllTickets() {
+      const period = hrEnsurePeriod();
+      return period ? DemoStore.listTickets(actorInfo(), period.id) : [];
+    }
+
+    function hrEvaluatorLabel(t) {
+      return t.evaluatorUid ? (t.evaluatorName || "Chưa rõ tên") : "Trưởng bộ phận tự đánh giá";
+    }
+
+    function hrCounts(list) {
+      const c = Object.fromEntries(HR_ORDER.map(k => [k, 0]));
+      list.forEach(t => { if (t.status in c) c[t.status] += 1; });
+      return c;
+    }
+
+    function hrBar(counts, total) {
+      if (!total) return `<div class="hr-bar"></div>`;
+      const segs = HR_ORDER.filter(k => counts[k])
+        .map(k => `<i style="flex-grow:${counts[k]};background:${HR_COLOR[k]}" title="${escapeHtml(STATUS_LABEL[k])}: ${counts[k]}"></i>`)
+        .join("");
+      const label = HR_ORDER.map(k => `${STATUS_LABEL[k]} ${counts[k]}`).join(", ");
+      return `<div class="hr-bar" role="img" aria-label="${escapeHtml(label)}">${segs}</div>`;
+    }
+
+    function hrDeptOptions(selected) {
+      return [
+        `<option value="">Tất cả bộ phận</option>`,
+        ...DemoStore.listDepartments().map(d =>
+          `<option value="${escapeHtml(d.code)}" ${selected === d.code ? "selected" : ""}>${escapeHtml(d.code)} — ${escapeHtml(d.name)}</option>`)
+      ].join("");
+    }
+
+    function renderHrDashboard() {
+      const box = document.getElementById("hrDashboard");
+      if (!box) return;
+
+      const periods = DemoStore.listPeriods();
+      const period = hrEnsurePeriod();
+      const all = hrAllTickets();
+      const inDept = t => !hrState.dept || t.department === hrState.dept;
+      const list = all.filter(inDept);
+      const c = hrCounts(list);
+      const total = list.length;
+      const pct = total ? Math.round((c.da_chot / total) * 100) : 0;
+
+      const cards = periods.map(p => {
+        const pl = DemoStore.listTickets(actorInfo(), p.id).filter(inDept);
+        const pc = hrCounts(pl);
+        const open = p.status === "dang_mo";
+        return `
+          <button type="button" class="hr-pcard${p.id === hrState.periodId ? " is-selected" : ""}" data-hr-period="${escapeHtml(p.id)}">
+            <span class="hr-pcard__top">
+              <span class="hr-code">${escapeHtml(p.id)}</span>
+              <span class="hr-chip${open ? " is-open" : ""}">${open ? "Đang mở" : "Đã đóng"}</span>
+            </span>
+            <span class="hr-meta">${escapeHtml(p.name || "")}</span>
+            ${hrBar(pc, pl.length)}
+            <span class="hr-meta">Đã chốt ${pc.da_chot}/${pl.length}</span>
+          </button>`;
+      }).join("");
+
+      const queue = list.filter(t => t.status === STATUS.WAITING);
+      const queueHtml = queue.length
+        ? `<ul class="hr-queue">${queue.slice(0, 8).map(t => `
+            <li>
+              <div>
+                <strong>${escapeHtml(t.internName)}</strong>
+                <small>${escapeHtml(t.internId)} · ${escapeHtml(DemoStore.departmentName(t.department))} · ${escapeHtml(hrEvaluatorLabel(t))}</small>
+              </div>
+              <a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a>
+            </li>`).join("")}</ul>
+           ${queue.length > 8 ? `<p class="hr-meta">Hiển thị 8 phiếu đầu trên tổng ${queue.length}.</p>` : ""}`
+        : `<p class="hr-empty">Không có phiếu nào đang chờ xác nhận.</p>`;
+
+      const deptRows = DemoStore.listDepartments()
+        .filter(d => !hrState.dept || d.code === hrState.dept)
+        .map(d => {
+          const dl = all.filter(t => t.department === d.code);
+          return { d, dc: hrCounts(dl), n: dl.length };
+        })
+        .filter(r => r.n)
+        .sort((a, b) => (a.dc.da_chot / a.n) - (b.dc.da_chot / b.n));
+
+      box.innerHTML = `
+        <div class="hr-head">
+          <div>
+            <h1>Tổng quan đánh giá</h1>
+            <p class="hr-sub">Theo dõi tiến độ từng kỳ. Chỉ phiếu đã chốt được tính là hoàn tất.</p>
+          </div>
+          <div class="hr-field">
+            <label for="hrDeptDash">Bộ phận</label>
+            <select id="hrDeptDash" class="hr-select" data-hr-dept-filter>${hrDeptOptions(hrState.dept)}</select>
+          </div>
+        </div>
+
+        <div class="hr-periods">
+          ${cards || `<p class="hr-empty">Chưa có kỳ đánh giá. Tạo kỳ ở mục "Quản lý SVTT & kỳ".</p>`}
+        </div>
+
+        <div class="hr-cols">
+          <section class="hr-panel">
+            <div class="hr-panel__head">
+              <h2>Tiến độ kỳ ${escapeHtml(period?.id || "—")}</h2>
+              <span class="hr-meta">${total} phiếu</span>
+            </div>
+            <div class="hr-big">${pct}%</div>
+            <p class="hr-meta">hoàn tất · đã chốt ${c.da_chot}/${total} phiếu</p>
+            <div style="margin-top:14px;">${hrBar(c, total)}</div>
+            <ul class="hr-legend">
+              ${HR_ORDER.map(k => `
+                <li>
+                  <button type="button" data-hr-open-status="${k}">
+                    <span class="hr-sw" style="background:${HR_COLOR[k]}"></span>
+                    ${escapeHtml(STATUS_LABEL[k])}
+                    <b>${c[k]}</b>
+                  </button>
+                </li>`).join("")}
+            </ul>
+          </section>
+
+          <section class="hr-panel">
+            <div class="hr-panel__head">
+              <h2>Cần Phòng Nhân sự xác nhận</h2>
+              <span class="hr-meta">${queue.length} phiếu</span>
+            </div>
+            ${queueHtml}
+          </section>
+        </div>
+
+        <section class="hr-panel">
+          <div class="hr-panel__head">
+            <h2>Tiến độ theo bộ phận</h2>
+            <span class="hr-meta">Sắp xếp từ bộ phận chậm nhất · bấm dòng để xem phiếu</span>
+          </div>
+          ${deptRows.length ? `
+            <div class="hr-table-wrap">
+              <table class="hr-table">
+                <thead>
+                  <tr>
+                    <th>Bộ phận</th>
+                    <th>Tiến độ</th>
+                    <th class="r">Tổng</th>
+                    <th class="r">Chờ xác nhận</th>
+                    <th class="r">Đã chốt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${deptRows.map(r => `
+                    <tr data-hr-open-dept="${escapeHtml(r.d.code)}">
+                      <td>${escapeHtml(r.d.name)}</td>
+                      <td class="hr-w">${hrBar(r.dc, r.n)}</td>
+                      <td class="r">${r.n}</td>
+                      <td class="r">${r.dc.cho_xac_nhan}</td>
+                      <td class="r">${r.dc.da_chot}</td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>` : `<p class="hr-empty">Chưa có phiếu trong kỳ này.</p>`}
+        </section>`;
+    }
+
+    function hrSchoolMap() {
+      return new Map(DemoStore.listInterns().map(i => [i.internId, i.school || ""]));
+    }
+
+    function hrFiltered() {
+      const q = hrState.q.trim().toLowerCase();
+      const schools = hrSchoolMap();
+      return hrAllTickets()
+        .filter(t => !hrState.dept || t.department === hrState.dept)
+        .filter(t => !hrState.status || t.status === hrState.status)
+        .filter(t => !hrState.evaluator || hrEvaluatorLabel(t) === hrState.evaluator)
+        .filter(t => !q || `${t.internName} ${t.internId} ${schools.get(t.internId) || ""}`.toLowerCase().includes(q))
+        .sort((a, b) => (HR_ORDER.indexOf(a.status) - HR_ORDER.indexOf(b.status)) || (a.internId < b.internId ? -1 : 1));
+    }
+
+    // Bộ lọc được vẽ một lần mỗi khi đổi kỳ, để ô tìm kiếm không mất con trỏ khi gõ
+    function renderHrTicketFilters() {
+      const box = document.getElementById("hrTicketFilters");
+      if (!box) return;
+
+      const periods = DemoStore.listPeriods();
+      hrEnsurePeriod();
+      const evaluators = [...new Set(hrAllTickets().map(hrEvaluatorLabel))]
+        .sort((a, b) => a.localeCompare(b, "vi"));
+
+      box.innerHTML = `
+        <div class="hr-filters">
+          <div class="hr-field hr-grow">
+            <label for="hrQ">Tìm theo tên, mã SV hoặc trường</label>
+            <input id="hrQ" class="hr-input" type="search" value="${escapeHtml(hrState.q)}" placeholder="Ví dụ: SV001 hoặc Linh">
+          </div>
+          <div class="hr-field">
+            <label for="hrPeriod">Kỳ</label>
+            <select id="hrPeriod" class="hr-select">
+              ${periods.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === hrState.periodId ? "selected" : ""}>${escapeHtml(p.id)} (${p.status === "dang_mo" ? "Đang mở" : "Đã đóng"})</option>`).join("")}
+            </select>
+          </div>
+          <div class="hr-field">
+            <label for="hrStatus">Trạng thái</label>
+            <select id="hrStatus" class="hr-select">
+              <option value="">Tất cả trạng thái</option>
+              ${HR_ORDER.map(k => `<option value="${k}" ${hrState.status === k ? "selected" : ""}>${escapeHtml(STATUS_LABEL[k])}</option>`).join("")}
+            </select>
+          </div>
+          <div class="hr-field">
+            <label for="hrDept">Bộ phận</label>
+            <select id="hrDept" class="hr-select">${hrDeptOptions(hrState.dept)}</select>
+          </div>
+          <div class="hr-field">
+            <label for="hrEval">Người đánh giá</label>
+            <select id="hrEval" class="hr-select">
+              <option value="">Tất cả</option>
+              ${evaluators.map(n => `<option value="${escapeHtml(n)}" ${hrState.evaluator === n ? "selected" : ""}>${escapeHtml(n)}</option>`).join("")}
+            </select>
+          </div>
+        </div>`;
+    }
+
+    function renderHrTicketRows() {
+      const box = document.getElementById("hrTicketRows");
+      if (!box) return;
+
+      const list = hrFiltered();
+      const pages = Math.max(1, Math.ceil(list.length / HR_PER_PAGE));
+      if (hrState.page > pages) hrState.page = pages;
+      const from = (hrState.page - 1) * HR_PER_PAGE;
+      const rows = list.slice(from, from + HR_PER_PAGE);
+
+      if (!rows.length) {
+        box.innerHTML = `<div class="hr-empty-box"><strong>Không có phiếu phù hợp</strong>Thử bỏ bớt bộ lọc hoặc đổi kỳ.</div>`;
+        return;
+      }
+
+      const schools = hrSchoolMap();
+      box.innerHTML = `
+        <div class="hr-table-wrap">
+          <table class="hr-table">
+            <thead>
+              <tr>
+                <th>Mã SV</th>
+                <th>Họ tên</th>
+                <th>Trường</th>
+                <th>Bộ phận</th>
+                <th>Người đánh giá</th>
+                <th>Trạng thái</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(t => `
+                <tr>
+                  <td class="hr-num">${escapeHtml(t.internId)}</td>
+                  <td>${escapeHtml(t.internName)}</td>
+                  <td>${escapeHtml(schools.get(t.internId) || "—")}</td>
+                  <td>${escapeHtml(DemoStore.departmentName(t.department))}</td>
+                  <td>${escapeHtml(hrEvaluatorLabel(t))}</td>
+                  <td><span class="hr-badge hr-badge--${t.status}">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</span></td>
+                  <td><a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+        <div class="hr-pager">
+          <span>${from + 1}–${Math.min(list.length, from + HR_PER_PAGE)} / ${list.length} dòng</span>
+          <span class="hr-pager__btns">
+            <button type="button" class="hr-btn-ghost" data-hr-page="${hrState.page - 1}" ${hrState.page <= 1 ? "disabled" : ""}>‹ Trước</button>
+            <span>Trang ${hrState.page}/${pages}</span>
+            <button type="button" class="hr-btn-ghost" data-hr-page="${hrState.page + 1}" ${hrState.page >= pages ? "disabled" : ""}>Sau ›</button>
+          </span>
+        </div>`;
+    }
+
+    function renderHrAll() {
+      if (!isHR()) return;
+      renderHrDashboard();
+      renderHrTicketFilters();
+      renderHrTicketRows();
+    }
+
+    // Phòng Nhân sự: ẩn các khối tổng quan cũ, ẩn mục không thuộc phạm vi (Kỳ, Báo cáo, Phân công)
+    function applyHrLayout() {
+      if (!isHR()) return;
+      ["followBox", "todoBox", "statsGrid", "recentCard", "ticketsTableWrap"].forEach(id =>
+        document.getElementById(id)?.classList.add("hidden"));
+      ["hrDashboard", "hrTicketFilters", "hrTicketRows"].forEach(id =>
+        document.getElementById(id)?.classList.remove("hidden"));
+      ["navPeriods", "navReports", "navAssignments"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.hidden = true;
+      });
+    }
+
+    function handleHrClick(event) {
+      if (!isHR()) return;
+
+      const card = event.target.closest("[data-hr-period]");
+      if (card) {
+        hrState.periodId = card.dataset.hrPeriod;
+        hrState.page = 1;
+        renderHrAll();
+        return;
+      }
+
+      const deptRow = event.target.closest("[data-hr-open-dept]");
+      if (deptRow) {
+        hrState.dept = deptRow.dataset.hrOpenDept;
+        hrState.status = "";
+        hrState.page = 1;
+        switchView("evaluations");
+        return;
+      }
+
+      const statusBtn = event.target.closest("[data-hr-open-status]");
+      if (statusBtn) {
+        hrState.status = statusBtn.dataset.hrOpenStatus;
+        hrState.page = 1;
+        switchView("evaluations");
+        return;
+      }
+
+      const pageBtn = event.target.closest("[data-hr-page]");
+      if (pageBtn && !pageBtn.disabled) {
+        hrState.page = Number(pageBtn.dataset.hrPage);
+        renderHrTicketRows();
+      }
+    }
+
+    function handleHrChange(event) {
+      if (!isHR()) return;
+      const t = event.target;
+
+      if (t.matches("[data-hr-dept-filter]") || t.id === "hrDept") {
+        hrState.dept = t.value;
+        hrState.page = 1;
+        renderHrAll();
+      } else if (t.id === "hrPeriod") {
+        hrState.periodId = t.value;
+        hrState.page = 1;
+        renderHrAll();
+      } else if (t.id === "hrStatus") {
+        hrState.status = t.value;
+        hrState.page = 1;
+        renderHrTicketRows();
+      } else if (t.id === "hrEval") {
+        hrState.evaluator = t.value;
+        hrState.page = 1;
+        renderHrTicketRows();
+      }
+    }
+
+    function handleHrInput(event) {
+      if (!isHR()) return;
+      if (event.target.id === "hrQ") {
+        hrState.q = event.target.value;
+        hrState.page = 1;
+        renderHrTicketRows();
+      }
+    }
+
+    // ============================================
     // View Switching
     // ============================================
     function switchView(viewName) {
@@ -1033,6 +1517,7 @@
 
       if (viewName === "assignments") renderAssignments();
       if (viewName === "periods") renderPeriods();
+      if (isHR() && (viewName === "dashboard" || viewName === "evaluations")) renderHrAll();
 
       // Update title
       const titles = {
@@ -1224,6 +1709,11 @@
     }
 
     function loadDashboardData() {
+      if (isHR()) {
+        applyHrLayout();
+        renderHrAll();
+        return;
+      }
       const actor = actorInfo();
       const period = DemoStore.activePeriod();
       tickets = period ? DemoStore.listTickets(actor, period.id) : [];

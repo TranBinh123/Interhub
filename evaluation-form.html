@@ -734,14 +734,15 @@
         ? history.map(h => `<li>${formatDateTime(h.at)} — <strong>${esc(h.action)}</strong> bởi ${esc(h.by)}${h.note ? `: ${esc(h.note)}` : ""}</li>`).join("")
         : "<li>Chưa có lịch sử thao tác.</li>";
 
-      const actionsHtml = p.finalize || p.returnTicket ? `
+      const actionsHtml = p.finalize || p.returnTicket || p.reopen ? `
         <div class="form-group">
-          <label>Lý do trả về (bắt buộc khi trả phiếu)</label>
-          <textarea id="returnReason" placeholder="Nêu rõ nội dung cần bổ sung..."></textarea>
+          <label>${p.reopen ? "Lý do mở lại (bắt buộc, ít nhất 10 ký tự)" : "Lý do trả về (bắt buộc khi trả phiếu)"}</label>
+          <textarea id="returnReason" placeholder="${p.reopen ? "Nêu lý do mở lại phiếu đã chốt..." : "Nêu rõ nội dung cần bổ sung..."}"></textarea>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" class="btn btn-secondary" id="returnBtn">Trả về bổ sung</button>
-          <button type="button" class="btn btn-primary" id="finalizeBtn">Xác nhận chốt</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${p.returnTicket ? `<button type="button" class="btn btn-secondary" id="returnBtn">Trả về bổ sung</button>` : ""}
+          ${p.finalize ? `<button type="button" class="btn btn-primary" id="finalizeBtn">Xác nhận chốt</button>` : ""}
+          ${p.reopen ? `<button type="button" class="btn btn-secondary" id="reopenBtn">Mở lại phiếu</button>` : ""}
         </div>` : "";
 
       panel.innerHTML = `
@@ -757,6 +758,15 @@
         currentTicket = result.ticket;
         refresh();
         showMessage("success", "✓ Đã trả phiếu về người đánh giá (dữ liệu mô phỏng)");
+      });
+
+      $("reopenBtn")?.addEventListener("click", () => {
+        if (!confirm("Mở lại phiếu đã chốt để chỉnh sửa?")) return;
+        const result = DemoStore.reopen(ticketId, actor, $("returnReason").value);
+        if (!result.ok) return showMessage("error", "❌ " + result.error);
+        currentTicket = result.ticket;
+        refresh();
+        showMessage("success", "✓ Đã mở lại phiếu (dữ liệu mô phỏng)");
       });
 
       $("finalizeBtn")?.addEventListener("click", () => {
