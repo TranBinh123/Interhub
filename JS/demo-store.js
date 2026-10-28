@@ -19,16 +19,30 @@ export const DEMO_BANNER =
 
 const STORAGE_KEY = "internhub-demo-v3";
 
-// Bộ phận mẫu, CHỈ dùng khi Admin chủ động nạp dữ liệu mẫu. Không tự thêm vào danh mục.
+// Danh mục bộ phận chính thức. Được thêm vào danh mục đúng một lần khi nâng cấp
+// (không xóa bộ phận đã có); sau đó Admin thêm/xóa như bình thường.
 export const DEFAULT_DEPARTMENTS = [
-  { code: "HR", name: "Nhân sự & Đào tạo" },
-  { code: "IT", name: "Công nghệ Thông tin" },
-  { code: "ENG", name: "Kỹ thuật & Bảo trì" },
-  { code: "SEC", name: "An ninh & An toàn" },
-  { code: "MK", name: "Truyền thông & Quan hệ Công chúng" },
-  { code: "FB", name: "Tiền sảnh & Bar" },
-  { code: "KT", name: "Kế toán" },
-  { code: "MKT", name: "Marketing" }
+  { code: "CT", name: "Bếp Căn tin" },
+  { code: "CSKH", name: "Bộ phận Chăm sóc khách hàng và y tế" },
+  { code: "CU", name: "Bộ phận Cung ứng" },
+  { code: "HD", name: "Bộ phận Hướng dẫn" },
+  { code: "KD", name: "Bộ phận Kinh doanh và bán lẻ" },
+  { code: "KTHT", name: "Bộ phận Kỹ thuật Hạ tầng" },
+  { code: "KTTC", name: "Bộ phận Kỹ thuật trò chơi" },
+  { code: "BIA", name: "Bộ phận sản xuất Bia" },
+  { code: "SV", name: "Bộ phận Soát vé" },
+  { code: "TN", name: "Bộ phận thu ngân" },
+  { code: "MAR", name: "Bộ phận Truyền thông Marketing" },
+  { code: "VHTC", name: "Bộ phận Vận hành trò chơi" },
+  { code: "BV", name: "Tổ bán vé" },
+  { code: "BTXD", name: "Phòng Bảo trì xây dựng" },
+  { code: "BEP", name: "Phòng Bếp" },
+  { code: "PCQ", name: "Phòng Cảnh quan" },
+  { code: "PHC", name: "Phòng Hành chính" },
+  { code: "PKT", name: "Phòng Kế toán" },
+  { code: "NH", name: "Phòng Nhà hàng" },
+  { code: "PNS", name: "Phòng Nhân sự" },
+  { code: "XXX", name: "Phòng Sản xuất" }
 ];
 const LEGACY_KEY = "internhub-demo-v2";
 
@@ -112,7 +126,16 @@ export function calcResult(scores) {
 // Lưu trữ (localStorage, đọc lại mỗi lần để các tab luôn thấy dữ liệu mới nhất)
 // ============================================
 function emptyState() {
-  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {}, catalogV4: true };
+  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {}, catalogV4: true, catalogV5: false };
+}
+
+// Thêm các bộ phận chính thức còn thiếu (không ghi đè bộ phận đã có)
+function seedOfficialDepartments(state) {
+  for (const d of DEFAULT_DEPARTMENTS) {
+    if (!state.departments[d.code]) {
+      state.departments[d.code] = { code: d.code, name: d.name, createdAt: now() };
+    }
+  }
 }
 
 function read() {
@@ -127,7 +150,8 @@ function read() {
         tickets: p.tickets || {},
         departments: p.departments || {},
         members: p.members || {},
-        catalogV4: p.catalogV4 === true
+        catalogV4: p.catalogV4 === true,
+        catalogV5: p.catalogV5 === true
       };
       if (!state.catalogV4) {
         // Không xóa bộ phận nào khi nâng cấp dữ liệu; chỉ đánh dấu đã xử lý.
@@ -144,12 +168,21 @@ function read() {
           state.departments[intern.department] = { code: intern.department, name: intern.department };
         }
       }
+      if (!state.catalogV5) {
+        seedOfficialDepartments(state);
+        state.catalogV5 = true;
+        write(state);
+      }
       return state;
     }
   } catch (error) {
     // Dữ liệu hỏng hoặc storage bị chặn: coi như chưa có dữ liệu
   }
-  return emptyState();
+  const fresh = emptyState();
+  seedOfficialDepartments(fresh);
+  fresh.catalogV5 = true;
+  write(fresh);
+  return fresh;
 }
 
 function write(state) {

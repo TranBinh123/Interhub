@@ -428,12 +428,14 @@ function renderPeriods() {
       </div>
 
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
-        <label>Tháng<br>
-          <input type="month" name="month" required>
-        </label>
-        <label>Tên kỳ (không bắt buộc)<br>
-          <input type="text" name="name" placeholder="Ví dụ: Đánh giá tháng 11">
-        </label>
+        <div class="ih-field" style="min-width:200px;">
+          <label for="pMonth">Tháng</label>
+          <input id="pMonth" class="ih-input" type="month" name="month" required>
+        </div>
+        <div class="ih-field" style="min-width:280px;flex:1;">
+          <label for="pName">Tên kỳ (không bắt buộc)</label>
+          <input id="pName" class="ih-input" type="text" name="name" placeholder="Ví dụ: Đánh giá tháng 11">
+        </div>
         <button type="button" class="ih-btn ih-btn--primary" data-action="create-period">Tạo kỳ</button>
       </div>
 
@@ -501,6 +503,17 @@ function importResultHtml() {
       ${lastImport.errors.length} dòng lỗi (không nhập).
       ${errorItems ? `<ul>${errorItems}</ul>` : ""}
     </div>`;
+}
+
+// Đọc ngày dd/mm/yyyy, trả về yyyy-mm-dd (hoặc null nếu sai)
+function parseViewDate(text) {
+  const m = String(text || "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const d = new Date(Number(m[3]), month - 1, day);
+  if (d.getDate() !== day || d.getMonth() !== month - 1) return null;
+  return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
 }
 
 // Hiển thị ngày dạng dd/mm/yyyy (dữ liệu lưu dạng yyyy-mm-dd)
@@ -656,7 +669,8 @@ function renderFollowUp() {
       </div>
 
       <label>Ngày kiểm tra<br>
-        <input type="date" value="${html(date)}" data-follow-date>
+        <input id="followDate" class="ih-input" type="text" value="${html(viewDate(date))}" data-follow-date
+          placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" style="max-width:200px;">
       </label>
 
       <div class="ih-notice" style="margin:12px 0;">
@@ -708,12 +722,14 @@ function renderDepartments() {
       </div>
 
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
-        <label>Mã bộ phận<br>
-          <input type="text" name="deptCode" maxlength="12" placeholder="Ví dụ: LT">
-        </label>
-        <label>Tên bộ phận<br>
-          <input type="text" name="deptName" placeholder="Ví dụ: Lễ tân">
-        </label>
+        <div class="ih-field" style="min-width:160px;">
+          <label for="dCode">Mã bộ phận</label>
+          <input id="dCode" class="ih-input" type="text" name="deptCode" maxlength="12" placeholder="Ví dụ: LT" style="text-transform:uppercase;">
+        </div>
+        <div class="ih-field" style="min-width:320px;flex:1;">
+          <label for="dName">Tên bộ phận</label>
+          <input id="dName" class="ih-input" type="text" name="deptName" placeholder="Ví dụ: Bộ phận Lễ tân">
+        </div>
         <button type="button" class="ih-btn ih-btn--primary" data-action="create-department">Thêm bộ phận</button>
       </div>
 
@@ -888,7 +904,12 @@ async function handleFileChange(event) {
   }
 
   if (input instanceof HTMLInputElement && input.matches("[data-follow-date]")) {
-    followDate = input.value;
+    const iso = parseViewDate(input.value);
+    if (!iso) {
+      announce("Ngày kiểm tra phải có dạng dd/mm/yyyy.", "error");
+      return;
+    }
+    followDate = iso;
     renderView();
     return;
   }
