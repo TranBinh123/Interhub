@@ -853,7 +853,7 @@
           <div class="card">
             <h2 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 16px;">
               <span>Danh sách phiếu đánh giá</span>
-              <button class="btn btn-primary btn-sm" id="createTicketBtn">+ Tạo phiếu</button>
+              <a class="btn btn-primary btn-sm" id="createTicketBtn" href="./admin.html" hidden>+ Tạo phiếu</a>
             </h2>
             <div class="table-wrap">
               <table id="ticketsTable">
@@ -880,10 +880,11 @@
         <!-- Periods view -->
         <div id="periods" class="view hidden">
           <div class="card">
-            <h2 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 16px;">
+            <h2 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 6px;">
               <span>Các kỳ đánh giá</span>
-              <button class="btn btn-primary btn-sm" id="createPeriodBtn">+ Kỳ mới</button>
+              <a class="btn btn-primary btn-sm" id="createPeriodBtn" href="./admin.html" hidden>+ Kỳ mới</a>
             </h2>
+            <p id="periodsHint" style="margin: 0 0 16px; color: var(--text-muted); font-size: 13px;"></p>
             <div class="table-wrap">
               <table id="periodsTable">
                 <thead>
@@ -891,8 +892,8 @@
                     <th>Mã kỳ</th>
                     <th>Tên kỳ</th>
                     <th>Trạng thái</th>
-                    <th>Hạn gửi</th>
-                    <th>Hành động</th>
+                    <th>Phiếu của bạn</th>
+                    <th>Đã hoàn tất</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -978,6 +979,10 @@
       document.getElementById("userDisplayEmail").textContent = currentUser.email;
       document.getElementById("navAssignments").hidden = userProfile?.role !== "supervisor";
       document.getElementById("navManage").hidden = userProfile?.role !== "hr";
+      // Chỉ Phòng Nhân sự được tạo phiếu/kỳ (thực hiện ở trang quản lý)
+      const isHR = userProfile?.role === "hr";
+      document.getElementById("createTicketBtn").hidden = !isHR;
+      document.getElementById("createPeriodBtn").hidden = !isHR;
       document.getElementById("assignments").addEventListener("click", handleAssignClick);
       document.getElementById("assignments").addEventListener("change", handleAssignChange);
       document.getElementById("assignSearch").addEventListener("input", () => { renderAssignments(); });
@@ -1004,16 +1009,6 @@
         window.location.replace("./index.html");
       });
 
-      // Create buttons
-      document.getElementById("createTicketBtn")?.addEventListener("click", () => {
-        // TODO: Open create ticket modal
-        showMessage("success", "Tính năng tạo phiếu đang được phát triển");
-      });
-
-      document.getElementById("createPeriodBtn")?.addEventListener("click", () => {
-        // TODO: Open create period modal
-        showMessage("success", "Tính năng tạo kỳ đang được phát triển");
-      });
     }
 
     // ============================================
@@ -1037,6 +1032,7 @@
       }
 
       if (viewName === "assignments") renderAssignments();
+      if (viewName === "periods") renderPeriods();
 
       // Update title
       const titles = {
@@ -1236,6 +1232,38 @@
       renderTodo(period, actor);
       displayRecentTickets();
       displayAllTickets();
+      renderPeriods();
+    }
+
+    // Kỳ đánh giá: mọi vai trò đều xem được; số liệu theo phiếu mà người dùng được thấy
+    function renderPeriods() {
+      const actor = actorInfo();
+      const periods = DemoStore.listPeriods();
+      const hint = document.getElementById("periodsHint");
+      if (hint) {
+        hint.textContent = periods.length
+          ? "Kỳ được tạo và đồng bộ phiếu bởi Phòng Nhân sự. Phiếu được tạo tự động theo ngày thực tập của SVTT."
+          : "Chưa có kỳ đánh giá nào. Phòng Nhân sự sẽ tạo kỳ.";
+      }
+
+      const rows = periods.map(p => {
+        const mine = DemoStore.listTickets(actor, p.id);
+        const s = DemoStore.stats(mine);
+        const open = p.status === "dang_mo";
+        const badge = open
+          ? `<span class="status-badge status-approved">Đang mở</span>`
+          : `<span class="status-badge status-draft">Đã đóng</span>`;
+        const progress = mine.length ? `${s.finalized}/${s.total}` : "—";
+        return `
+          <tr>
+            <td>${escapeHtml(p.id)}</td>
+            <td>${escapeHtml(p.name)}</td>
+            <td>${badge}</td>
+            <td>${mine.length}</td>
+            <td>${progress}</td>
+          </tr>`;
+      });
+      fillTable("periodsTable", rows, "Chưa có kỳ nào");
     }
 
     // Cảnh báo SVTT sắp về: Phòng Nhân sự thấy tất cả, Trưởng bộ phận thấy bộ phận mình
