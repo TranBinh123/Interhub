@@ -104,6 +104,92 @@
       .panel { padding: 14px; }
       h1 { font-size: 22px; }
     }
+
+    /* ===== Form SVTT & nhập CSV ===== */
+    .ih-form {
+      background: #fff;
+      border: 1px solid #e3e9ef;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+    .ih-form h3 { margin: 0 0 14px; font-size: 16px; }
+    .ih-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px 16px;
+    }
+    .ih-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #556675;
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    .ih-input, .ih-select {
+      width: 100%;
+      font: inherit;
+      font-size: 14px;
+      padding: 10px 12px;
+      border: 1px solid #d3dce4;
+      border-radius: 8px;
+      background: #f9fbfc;
+      color: #12212f;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .ih-input:focus, .ih-select:focus {
+      border-color: #0a6a73;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(10, 106, 115, .15);
+    }
+    .ih-input[readonly] { background: #eef2f5; color: #556675; }
+    .ih-select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 34px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #556675 50%),
+        linear-gradient(135deg, #556675 50%, transparent 50%);
+      background-position: calc(100% - 17px) 55%, calc(100% - 12px) 55%;
+      background-size: 5px 5px;
+      background-repeat: no-repeat;
+      cursor: pointer;
+    }
+    .ih-hint { display: block; margin-top: 4px; font-size: 11px; color: #8796a5; }
+    .ih-form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    /* Nút chọn file CSV */
+    .ih-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      margin: 12px 0;
+    }
+    .ih-file input[type="file"] { display: none; }
+    .ih-file__btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: #0a6a73;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 1px 2px rgba(10, 106, 115, .25);
+      transition: background .15s;
+    }
+    .ih-file:hover .ih-file__btn { background: #074f56; }
+    .ih-file__hint { font-size: 12px; color: #8796a5; }
   </style>
 </head>
 <body>
@@ -113,7 +199,13 @@
         <h1>InternHub</h1>
         <p>Trang quản trị hệ thống</p>
       </div>
-      <button id="signOutBtn" class="secondary" type="button">Đăng xuất</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <a id="backToAppBtn" class="secondary" href="./app.html" hidden
+           style="display:inline-flex;align-items:center;padding:10px 14px;border-radius:8px;border:1px solid #d3dce4;background:#fff;color:#12212f;text-decoration:none;font-weight:600;font-size:14px;">
+          ← Giao diện Phòng Nhân sự
+        </a>
+        <button id="signOutBtn" class="secondary" type="button">Đăng xuất</button>
+      </div>
     </header>
 
     <div id="pageMessage" class="notice">Đang kiểm tra tài khoản...</div>
@@ -164,6 +256,7 @@
         await Auth.signOut();
         setTimeout(() => window.location.replace("./index.html"), 1800);
       } else {
+        if (role === "hr") document.getElementById("backToAppBtn").hidden = false;
         showMessage(role === "admin" ? "Đã xác thực tài khoản Admin." : "Đã xác thực tài khoản Phòng Nhân sự.");
         root.classList.remove("hidden");
         await AdminPanel.init(root, { role });
