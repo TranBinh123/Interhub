@@ -105,6 +105,9 @@
       h1 { font-size: 22px; }
     }
 
+    /* Thuộc tính hidden luôn thắng, không bị style khác ghi đè */
+    [hidden] { display: none !important; }
+
     /* ===== Form SVTT & nhập CSV ===== */
     .ih-form {
       background: #fff;
@@ -201,7 +204,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <a id="backToAppBtn" class="secondary" href="./app.html" hidden
-           style="display:inline-flex;align-items:center;padding:10px 14px;border-radius:8px;border:1px solid #d3dce4;background:#fff;color:#12212f;text-decoration:none;font-weight:600;font-size:14px;">
+           style="align-items:center;padding:10px 14px;border-radius:8px;border:1px solid #d3dce4;background:#fff;color:#12212f;text-decoration:none;font-weight:600;font-size:14px;">
           ← Giao diện Phòng Nhân sự
         </a>
         <button id="signOutBtn" class="secondary" type="button">Đăng xuất</button>
