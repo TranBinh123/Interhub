@@ -833,6 +833,11 @@ export function permissionsFor(ticket, actor) {
   if (isEvaluatorOf(ticket, actor)) {
     return { ...base, scores: editable, part4: editable, submit: editable };
   }
+  // Trưởng bộ phận được sửa điểm/nhận xét do người hướng dẫn nhập (khi phiếu còn mở)
+  // Trưởng bộ phận cũng có thể là người hướng dẫn nên được gửi phiếu khi phiếu còn mở
+  if (actor.role === "supervisor" && editable) {
+    return { ...base, scores: true, part4: true, submit: true };
+  }
   return base;
 }
 
