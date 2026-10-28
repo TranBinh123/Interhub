@@ -499,23 +499,15 @@
       <div class="tab-content" id="admin">
         <div id="adminError" class="message error hidden"></div>
 
-        <form id="adminLoginForm">
-          <div class="form-group">
-            <label>Email Admin</label>
-            <input type="email" id="adminEmail" placeholder="Nhập email" required>
-          </div>
-
-          <div class="form-group">
-            <label>Mật khẩu</label>
-            <input type="password" id="adminPassword" placeholder="Nhập mật khẩu" required>
-          </div>
-
-          <button type="submit" class="btn btn-primary">Đăng nhập Admin</button>
-
+        <div id="adminGoogleStep">
+          <button class="btn btn-primary" id="adminGoogleSignInBtn">
+            <span>🔐</span>
+            <span>Đăng nhập Admin bằng Google</span>
+          </button>
           <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 16px;">
-            ⚠️ Tài khoản Admin cho quản trị viên hệ thống
+            ⚠️ Chỉ tài khoản Google được cấp quyền Admin mới đăng nhập được
           </p>
-        </form>
+        </div>
       </div>
     </div>
   </div>
@@ -570,15 +562,10 @@
       }
     });
 
-    // Admin login form
-    document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const email = document.getElementById("adminEmail").value;
-      const password = document.getElementById("adminPassword").value;
-
+    // Admin login bằng Google (kiểm tra email admin trong auth.js)
+    document.getElementById("adminGoogleSignInBtn").addEventListener("click", async () => {
       try {
-        await Auth.adminLogin(email, password);
+        await Auth.adminLogin();
       } catch (error) {
         console.error("Admin login error:", error);
       }

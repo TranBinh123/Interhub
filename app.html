@@ -1081,7 +1081,42 @@
     }
 
     function displayAllTickets() {
+      if (userProfile?.role === "supervisor") {
+        displayTicketsGroupedByEvaluator();
+        return;
+      }
       const rows = tickets.map(t => ticketRow(t, "createdAt"));
+      fillTable("ticketsTable", rows, "Chưa có phiếu nào");
+    }
+
+    // Trưởng bộ phận: nhóm phiếu theo người đánh giá; nhóm tự đánh giá đặt cuối
+    function displayTicketsGroupedByEvaluator() {
+      const groups = new Map();
+      for (const t of tickets) {
+        const key = t.evaluatorUid || "__self__";
+        if (!groups.has(key)) {
+          groups.set(key, {
+            self: !t.evaluatorUid,
+            name: t.evaluatorUid ? (t.evaluatorName || "Chưa rõ tên") : "Trưởng bộ phận tự đánh giá",
+            items: []
+          });
+        }
+        groups.get(key).items.push(t);
+      }
+
+      const ordered = [...groups.values()].sort((a, b) =>
+        Number(a.self) - Number(b.self) || a.name.localeCompare(b.name, "vi"));
+
+      const rows = [];
+      for (const g of ordered) {
+        rows.push(`
+          <tr class="group-row">
+            <td colspan="6" style="background:#f5f7fa;font-weight:600;">
+              ${g.self ? "" : "Người hướng dẫn: "}${escapeHtml(g.name)} · ${g.items.length} SVTT
+            </td>
+          </tr>`);
+        rows.push(...g.items.map(t => ticketRow(t, "createdAt")));
+      }
       fillTable("ticketsTable", rows, "Chưa có phiếu nào");
     }
 
