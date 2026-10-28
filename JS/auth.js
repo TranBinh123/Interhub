@@ -6,7 +6,11 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   onAuthStateChanged,
-  signOut
+  signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
 import {
@@ -84,7 +88,7 @@ function clearMessage(elementId) {
 }
 
 function showSignupForm(user) {
-  const loginStep = document.getElementById("googleSigninStep");
+  const loginStep = document.getElementById("userLoginStep");
   const signupForm = document.getElementById("userSignupForm");
   const emailInput = document.getElementById("userEmail");
 
@@ -96,7 +100,7 @@ function showSignupForm(user) {
 }
 
 function showGoogleLogin() {
-  const loginStep = document.getElementById("googleSigninStep");
+  const loginStep = document.getElementById("userLoginStep");
   const signupForm = document.getElementById("userSignupForm");
 
   if (loginStep) loginStep.style.display = "block";
@@ -137,6 +141,9 @@ async function getUserProfile(uid) {
 
 async function processSignedInUser(user) {
   if (!user) return;
+
+  // Tài khoản email/mật khẩu phải xác minh email trước khi đi tiếp
+  if (!isAdminEmail(user) && !user.emailVerified) return;
 
   if (isAdminEmail(user)) {
     const adminTab = document.getElementById("admin");
@@ -335,6 +342,93 @@ export async function handleUserSubmit(formData) {
   }
 }
 
+function authErrorText(error) {
+  const code = error?.code || "";
+  if (code === "auth/email-already-in-use") return "Email này đã được đăng ký. Hãy đăng nhập hoặc dùng quên mật khẩu.";
+  if (code === "auth/invalid-email") return "Email không hợp lệ.";
+  if (code === "auth/weak-password") return "Mật khẩu tối thiểu 8 ký tự.";
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found")
+    return "Email hoặc mật khẩu không đúng.";
+  if (code === "auth/too-many-requests") return "Thử quá nhiều lần. Vui lòng đợi một lát rồi thử lại.";
+  return "Thao tác thất bại. Vui lòng thử lại.";
+}
+
+// Đăng ký bằng email + mật khẩu tự nhập; gửi email xác minh rồi yêu cầu đăng nhập lại
+export async function handleEmailRegister(email, password) {
+  clearMessage("userError");
+  clearMessage("userSuccess");
+
+  const address = normalizeEmail(email);
+  if (String(password || "").length < 8) {
+    showMessage("userError", "Mật khẩu tối thiểu 8 ký tự.");
+    return false;
+  }
+
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, address, password);
+    await sendEmailVerification(credential.user);
+    await signOut(auth);
+    currentUser = null;
+    showMessage(
+      "userSuccess",
+      `Đã gửi email xác minh tới ${address}. Hãy bấm link trong email (kiểm tra cả thư rác), rồi đăng nhập lại.`,
+      "success"
+    );
+    return true;
+  } catch (error) {
+    console.error("Email register error:", error);
+    showMessage("userError", authErrorText(error));
+    return false;
+  }
+}
+
+// Đăng nhập email + mật khẩu. Email chưa xác minh: gửi lại email xác minh và không cho vào.
+export async function handleEmailLogin(email, password) {
+  clearMessage("userError");
+  clearMessage("userSuccess");
+
+  try {
+    const credential = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
+    currentUser = credential.user;
+
+    if (!credential.user.emailVerified) {
+      await sendEmailVerification(credential.user);
+      await signOut(auth);
+      currentUser = null;
+      showMessage(
+        "userError",
+        "Email chưa được xác minh. Chúng tôi vừa gửi lại email xác minh, hãy bấm link trong email rồi đăng nhập lại."
+      );
+      return false;
+    }
+    // Phần còn lại (chuyển trang hoặc form đăng ký thông tin) do onAuthStateChanged xử lý
+    return true;
+  } catch (error) {
+    console.error("Email login error:", error);
+    showMessage("userError", authErrorText(error));
+    return false;
+  }
+}
+
+export async function handlePasswordReset(email) {
+  clearMessage("userError");
+  clearMessage("userSuccess");
+
+  const address = normalizeEmail(email);
+  if (!address) {
+    showMessage("userError", "Nhập email để nhận link đặt lại mật khẩu.");
+    return false;
+  }
+  try {
+    await sendPasswordResetEmail(auth, address);
+  } catch (error) {
+    console.error("Password reset error:", error);
+  }
+  // Thông báo chung để không tiết lộ email nào đã đăng ký
+  showMessage("userSuccess", "Nếu email đã đăng ký, bạn sẽ nhận được link đặt lại mật khẩu.", "success");
+  return true;
+}
+
 export async function handleAdminLogin() {
   clearMessage("adminError");
 
@@ -447,6 +541,9 @@ export const Auth = {
   waitForUser,
   getProfile: getUserProfile,
   googleSignIn: handleGoogleSignIn,
+  emailRegister: handleEmailRegister,
+  emailLogin: handleEmailLogin,
+  resetPassword: handlePasswordReset,
   userSubmit: handleUserSubmit,
   adminLogin: handleAdminLogin,
   approveUser,
