@@ -450,16 +450,50 @@
         <div id="userError" class="message error hidden"></div>
         <div id="userSuccess" class="message success hidden"></div>
 
-        <div id="googleSigninStep">
-          <button class="btn btn-primary" id="googleSigninBtn">
-            <span>🔐</span>
-            <span>Đăng nhập bằng Google</span>
-          </button>
+        <div id="userLoginStep">
+          <div class="auth-switch" style="display:flex;gap:8px;margin-bottom:16px;">
+            <button type="button" class="btn btn-primary" id="showLoginBtn" style="flex:1;">Đăng nhập</button>
+            <button type="button" class="btn" id="showRegisterBtn" style="flex:1;background:#eef2f5;color:var(--text);">Đăng ký</button>
+          </div>
+
+          <form id="loginForm">
+            <div class="form-group">
+              <label>Email công ty</label>
+              <input type="email" id="loginEmail" required autocomplete="username">
+            </div>
+            <div class="form-group">
+              <label>Mật khẩu</label>
+              <input type="password" id="loginPassword" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary">Đăng nhập</button>
+            <p style="text-align:center;margin-top:12px;">
+              <button type="button" id="forgotBtn" style="background:none;border:none;color:var(--primary);cursor:pointer;font:inherit;font-size:13px;">Quên mật khẩu?</button>
+            </p>
+          </form>
+
+          <form id="registerForm" style="display:none;">
+            <div class="form-group">
+              <label>Email công ty</label>
+              <input type="email" id="registerEmail" required autocomplete="username">
+            </div>
+            <div class="form-group">
+              <label>Mật khẩu (tối thiểu 8 ký tự)</label>
+              <input type="password" id="registerPassword" minlength="8" required autocomplete="new-password">
+            </div>
+            <div class="form-group">
+              <label>Nhập lại mật khẩu</label>
+              <input type="password" id="registerPassword2" minlength="8" required autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+            <p style="font-size:12px;color:var(--text-tertiary);margin-top:12px;text-align:center;">
+              Hệ thống sẽ gửi email xác minh. Sau khi xác minh, bạn đăng nhập và điền thông tin để Admin phê duyệt.
+            </p>
+          </form>
         </div>
 
         <form id="userSignupForm" style="display: none;">
           <div class="form-group">
-            <label>Email (từ Google)</label>
+            <label>Email đăng nhập</label>
             <input type="email" id="userEmail" readonly>
           </div>
 
@@ -477,14 +511,6 @@
             <label>Bộ phận / Phòng ban</label>
             <select id="department" required>
               <option value="">-- Chọn bộ phận --</option>
-              <option value="HR">Nhân sự & Đào tạo</option>
-              <option value="IT">Công nghệ Thông tin</option>
-              <option value="ENG">Kỹ thuật & Bảo trì</option>
-              <option value="SEC">An ninh & An toàn</option>
-              <option value="MK">Truyền thông & Quan hệ Công chúng</option>
-              <option value="FB">Tiền sảnh & Bar</option>
-              <option value="KT">Kế toán</option>
-              <option value="MKT">Marketing</option>
             </select>
           </div>
 
@@ -514,9 +540,39 @@
 
   <script type="module">
     import { Auth } from "./JS/auth.js";
+    import { DemoStore } from "./JS/demo-store.js";
 
     // Initialize auth
     Auth.init();
+
+    // Danh sách bộ phận lấy từ danh mục do Admin tạo (không cứng trong HTML)
+    const deptSelect = document.getElementById("department");
+    const deptHint = document.createElement("small");
+    deptHint.style.display = "block";
+    deptHint.style.color = "#64748b";
+    deptSelect.insertAdjacentElement("afterend", deptHint);
+
+    function fillDepartments() {
+      const keep = deptSelect.value;
+      deptSelect.replaceChildren();
+      const list = DemoStore.listDepartments();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = list.length ? "-- Chọn bộ phận --" : "Chưa có bộ phận (liên hệ Admin)";
+      deptSelect.appendChild(placeholder);
+      for (const d of list) {
+        const option = document.createElement("option");
+        option.value = d.code;
+        option.textContent = d.name;
+        deptSelect.appendChild(option);
+      }
+      if (list.some(d => d.code === keep)) deptSelect.value = keep;
+      deptHint.textContent = list.length
+        ? `Đang thấy ${list.length} bộ phận trên trình duyệt này.`
+        : "Chưa có bộ phận nào trong danh mục. Admin cần tạo bộ phận trước.";
+    }
+    fillDepartments();
+    deptSelect.addEventListener("focus", fillDepartments);
 
     // Tab switching
     document.querySelectorAll(".tab-button").forEach((btn) => {
@@ -536,13 +592,40 @@
       });
     });
 
-    // Google Sign-in
-    document.getElementById("googleSigninBtn").addEventListener("click", async () => {
-      try {
-        await Auth.googleSignIn();
-      } catch (error) {
-        console.error("Sign-in error:", error);
+    // Đăng nhập / đăng ký bằng email + mật khẩu
+    function setUserMode(mode) {
+      const isLogin = mode === "login";
+      document.getElementById("loginForm").style.display = isLogin ? "block" : "none";
+      document.getElementById("registerForm").style.display = isLogin ? "none" : "block";
+      document.getElementById("showLoginBtn").classList.toggle("btn-primary", isLogin);
+      document.getElementById("showRegisterBtn").classList.toggle("btn-primary", !isLogin);
+    }
+    document.getElementById("showLoginBtn").addEventListener("click", () => setUserMode("login"));
+    document.getElementById("showRegisterBtn").addEventListener("click", () => setUserMode("register"));
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await Auth.emailLogin(
+        document.getElementById("loginEmail").value,
+        document.getElementById("loginPassword").value
+      );
+    });
+
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const password = document.getElementById("registerPassword").value;
+      const again = document.getElementById("registerPassword2").value;
+      if (password !== again) {
+        document.getElementById("userError").textContent = "Mật khẩu nhập lại không khớp.";
+        document.getElementById("userError").classList.add("show");
+        return;
       }
+      const ok = await Auth.emailRegister(document.getElementById("registerEmail").value, password);
+      if (ok) e.target.reset();
+    });
+
+    document.getElementById("forgotBtn").addEventListener("click", async () => {
+      await Auth.resetPassword(document.getElementById("loginEmail").value);
     });
 
     // User signup form
