@@ -340,6 +340,9 @@ function deptSelectHtml(selectedCode, attrs, allowEmpty) {
 
 function userRow(user) {
   const status = user.status || USER_STATUS.PENDING;
+  const deleteButton = `
+        <button type="button" class="ih-btn ih-btn--danger"
+          data-action="delete-user" data-user-id="${html(user.id)}">Xóa tài khoản</button>`;
   const id = html(user.id);
   const member = DemoStore.getMember(user.id);
   const role = member?.role || user.role;
@@ -360,11 +363,12 @@ function userRow(user) {
           <option value="">Chọn vai trò</option>
           ${roleOptions}
         </select>
-        ${deptSelectHtml("", `aria-label="Bộ phận" data-dept-for="${id}"`, true)}
+        <span data-dept-wrap-for="${id}">${deptSelectHtml("", `aria-label="Bộ phận" data-dept-for="${id}"`, true)}</span>
         <button type="button" class="ih-btn ih-btn--primary"
           data-action="approve" data-user-id="${id}">Duyệt</button>
         <button type="button" class="ih-btn ih-btn--danger"
           data-action="reject" data-user-id="${id}">Từ chối</button>
+        ${deleteButton}
       </div>
       ${noDepartments}`;
   } else if (status === USER_STATUS.APPROVED && member) {
@@ -374,16 +378,13 @@ function userRow(user) {
     controls = `
       <div class="ih-actions">
         <select aria-label="Vai trò" data-member-role-for="${id}">${roleOptions}</select>
-        ${deptSelectHtml(deptCode, `aria-label="Bộ phận" data-member-dept-for="${id}"`, true)}
+        <span data-dept-wrap-for="${id}" ${role === ROLES.HR ? "hidden" : ""}>${deptSelectHtml(deptCode, `aria-label="Bộ phận" data-member-dept-for="${id}"`, true)}</span>
         <button type="button" class="ih-btn ih-btn--secondary"
           data-action="save-member" data-user-id="${id}">Lưu</button>
+        ${deleteButton}
       </div>
       ${noDepartments}`;
   }
-
-  const deleteButton = `
-        <button type="button" class="ih-btn ih-btn--danger"
-          data-action="delete-user" data-user-id="${id}">Xóa tài khoản</button>`;
 
   return `
     <tr>
@@ -391,7 +392,7 @@ function userRow(user) {
         <strong>${html(user.fullName || "Chưa cập nhật")}</strong>
         <small>${html(user.email || "")}</small>
       </td>
-      <td>${html(departmentLabel(deptCode))}</td>
+      <td>${role === ROLES.HR ? "—" : html(departmentLabel(deptCode))}</td>
       <td>${html(ROLE_LABELS[role] || "Chưa gán")}</td>
       <td>
         <span class="ih-status ih-status--${html(status)}">
@@ -399,7 +400,7 @@ function userRow(user) {
         </span>
       </td>
       <td>${dateText(user.createdAt)}</td>
-      <td>${controls}${deleteButton}</td>
+      <td>${controls}</td>
     </tr>
   `;
 }
@@ -842,6 +843,15 @@ async function handleDemoAction(action, button) {
 // Đọc file CSV của Admin, kiểm tra cột rồi nhập
 async function handleFileChange(event) {
   const input = event.target;
+
+  // Phòng Nhân sự không thuộc bộ phận nào: ẩn ô bộ phận khi chọn vai trò HR
+  if (input instanceof HTMLSelectElement && input.matches("[data-role-for], [data-member-role-for]")) {
+    const uid = input.dataset.roleFor || input.dataset.memberRoleFor;
+    const wrap = mountNode.querySelector(`[data-dept-wrap-for="${CSS.escape(uid)}"]`);
+    if (wrap) wrap.hidden = input.value === ROLES.HR;
+    return;
+  }
+
   if (input instanceof HTMLInputElement && input.matches("[data-follow-date]")) {
     followDate = input.value;
     renderView();

@@ -74,7 +74,8 @@ function showMessage(elementId, message, type = "error") {
   }
 
   el.textContent = message;
-  el.classList.remove("show");
+  // index.html ẩn thông báo bằng class "hidden", nên phải gỡ class này để hiện
+  el.classList.remove("hidden", "show");
   el.classList.add("show");
   el.dataset.type = type;
 }
@@ -84,6 +85,7 @@ function clearMessage(elementId) {
   if (el) {
     el.textContent = "";
     el.classList.remove("show");
+    el.classList.add("hidden");
   }
 }
 
@@ -91,6 +93,8 @@ function showSignupForm(user) {
   const loginStep = document.getElementById("userLoginStep");
   const signupForm = document.getElementById("userSignupForm");
   const emailInput = document.getElementById("userEmail");
+
+  showMessage("userSuccess", "Đăng nhập thành công. Hãy điền thông tin để Admin phê duyệt.", "success");
 
   if (loginStep) loginStep.style.display = "none";
   if (signupForm) signupForm.style.display = "block";
@@ -109,6 +113,8 @@ function showGoogleLogin() {
 
 // ✅ FIX 1: Update redirectToApp() để redirect HR/Supervisor sang app.html
 function redirectToApp(role) {
+  showMessage("userSuccess", "Đăng nhập thành công. Đang chuyển đến trang làm việc…", "success");
+
   if (role === ROLES.ADMIN) {
     setTimeout(() => {
   window.location.href = "./admin.html";
