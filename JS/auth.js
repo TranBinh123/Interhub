@@ -36,6 +36,10 @@ import {
 
 const ADMIN_EMAIL = "dptbinh193@gmail.com";
 
+// BẬT (true) khi demo: bỏ qua xác minh email, đăng ký bằng email nào cũng được.
+// Đặt false để bật lại xác minh email khi triển khai thật.
+const SKIP_EMAIL_VERIFICATION = true;
+
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -149,7 +153,7 @@ async function processSignedInUser(user) {
   if (!user) return;
 
   // Tài khoản email/mật khẩu phải xác minh email trước khi đi tiếp
-  if (!isAdminEmail(user) && !user.emailVerified) return;
+  if (!isAdminEmail(user) && !user.emailVerified && !SKIP_EMAIL_VERIFICATION) return;
 
   if (isAdminEmail(user)) {
     const adminTab = document.getElementById("admin");
@@ -372,6 +376,11 @@ export async function handleEmailRegister(email, password) {
 
   try {
     const credential = await createUserWithEmailAndPassword(auth, address, password);
+    if (SKIP_EMAIL_VERIFICATION) {
+      // Demo: vào thẳng bước điền thông tin (onAuthStateChanged xử lý)
+      showMessage("userSuccess", "Tạo tài khoản thành công. Hãy điền thông tin để Admin phê duyệt.", "success");
+      return true;
+    }
     await sendEmailVerification(credential.user);
     await signOut(auth);
     currentUser = null;
@@ -397,7 +406,7 @@ export async function handleEmailLogin(email, password) {
     const credential = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
     currentUser = credential.user;
 
-    if (!credential.user.emailVerified) {
+    if (!credential.user.emailVerified && !SKIP_EMAIL_VERIFICATION) {
       await sendEmailVerification(credential.user);
       await signOut(auth);
       currentUser = null;
