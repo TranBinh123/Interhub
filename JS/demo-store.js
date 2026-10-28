@@ -266,6 +266,21 @@ export function createDepartment({ code, name }) {
   return ok({ department: state.departments[c] });
 }
 
+// Sửa tên bộ phận. Mã không đổi vì SVTT, tài khoản và phiếu đang tham chiếu tới mã.
+export function updateDepartment(code, name) {
+  const state = read();
+  const dept = state.departments[code];
+  if (!dept) return fail("Bộ phận không tồn tại.");
+  const n = String(name || "").trim();
+  if (!n) return fail("Tên bộ phận không được để trống.");
+  if (Object.values(state.departments).some(d => d.code !== code && d.name.toLowerCase() === n.toLowerCase())) {
+    return fail(`Tên bộ phận "${n}" đã tồn tại.`);
+  }
+  dept.name = n;
+  write(state);
+  return ok({ department: { ...dept } });
+}
+
 export function deleteDepartment(code) {
   const state = read();
   if (!state.departments[code]) return fail("Bộ phận không tồn tại.");
@@ -1190,6 +1205,7 @@ export function formatDateTime(iso) {
 export const DemoStore = {
   listDepartments,
   createDepartment,
+  updateDepartment,
   deleteDepartment,
   departmentName,
   departmentKnown,

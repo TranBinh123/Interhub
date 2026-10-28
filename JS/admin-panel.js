@@ -54,6 +54,7 @@ let tickets = [];
 let loading = false;
 let lastImport = null;
 let editingInternId = null;
+let editingDeptCode = null;
 let followDate = "";
 let loadError = "";
 
@@ -695,6 +696,7 @@ function renderFollowUp() {
 function renderDepartments() {
   const interns = DemoStore.listInterns();
   const members = DemoStore.listMembers();
+  const dEdit = editingDeptCode ? departments.find(d => d.code === editingDeptCode) : null;
 
   const rows = departments.map(d => {
     const internCount = interns.filter(i => i.department === d.code).length;
@@ -705,7 +707,9 @@ function renderDepartments() {
         <td>${html(d.name)}</td>
         <td>${internCount}</td>
         <td>${memberCount}</td>
-        <td>
+        <td class="ih-actions">
+          <button type="button" class="ih-btn ih-btn--secondary"
+            data-action="edit-department" data-code="${html(d.code)}">Sửa</button>
           <button type="button" class="ih-btn ih-btn--danger"
             data-action="delete-department" data-code="${html(d.code)}">Xóa</button>
         </td>
@@ -724,13 +728,18 @@ function renderDepartments() {
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
         <div class="ih-field" style="min-width:160px;">
           <label for="dCode">Mã bộ phận</label>
-          <input id="dCode" class="ih-input" type="text" name="deptCode" maxlength="12" placeholder="Ví dụ: LT" style="text-transform:uppercase;">
+          <input id="dCode" class="ih-input" type="text" name="deptCode" maxlength="12" placeholder="Ví dụ: LT"
+            value="${html(dEdit?.code || "")}" ${dEdit ? "readonly" : ""} style="text-transform:uppercase;">
         </div>
         <div class="ih-field" style="min-width:320px;flex:1;">
           <label for="dName">Tên bộ phận</label>
-          <input id="dName" class="ih-input" type="text" name="deptName" placeholder="Ví dụ: Bộ phận Lễ tân">
+          <input id="dName" class="ih-input" type="text" name="deptName" placeholder="Ví dụ: Bộ phận Lễ tân"
+            value="${html(dEdit?.name || "")}">
         </div>
-        <button type="button" class="ih-btn ih-btn--primary" data-action="create-department">Thêm bộ phận</button>
+        ${dEdit ? `
+          <button type="button" class="ih-btn ih-btn--primary" data-action="save-department">Lưu thay đổi</button>
+          <button type="button" class="ih-btn ih-btn--secondary" data-action="cancel-department-edit">Hủy sửa</button>`
+        : `<button type="button" class="ih-btn ih-btn--primary" data-action="create-department">Thêm bộ phận</button>`}
       </div>
 
       <div class="ih-table-wrap">
@@ -785,7 +794,8 @@ function renderView() {
 async function handleDemoAction(action, button) {
   const demoActions = [
     "create-period", "generate-tickets", "load-sample", "reset-demo",
-    "create-department", "delete-department",
+    "create-department", "delete-department", "save-department",
+    "edit-department", "cancel-department-edit",
     "submit-intern", "edit-intern", "cancel-intern-edit", "delete-intern",
     "save-member"
   ];
@@ -843,6 +853,18 @@ async function handleDemoAction(action, button) {
     const code = mountNode.querySelector('[name="deptCode"]')?.value;
     const name = mountNode.querySelector('[name="deptName"]')?.value;
     report(DemoStore.createDepartment({ code, name }), "Đã thêm bộ phận.");
+
+  } else if (action === "edit-department") {
+    editingDeptCode = button.dataset.code;
+
+  } else if (action === "cancel-department-edit") {
+    editingDeptCode = null;
+
+  } else if (action === "save-department") {
+    const name = mountNode.querySelector('[name="deptName"]')?.value;
+    const result = DemoStore.updateDepartment(editingDeptCode, name);
+    if (result.ok) editingDeptCode = null;
+    report(result, "Đã cập nhật tên bộ phận.");
 
   } else if (action === "delete-department") {
     if (!window.confirm(`Xóa bộ phận ${button.dataset.code}?`)) return true;
