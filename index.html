@@ -603,12 +603,28 @@
     document.getElementById("showLoginBtn").addEventListener("click", () => setUserMode("login"));
     document.getElementById("showRegisterBtn").addEventListener("click", () => setUserMode("register"));
 
+    // Khóa nút trong lúc xử lý để người dùng biết hệ thống đang làm việc
+    async function withBusy(button, busyText, task) {
+      const label = button.textContent;
+      button.disabled = true;
+      button.textContent = busyText;
+      try {
+        await task();
+      } finally {
+        button.disabled = false;
+        button.textContent = label;
+      }
+    }
+
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      await Auth.emailLogin(
-        document.getElementById("loginEmail").value,
-        document.getElementById("loginPassword").value
-      );
+      const button = e.submitter || e.target.querySelector("button[type=submit]");
+      await withBusy(button, "Đang đăng nhập…", async () => {
+        await Auth.emailLogin(
+          document.getElementById("loginEmail").value,
+          document.getElementById("loginPassword").value
+        );
+      });
     });
 
     document.getElementById("registerForm").addEventListener("submit", async (e) => {
@@ -620,12 +636,17 @@
         document.getElementById("userError").classList.add("show");
         return;
       }
-      const ok = await Auth.emailRegister(document.getElementById("registerEmail").value, password);
-      if (ok) e.target.reset();
+      const button = e.submitter || e.target.querySelector("button[type=submit]");
+      await withBusy(button, "Đang tạo tài khoản…", async () => {
+        const ok = await Auth.emailRegister(document.getElementById("registerEmail").value, password);
+        if (ok) e.target.reset();
+      });
     });
 
-    document.getElementById("forgotBtn").addEventListener("click", async () => {
-      await Auth.resetPassword(document.getElementById("loginEmail").value);
+    document.getElementById("forgotBtn").addEventListener("click", async (e) => {
+      await withBusy(e.currentTarget, "Đang gửi…", async () => {
+        await Auth.resetPassword(document.getElementById("loginEmail").value);
+      });
     });
 
     // User signup form
