@@ -395,6 +395,295 @@
     .hidden {
       display: none !important;
     }
+    /* ===== Giao diện hiện đại (v2) ===== */
+    :root {
+      --radius: 12px;
+      --shadow-sm: 0 1px 2px rgba(16, 32, 46, 0.06);
+      --shadow-md: 0 6px 20px rgba(16, 32, 46, 0.08);
+      --primary-soft: #e8f3f4;
+      --accent-soft: #fbf1e7;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary-soft: rgba(18, 160, 170, 0.14);
+        --accent-soft: rgba(212, 165, 116, 0.12);
+      }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: linear-gradient(180deg, #0a6a73 0%, #074f56 100%);
+      padding: 24px 16px;
+      box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .logo {
+      margin-bottom: 20px;
+      padding: 0 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .logo svg {
+      width: 28px;
+      height: 28px;
+      color: var(--accent);
+    }
+
+    .user-info {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .user-info strong {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .user-email {
+      opacity: 0.75;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .nav-item {
+      margin-bottom: 4px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.82);
+      text-align: left;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .nav-link.active {
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .nav-divider {
+      background: rgba(255, 255, 255, 0.12);
+      margin: 14px 4px;
+    }
+
+    .logout-btn {
+      width: 100%;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Thẻ, bảng */
+    .card {
+      border-radius: 14px;
+      box-shadow: var(--shadow-sm);
+      padding: 24px;
+    }
+
+    .card h2 {
+      font-size: 17px;
+      letter-spacing: -0.01em;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      vertical-align: middle;
+    }
+
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: var(--surface-2);
+    }
+
+    tbody tr {
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover {
+      background: var(--primary-soft);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Ô nhập, chọn */
+    input[type="search"],
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+      font: inherit;
+      font-size: 14px;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(10, 106, 115, 0.15);
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 32px;
+      min-width: 200px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+        linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+      background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+      background-size: 5px 5px;
+      background-repeat: no-repeat;
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .search-input {
+      flex: 1 1 240px;
+      min-width: 200px;
+    }
+
+    /* Nút */
+    .btn {
+      border-radius: 8px;
+      padding: 10px 16px;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      box-shadow: 0 1px 2px rgba(10, 106, 115, 0.25);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-2);
+    }
+
+    .btn-sm {
+      padding: 7px 12px;
+    }
+
+    /* Phân công đánh giá */
+    .assign-summary {
+      font-weight: 600;
+      color: var(--text-muted);
+      margin: 0 0 14px;
+    }
+
+    .assign-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .assign-bulk {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      background: var(--primary-soft);
+      border: 1px solid rgba(10, 106, 115, 0.18);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+    }
+
+    .assign-bulk label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .assign-bulk select {
+      min-width: 220px;
+    }
+
+    .assign-table td select {
+      min-width: 240px;
+    }
+
+    .assign-table td small {
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -520,10 +809,10 @@
           <div class="card">
             <h2>Phân công đánh giá</h2>
             <p>Giao từng phiếu của bộ phận cho một người hướng dẫn. Phiếu chưa giao thì bạn tự đánh giá. Chỉ phân công được khi phiếu chưa gửi.</p>
-            <p id="assignSummary" style="font-weight:600;"></p>
+            <p id="assignSummary" class="assign-summary"></p>
 
-            <div class="assign-toolbar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0;">
-              <input type="search" id="assignSearch" placeholder="Tìm theo tên hoặc mã SV" style="flex:1 1 220px;">
+            <div class="assign-toolbar">
+              <input type="search" id="assignSearch" placeholder="Tìm theo tên hoặc mã SV" class="search-input">
               <select id="assignStatusFilter">
                 <option value="all">Tất cả phiếu</option>
                 <option value="unassigned">Chưa giao</option>
@@ -531,21 +820,21 @@
               </select>
             </div>
 
-            <div class="assign-bulk" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;background:#f5f7fa;border-radius:8px;margin-bottom:12px;">
+            <div class="assign-bulk">
               <label style="display:flex;align-items:center;gap:6px;">
                 <input type="checkbox" id="assignSelectAll"> Chọn tất cả đang hiển thị
               </label>
-              <span id="assignSelectedCount" style="font-weight:600;">Đã chọn 0 phiếu</span>
+              <span id="assignSelectedCount" class="count-badge">Đã chọn 0 phiếu</span>
               <select id="assignBulkMentor"></select>
               <button type="button" class="btn btn-primary btn-sm" id="assignBulkApply" data-action="assign-bulk">Gán cho các phiếu đã chọn</button>
               <button type="button" class="btn btn-secondary btn-sm" id="assignBulkClear" data-action="assign-clear">Bỏ chọn</button>
             </div>
 
             <div class="table-wrap">
-              <table>
+              <table class="assign-table">
                 <thead>
                   <tr>
-                    <th style="width:36px;"></th>
+                    <th style="width:44px;"></th>
                     <th>Sinh viên</th>
                     <th>Trạng thái</th>
                     <th>Người đánh giá hiện tại</th>
