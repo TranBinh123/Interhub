@@ -103,6 +103,15 @@ function departmentLabel(code) {
   return found ? `${found.code} — ${found.name}` : (code || "—");
 }
 
+// Vai trò đang mở trang: "admin" (toàn quyền) hoặc "hr" (quản lý nghiệp vụ, không quản lý tài khoản)
+let currentRole = "admin";
+
+// Thao tác nghiệp vụ: Admin và Phòng Nhân sự đều được làm
+function ensureBusiness() {
+  if (currentRole === "hr") return;
+  ensureAdmin();
+}
+
 function ensureAdmin() {
   const email = normalizeEmail(Auth.getCurrentEmail?.());
 
@@ -117,7 +126,7 @@ async function refreshData() {
   if (loading) return;
 
   try {
-    ensureAdmin();
+    ensureBusiness();
   } catch (error) {
     loadError = error.message;
     renderView();
@@ -129,15 +138,18 @@ async function refreshData() {
   showLoading(true);
 
   try {
-    const userSnapshot = await getDocs(collection(firestore, COLLECTIONS.USERS));
-
-    users = userSnapshot.docs.map(item => ({
-      id: item.id,
-      ...item.data()
-    }));
-
-    // Đồng bộ tài khoản đã duyệt vào danh bạ mô phỏng (giữ vai trò Admin đã chỉnh)
-    DemoStore.syncMembers(users);
+    // Chỉ Admin đọc được danh sách tài khoản (Firestore Rules)
+    if (currentRole === "admin") {
+      const userSnapshot = await getDocs(collection(firestore, COLLECTIONS.USERS));
+      users = userSnapshot.docs.map(item => ({
+        id: item.id,
+        ...item.data()
+      }));
+      // Đồng bộ tài khoản đã duyệt vào danh bạ mô phỏng (giữ vai trò Admin đã chỉnh)
+      DemoStore.syncMembers(users);
+    } else {
+      users = [];
+    }
 
     // Kỳ, SVTT và phiếu hiện là dữ liệu mô phỏng (JS/demo-store.js)
     periods = DemoStore.listPeriods();
@@ -743,7 +755,9 @@ async function handleDemoAction(action, button) {
   if (!demoActions.includes(action)) return false;
 
   try {
-    ensureAdmin();
+    ensureBusiness();
+    // Nạp dữ liệu mẫu, reset và quản lý tài khoản chỉ dành cho Admin
+    if (["load-sample", "reset-demo", "save-member"].includes(action)) ensureAdmin();
   } catch (error) {
     announce(error.message, "error");
     return true;
@@ -862,7 +876,7 @@ async function handleFileChange(event) {
   if (!file) return;
 
   try {
-    ensureAdmin();
+    ensureBusiness();
     const parsed = DemoStore.parseCsv(await file.text());
     const headers = parsed.headers.map(h => String(h).trim().toLowerCase());
     const columnIndex = INTERN_COLUMNS.map(name => headers.indexOf(name.toLowerCase()));
@@ -1028,12 +1042,13 @@ async function handleAction(event) {
 }
 
 /** Khởi tạo bảng quản trị bên trong element hoặc ID truyền vào. */
-export async function initAdminPanel(target = "adminPanelRoot") {
+export async function initAdminPanel(target = "adminPanelRoot", options = {}) {
   const user = await Auth.waitForUser();
+  currentRole = options.role === "hr" ? "hr" : "admin";
 
-  if (!user || normalizeEmail(user.email) !== ADMIN_EMAIL) {
+  if (!user || (currentRole === "admin" && normalizeEmail(user.email) !== ADMIN_EMAIL)) {
     throw new Error(
-      "Không có quyền truy cập. Vui lòng đăng nhập bằng tài khoản Admin."
+      "Không có quyền truy cập. Vui lòng đăng nhập bằng tài khoản Admin hoặc Phòng Nhân sự."
     );
   }
 
@@ -1050,6 +1065,14 @@ export async function initAdminPanel(target = "adminPanelRoot") {
   }
 
   shell();
+  if (currentRole === "hr") {
+    // Phòng Nhân sự không quản lý tài khoản: ẩn tab Tổng quan và Tài khoản
+    mountNode.querySelectorAll('[data-tab="overview"], [data-tab="users"]').forEach(b => b.remove());
+    currentTab = "followup";
+    mountNode.querySelectorAll(".ih-tabs [data-tab]").forEach(item => {
+      item.classList.toggle("is-active", item.dataset.tab === currentTab);
+    });
+  }
   await refreshData();
 }
 
