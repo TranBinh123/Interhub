@@ -862,6 +862,10 @@ export function canView(ticket, actor) {
   return false;
 }
 
+// Bộ phận của chính Phòng Nhân sự. Phòng Nhân sự có người hướng dẫn riêng, và
+// chính người dùng Phòng Nhân sự cũng có thể chấm SVTT thuộc bộ phận này.
+export const HR_DEPARTMENT = "PNS";
+
 export function permissionsFor(ticket, actor) {
   const none = {
     scores: false, part4: false, part5: false, committee: false,
@@ -872,7 +876,12 @@ export function permissionsFor(ticket, actor) {
   if (actor.role === "hr") {
     const waiting = ticket.status === STATUS.WAITING;
     const finalized = ticket.status === STATUS.FINALIZED;
-    return { ...none, part5: waiting, committee: waiting, returnTicket: waiting, finalize: waiting, reopen: finalized };
+    const base = { ...none, part5: waiting, committee: waiting, returnTicket: waiting, finalize: waiting, reopen: finalized };
+    // SVTT của Phòng Nhân sự: phân công người hướng dẫn và tự chấm như Trưởng bộ phận
+    if (ticket.department === HR_DEPARTMENT && EDITABLE.includes(ticket.status)) {
+      return { ...base, assign: true, scores: true, part4: true, submit: true };
+    }
+    return base;
   }
 
   if (!canView(ticket, actor)) return none;
