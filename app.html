@@ -1161,8 +1161,10 @@
       return period ? DemoStore.listTickets(actorInfo(), period.id) : [];
     }
 
+    // Hiển thị người đánh giá đã được giao; nếu chưa giao thì báo rõ để Phòng Nhân sự theo dõi và nhắc.
     function hrEvaluatorLabel(t) {
-      return t.evaluatorUid ? (t.evaluatorName || "Chưa rõ tên") : "Trưởng bộ phận tự đánh giá";
+      if (t.evaluatorUid) return t.evaluatorName || "Chưa rõ tên";
+      return "Đang đợi giao người đánh giá";
     }
 
     function hrCounts(list) {
