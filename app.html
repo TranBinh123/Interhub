@@ -778,6 +778,15 @@
     .hr-empty { color: var(--text-muted); font-size: 13px; }
     .hr-empty-box { text-align: center; padding: 32px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 13px; }
     .hr-empty-box strong { display: block; color: var(--text); margin-bottom: 4px; }
+    .hr-group { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
+    .hr-group--pns { border-left-color: #0a6a73; }
+    .hr-group--waiting_confirm { border-left-color: #e0a526; }
+    .hr-group--waiting_dept { border-left-color: #3b82f6; }
+    .hr-group--finalized { border-left-color: #2d8c7f; }
+    .hr-group__head h3 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+    .hr-group__head .hr-meta { margin: 2px 0 12px; }
+    .hr-count { display: inline-block; min-width: 26px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+    .hr-more { display: flex; justify-content: center; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -1133,7 +1142,7 @@
       chua_bat_dau: "#cbd5e1",
       da_chot: "#2d8c7f"
     };
-    const hrState = { periodId: "", dept: "", status: "", evaluator: "", q: "", page: 1 };
+    const hrState = { periodId: "", dept: "", status: "", evaluator: "", q: "", limits: {} };
 
     function isHR() {
       return userProfile?.role === "hr";
@@ -1366,58 +1375,77 @@
         </div>`;
     }
 
+    // Nhóm hiển thị trên đầu danh sách phiếu của Phòng Nhân sự
+    const HR_GROUPS = [
+      { key: "pns", title: "Phòng Nhân sự đánh giá", hint: "SVTT của Phòng Nhân sự. Phòng Nhân sự hoặc người hướng dẫn thuộc PNS chấm." },
+      { key: "waiting_confirm", title: "Chờ Phòng Nhân sự xác nhận", hint: "Bộ phận đã gửi phiếu. Cần xác nhận, chốt hoặc trả về." },
+      { key: "waiting_dept", title: "Đang đợi Bộ phận đánh giá", hint: "Chưa gửi hoặc đã bị trả về, bộ phận đang xử lý." },
+      { key: "finalized", title: "Đã chốt", hint: "Phiếu đã hoàn tất." }
+    ];
+
+    function hrGroupOf(t) {
+      if (t.status === STATUS.FINALIZED) return "finalized";
+      if (t.department === HR_DEPT) return "pns";
+      if (t.status === STATUS.WAITING) return "waiting_confirm";
+      return "waiting_dept";
+    }
+
     function renderHrTicketRows() {
       const box = document.getElementById("hrTicketRows");
       if (!box) return;
 
       const list = hrFiltered();
-      const pages = Math.max(1, Math.ceil(list.length / HR_PER_PAGE));
-      if (hrState.page > pages) hrState.page = pages;
-      const from = (hrState.page - 1) * HR_PER_PAGE;
-      const rows = list.slice(from, from + HR_PER_PAGE);
-
-      if (!rows.length) {
+      if (!list.length) {
         box.innerHTML = `<div class="hr-empty-box"><strong>Không có phiếu phù hợp</strong>Thử bỏ bớt bộ lọc hoặc đổi kỳ.</div>`;
         return;
       }
 
       const schools = hrSchoolMap();
-      box.innerHTML = `
-        <div class="hr-table-wrap">
-          <table class="hr-table">
-            <thead>
-              <tr>
-                <th>Mã SV</th>
-                <th>Họ tên</th>
-                <th>Trường</th>
-                <th>Bộ phận</th>
-                <th>Người đánh giá</th>
-                <th>Trạng thái</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map(t => `
-                <tr>
-                  <td class="hr-num">${escapeHtml(t.internId)}</td>
-                  <td>${escapeHtml(t.internName)}</td>
-                  <td>${escapeHtml(schools.get(t.internId) || "—")}</td>
-                  <td>${escapeHtml(DemoStore.departmentName(t.department))}</td>
-                  <td>${escapeHtml(hrEvaluatorLabel(t))}</td>
-                  <td><span class="hr-badge hr-badge--${t.status}">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</span></td>
-                  <td><a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
-        </div>
-        <div class="hr-pager">
-          <span>${from + 1}–${Math.min(list.length, from + HR_PER_PAGE)} / ${list.length} dòng</span>
-          <span class="hr-pager__btns">
-            <button type="button" class="hr-btn-ghost" data-hr-page="${hrState.page - 1}" ${hrState.page <= 1 ? "disabled" : ""}>‹ Trước</button>
-            <span>Trang ${hrState.page}/${pages}</span>
-            <button type="button" class="hr-btn-ghost" data-hr-page="${hrState.page + 1}" ${hrState.page >= pages ? "disabled" : ""}>Sau ›</button>
-          </span>
-        </div>`;
+      box.innerHTML = HR_GROUPS.map(g => {
+        const items = list.filter(t => hrGroupOf(t) === g.key);
+        if (!items.length) return "";
+        const limit = hrState.limits[g.key] || HR_PER_PAGE;
+        const shown = items.slice(0, limit);
+        const more = items.length - shown.length;
+        return `
+          <section class="hr-group hr-group--${g.key}">
+            <div class="hr-group__head">
+              <h3>${escapeHtml(g.title)} <span class="hr-count">${items.length}</span></h3>
+              <p class="hr-meta">${escapeHtml(g.hint)}</p>
+            </div>
+            <div class="hr-table-wrap">
+              <table class="hr-table">
+                <thead>
+                  <tr>
+                    <th>Mã SV</th>
+                    <th>Họ tên</th>
+                    <th>Trường</th>
+                    <th>Bộ phận</th>
+                    <th>Người đánh giá</th>
+                    <th>Trạng thái</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${shown.map(t => `
+                    <tr>
+                      <td class="hr-num">${escapeHtml(t.internId)}</td>
+                      <td>${escapeHtml(t.internName)}</td>
+                      <td>${escapeHtml(schools.get(t.internId) || "—")}</td>
+                      <td>${escapeHtml(DemoStore.departmentName(t.department))}</td>
+                      <td>${escapeHtml(hrEvaluatorLabel(t))}</td>
+                      <td><span class="hr-badge hr-badge--${t.status}">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</span></td>
+                      <td><a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>
+            ${more > 0 ? `
+              <div class="hr-more">
+                <button type="button" class="hr-btn-ghost" data-hr-more="${g.key}">Hiển thị thêm ${Math.min(more, HR_PER_PAGE)} phiếu (còn ${more})</button>
+              </div>` : ""}
+          </section>`;
+      }).join("");
     }
 
     function renderHrAll() {
@@ -1446,7 +1474,7 @@
       const card = event.target.closest("[data-hr-period]");
       if (card) {
         hrState.periodId = card.dataset.hrPeriod;
-        hrState.page = 1;
+        hrState.limits = {};
         renderHrAll();
         return;
       }
@@ -1455,7 +1483,7 @@
       if (deptRow) {
         hrState.dept = deptRow.dataset.hrOpenDept;
         hrState.status = "";
-        hrState.page = 1;
+        hrState.limits = {};
         switchView("evaluations");
         return;
       }
@@ -1463,14 +1491,15 @@
       const statusBtn = event.target.closest("[data-hr-open-status]");
       if (statusBtn) {
         hrState.status = statusBtn.dataset.hrOpenStatus;
-        hrState.page = 1;
+        hrState.limits = {};
         switchView("evaluations");
         return;
       }
 
-      const pageBtn = event.target.closest("[data-hr-page]");
-      if (pageBtn && !pageBtn.disabled) {
-        hrState.page = Number(pageBtn.dataset.hrPage);
+      const moreBtn = event.target.closest("[data-hr-more]");
+      if (moreBtn) {
+        const key = moreBtn.dataset.hrMore;
+        hrState.limits[key] = (hrState.limits[key] || HR_PER_PAGE) + HR_PER_PAGE;
         renderHrTicketRows();
       }
     }
@@ -1481,19 +1510,19 @@
 
       if (t.matches("[data-hr-dept-filter]") || t.id === "hrDept") {
         hrState.dept = t.value;
-        hrState.page = 1;
+        hrState.limits = {};
         renderHrAll();
       } else if (t.id === "hrPeriod") {
         hrState.periodId = t.value;
-        hrState.page = 1;
+        hrState.limits = {};
         renderHrAll();
       } else if (t.id === "hrStatus") {
         hrState.status = t.value;
-        hrState.page = 1;
+        hrState.limits = {};
         renderHrTicketRows();
       } else if (t.id === "hrEval") {
         hrState.evaluator = t.value;
-        hrState.page = 1;
+        hrState.limits = {};
         renderHrTicketRows();
       }
     }
@@ -1502,7 +1531,7 @@
       if (!isHR()) return;
       if (event.target.id === "hrQ") {
         hrState.q = event.target.value;
-        hrState.page = 1;
+        hrState.limits = {};
         renderHrTicketRows();
       }
     }
