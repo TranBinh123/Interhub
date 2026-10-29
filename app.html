@@ -770,6 +770,7 @@
     .hr-num { font-family: "IBM Plex Mono", ui-monospace, monospace; white-space: nowrap; }
     .hr-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text-muted); white-space: nowrap; }
     .hr-badge--cho_xac_nhan { background: rgba(224, 165, 38, 0.16); color: #9a6700; }
+    .hr-badge--cho_truong_bo_phan { background: rgba(139, 92, 246, 0.14); color: #6d28d9; }
     .hr-badge--dang_thuc_hien { background: rgba(59, 130, 246, 0.14); color: #1d4ed8; }
     .hr-badge--tra_ve { background: rgba(224, 90, 74, 0.14); color: #b42318; }
     .hr-badge--da_chot { background: rgba(45, 140, 127, 0.16); color: #17675c; }
@@ -1134,9 +1135,10 @@
     // ============================================
     const HR_PER_PAGE = 25;
     const HR_DEPT = "PNS"; // Bộ phận của Phòng Nhân sự (khớp HR_DEPARTMENT trong demo-store.js)
-    const HR_ORDER = ["cho_xac_nhan", "dang_thuc_hien", "tra_ve", "chua_bat_dau", "da_chot"];
+    const HR_ORDER = ["cho_xac_nhan", "cho_truong_bo_phan", "dang_thuc_hien", "tra_ve", "chua_bat_dau", "da_chot"];
     const HR_COLOR = {
       cho_xac_nhan: "#e0a526",
+      cho_truong_bo_phan: "#8b5cf6",
       dang_thuc_hien: "#3b82f6",
       tra_ve: "#e05a4a",
       chua_bat_dau: "#cbd5e1",

@@ -713,7 +713,9 @@
       }
       currentTicket = result.ticket;
       refresh();
-      showMessage("success", "✓ Đã gửi phiếu, chờ Đào tạo xác nhận (dữ liệu mô phỏng)");
+      showMessage("success", result.ticket.status === "cho_truong_bo_phan"
+        ? "✓ Đã gửi, chờ Trưởng bộ phận duyệt (dữ liệu mô phỏng)"
+        : "✓ Đã gửi phiếu, chờ Phòng Nhân sự xác nhận (dữ liệu mô phỏng)");
     });
 
     $("resetBtn").addEventListener("click", () => {
@@ -741,23 +743,42 @@
         ? history.map(h => `<li>${formatDateTime(h.at)} — <strong>${esc(h.action)}</strong> bởi ${esc(h.by)}${h.note ? `: ${esc(h.note)}` : ""}</li>`).join("")
         : "<li>Chưa có lịch sử thao tác.</li>";
 
-      const actionsHtml = p.finalize || p.returnTicket || p.reopen ? `
+      const reviewing = p.approve || p.supReturn;
+      const actionsHtml = p.finalize || p.returnTicket || p.reopen || reviewing ? `
         <div class="form-group">
-          <label>${p.reopen ? "Lý do mở lại (bắt buộc, ít nhất 10 ký tự)" : "Lý do trả về (bắt buộc khi trả phiếu)"}</label>
+          <label>${p.reopen ? "Lý do mở lại (bắt buộc, ít nhất 10 ký tự)" : reviewing ? "Lý do trả về người hướng dẫn (bắt buộc khi trả phiếu)" : "Lý do trả về (bắt buộc khi trả phiếu)"}</label>
           <textarea id="returnReason" placeholder="${p.reopen ? "Nêu lý do mở lại phiếu đã chốt..." : "Nêu rõ nội dung cần bổ sung..."}"></textarea>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${p.approve ? `<button type="button" class="btn btn-primary" id="approveBtn">Duyệt và gửi Phòng Nhân sự</button>` : ""}
+          ${p.supReturn ? `<button type="button" class="btn btn-secondary" id="supReturnBtn">Trả về người hướng dẫn</button>` : ""}
           ${p.returnTicket ? `<button type="button" class="btn btn-secondary" id="returnBtn">Trả về bổ sung</button>` : ""}
           ${p.finalize ? `<button type="button" class="btn btn-primary" id="finalizeBtn">Xác nhận chốt</button>` : ""}
           ${p.reopen ? `<button type="button" class="btn btn-secondary" id="reopenBtn">Mở lại phiếu</button>` : ""}
         </div>` : "";
 
       panel.innerHTML = `
-        <h3 style="margin-top:0;">Đào tạo kiểm tra</h3>
+        <h3 style="margin-top:0;">${reviewing ? "Trưởng bộ phận duyệt" : "Đào tạo kiểm tra"}</h3>
         ${actionsHtml}
         <h4>Lịch sử thao tác</h4>
         <ul>${historyHtml}</ul>
       `;
+
+      $("approveBtn")?.addEventListener("click", () => {
+        const result = DemoStore.approveTicket(ticketId, actor);
+        if (!result.ok) return showMessage("error", "❌ " + result.error);
+        currentTicket = result.ticket;
+        refresh();
+        showMessage("success", "✓ Đã duyệt và gửi Phòng Nhân sự (dữ liệu mô phỏng)");
+      });
+
+      $("supReturnBtn")?.addEventListener("click", () => {
+        const result = DemoStore.supervisorReturn(ticketId, actor, $("returnReason").value);
+        if (!result.ok) return showMessage("error", "❌ " + result.error);
+        currentTicket = result.ticket;
+        refresh();
+        showMessage("success", "✓ Đã trả phiếu về người hướng dẫn (dữ liệu mô phỏng)");
+      });
 
       $("returnBtn")?.addEventListener("click", () => {
         const result = DemoStore.returnTicket(ticketId, actor, $("returnReason").value);
