@@ -1164,6 +1164,7 @@
     // Hiển thị người đánh giá đã được giao; nếu chưa giao thì báo rõ để Phòng Nhân sự theo dõi và nhắc.
     function hrEvaluatorLabel(t) {
       if (t.evaluatorUid) return t.evaluatorName || "Chưa rõ tên";
+      if (t.evaluatorAssigned) return t.evaluatorName || "Trưởng bộ phận";
       return "Đang đợi giao người đánh giá";
     }
 
@@ -1600,13 +1601,14 @@
       const all = DemoStore.listTickets(actor, period.id).filter(t => t.department === dept);
       const mentors = DemoStore.mentorsOf(dept);
       document.getElementById("assignSummary").textContent =
-        `Bộ phận ${dept || "—"}: ${all.length} phiếu · ${mentors.length} người hướng dẫn · ${all.filter(t => !t.evaluatorUid).length} phiếu chưa giao.`;
+        `Bộ phận ${dept || "—"}: ${all.length} phiếu · ${mentors.length} người hướng dẫn · ${all.filter(t => !t.evaluatorAssigned).length} phiếu chưa giao.`;
 
       // Danh sách người hướng dẫn cho ô gán hàng loạt
       const bulkMentor = document.getElementById("assignBulkMentor");
       const bulkValue = bulkMentor.value;
       bulkMentor.innerHTML = [
-        `<option value="">Trưởng bộ phận tự đánh giá</option>`,
+        `<option value="">— Chọn người đánh giá —</option>`,
+        `<option value="__self__">Trưởng bộ phận tự đánh giá</option>`,
         ...mentors.map(m => `<option value="${escapeHtml(m.uid)}">${escapeHtml(m.fullName)}</option>`)
       ].join("");
       if ([...bulkMentor.options].some(o => o.value === bulkValue)) bulkMentor.value = bulkValue;
@@ -1615,8 +1617,8 @@
       const q = (document.getElementById("assignSearch").value || "").trim().toLowerCase();
       const statusFilter = document.getElementById("assignStatusFilter").value;
       const list = all.filter(t => {
-        if (statusFilter === "unassigned" && t.evaluatorUid) return false;
-        if (statusFilter === "assigned" && !t.evaluatorUid) return false;
+        if (statusFilter === "unassigned" && t.evaluatorAssigned) return false;
+        if (statusFilter === "assigned" && !t.evaluatorAssigned) return false;
         if (q && !`${t.internName} ${t.internId}`.toLowerCase().includes(q)) return false;
         return true;
       });
@@ -1648,7 +1650,8 @@
       box.innerHTML = mentorNotice + list.map(t => {
         const p = DemoStore.permissionsFor(t, actor);
         const options = [
-          `<option value="" ${!t.evaluatorUid ? "selected" : ""}>Trưởng bộ phận tự đánh giá</option>`,
+          `<option value="" ${!t.evaluatorAssigned ? "selected" : ""}>— Chọn người đánh giá —</option>`,
+          `<option value="__self__" ${t.evaluatorAssigned && !t.evaluatorUid ? "selected" : ""}>Trưởng bộ phận tự đánh giá</option>`,
           ...mentors.map(m => `<option value="${escapeHtml(m.uid)}" ${t.evaluatorUid === m.uid ? "selected" : ""}>${escapeHtml(m.fullName)}</option>`)
         ].join("");
         const disabled = p.assign ? "" : "disabled";
@@ -1658,7 +1661,7 @@
             <td><input type="checkbox" data-select-ticket="${escapeHtml(t.id)}" ${checked} ${disabled}></td>
             <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
             <td>${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
-            <td>${escapeHtml(t.evaluatorName || "—")}</td>
+            <td>${t.evaluatorAssigned ? escapeHtml(t.evaluatorName || "—") : "<em>Đang đợi giao</em>"}</td>
             <td><select data-assign-for="${escapeHtml(t.id)}" ${disabled}>${options}</select></td>
             <td><button type="button" class="btn btn-secondary btn-sm" data-action="assign"
                   data-ticket-id="${escapeHtml(t.id)}" ${disabled}>Lưu</button></td>
@@ -1714,7 +1717,7 @@
 
       if (button.dataset.action === "assign-bulk") {
         const ids = [...assignSelected];
-        const mentorUid = document.getElementById("assignBulkMentor").value || null;
+        const mentorUid = document.getElementById("assignBulkMentor").value;
         const result = DemoStore.assignEvaluatorBulk(ids, actorInfo(), mentorUid);
         if (result.ok) {
           assignSelected.clear();
@@ -1731,7 +1734,7 @@
 
       const id = button.dataset.ticketId;
       const select = document.querySelector(`[data-assign-for="${CSS.escape(id)}"]`);
-      const result = DemoStore.assignEvaluator(id, actorInfo(), select?.value || null);
+      const result = DemoStore.assignEvaluator(id, actorInfo(), select?.value || "");
 
       if (result.ok) {
         showMessage("success", "Đã lưu phân công (dữ liệu mô phỏng)");
@@ -1945,19 +1948,23 @@
     function displayTicketsGroupedByEvaluator() {
       const groups = new Map();
       for (const t of tickets) {
-        const key = t.evaluatorUid || "__self__";
+        const key = t.evaluatorUid || (t.evaluatorAssigned ? "__self__" : "__waiting__");
         if (!groups.has(key)) {
           groups.set(key, {
-            self: !t.evaluatorUid,
-            name: t.evaluatorUid ? (t.evaluatorName || "Chưa rõ tên") : "Trưởng bộ phận tự đánh giá",
+            self: !t.evaluatorUid && !!t.evaluatorAssigned,
+            waiting: !t.evaluatorAssigned,
+            name: t.evaluatorUid ? (t.evaluatorName || "Chưa rõ tên")
+              : t.evaluatorAssigned ? (t.evaluatorName || "Trưởng bộ phận")
+              : "Đang đợi giao người đánh giá",
             items: []
           });
         }
         groups.get(key).items.push(t);
       }
 
+      const rank = g => g.waiting ? 2 : g.self ? 1 : 0;
       const ordered = [...groups.values()].sort((a, b) =>
-        Number(a.self) - Number(b.self) || a.name.localeCompare(b.name, "vi"));
+        rank(a) - rank(b) || a.name.localeCompare(b.name, "vi"));
 
       const rows = [];
       for (const g of ordered) {
