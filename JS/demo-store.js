@@ -49,6 +49,7 @@ const LEGACY_KEY = "internhub-demo-v2";
 export const STATUS = {
   NOT_STARTED: "chua_bat_dau",
   IN_PROGRESS: "dang_thuc_hien",
+  SUP_REVIEW: "cho_truong_bo_phan",
   WAITING: "cho_xac_nhan",
   RETURNED: "tra_ve",
   FINALIZED: "da_chot"
@@ -57,6 +58,7 @@ export const STATUS = {
 export const STATUS_LABEL = {
   chua_bat_dau: "Chưa bắt đầu",
   dang_thuc_hien: "Đang thực hiện",
+  cho_truong_bo_phan: "Chờ Trưởng bộ phận duyệt",
   cho_xac_nhan: "Chờ Phòng Nhân sự xác nhận",
   tra_ve: "Trả về bổ sung",
   da_chot: "Đã chốt"
@@ -886,7 +888,8 @@ export const HR_DEPARTMENT = "PNS";
 export function permissionsFor(ticket, actor) {
   const none = {
     scores: false, part4: false, part5: false, committee: false,
-    submit: false, returnTicket: false, finalize: false, reopen: false, assign: false
+    submit: false, returnTicket: false, finalize: false, reopen: false, assign: false,
+    approve: false, supReturn: false
   };
   if (!ticket || !actor) return none;
 
@@ -905,6 +908,10 @@ export function permissionsFor(ticket, actor) {
 
   const editable = EDITABLE.includes(ticket.status);
   const base = { ...none, assign: actor.role === "supervisor" && editable };
+  // Phiếu do người hướng dẫn gửi lên: Trưởng bộ phận duyệt (gửi Phòng Nhân sự) hoặc trả về người hướng dẫn
+  if (actor.role === "supervisor" && ticket.status === STATUS.SUP_REVIEW) {
+    return { ...base, approve: true, supReturn: true };
+  }
   if (isEvaluatorOf(ticket, actor)) {
     return { ...base, scores: editable, part4: editable, submit: editable };
   }
@@ -1070,10 +1077,42 @@ export function submit(id, actor) {
   const missing = ticket.scores.filter(v => v === null).length;
   if (missing > 0) return fail(`Còn ${missing} hạng mục chưa chấm điểm. Hãy điền đủ 15 hạng mục trước khi gửi.`);
 
+  // Người hướng dẫn gửi thì phải qua Trưởng bộ phận duyệt; Trưởng bộ phận tự chấm (hoặc tự gửi) thì gửi thẳng Phòng Nhân sự
+  const viaMentor = actor.role === "mentor" && !!ticket.evaluatorUid && ticket.evaluatorUid === actor.uid;
+  ticket.status = viaMentor ? STATUS.SUP_REVIEW : STATUS.WAITING;
+  ticket.sendCount += viaMentor ? 0 : 1;
+  ticket.returnReason = "";
+  addHistory(ticket, actor, viaMentor ? "Gửi Trưởng bộ phận duyệt" : "Gửi phiếu");
+  write(all);
+  return ok({ ticket: { ...ticket } });
+}
+
+// Trưởng bộ phận duyệt phiếu của người hướng dẫn rồi gửi lên Phòng Nhân sự
+export function approveTicket(id, actor) {
+  const all = read();
+  const ticket = all.tickets[id];
+  if (!ticket) return fail("Phiếu không tồn tại.");
+  if (!permissionsFor(ticket, actor).approve) return fail("Chỉ Trưởng bộ phận của bộ phận này mới được duyệt phiếu đang chờ.");
+
   ticket.status = STATUS.WAITING;
   ticket.sendCount += 1;
-  ticket.returnReason = "";
-  addHistory(ticket, actor, "Gửi phiếu");
+  addHistory(ticket, actor, "Trưởng bộ phận duyệt", "Đã gửi Phòng Nhân sự");
+  write(all);
+  return ok({ ticket: { ...ticket } });
+}
+
+// Trưởng bộ phận trả phiếu về người hướng dẫn để bổ sung; bắt buộc có lý do
+export function supervisorReturn(id, actor, reason) {
+  const all = read();
+  const ticket = all.tickets[id];
+  if (!ticket) return fail("Phiếu không tồn tại.");
+  if (!permissionsFor(ticket, actor).supReturn) return fail("Chỉ phiếu đang chờ Trưởng bộ phận duyệt mới được trả về.");
+  const text = String(reason || "").trim();
+  if (!text) return fail("Phải nhập lý do khi trả phiếu về người hướng dẫn.");
+
+  ticket.status = STATUS.RETURNED;
+  ticket.returnReason = text;
+  addHistory(ticket, actor, "Trưởng bộ phận trả về", text);
   write(all);
   return ok({ ticket: { ...ticket } });
 }
@@ -1238,6 +1277,8 @@ export function formatDateTime(iso) {
 
 export const DemoStore = {
   listDepartments,
+  approveTicket,
+  supervisorReturn,
   createDepartment,
   updateDepartment,
   deleteDepartment,
