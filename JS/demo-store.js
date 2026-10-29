@@ -214,6 +214,9 @@ function defaultEvaluatorName(department) {
   return `Trưởng bộ phận ${department}`;
 }
 
+// Giá trị gửi lên khi Trưởng bộ phận chọn "tự đánh giá" (khác với "chưa chọn" = "")
+const SELF_EVALUATOR = "__self__";
+
 function normalizeDate(value) {
   const v = String(value || "").trim();
   if (!v) return "";
@@ -415,7 +418,8 @@ export function syncPeriodTickets(periodId) {
       school: intern.school || "",
       department: intern.department,
       evaluatorUid: null,
-      evaluatorName: defaultEvaluatorName(intern.department),
+      evaluatorName: "",
+      evaluatorAssigned: false,
       evaluationType: reason.type,
       evaluationNote: reason.note,
       status: STATUS.NOT_STARTED,
@@ -632,7 +636,8 @@ export function updateIntern(internId, input) {
     if (deptChanged) {
       t.department = next.department;
       t.evaluatorUid = null;
-      t.evaluatorName = defaultEvaluatorName(next.department);
+      t.evaluatorName = "";
+      t.evaluatorAssigned = false;
       t.updatedAt = now();
       t.history.push({ at: now(), by: "Admin", action: "Đổi bộ phận", note: `Chuyển sang ${next.department}` });
     }
@@ -782,7 +787,7 @@ export function removeMember(uid) {
   for (const t of Object.values(state.tickets)) {
     if (t.evaluatorUid === uid && EDITABLE.includes(t.status)) {
       t.evaluatorUid = null;
-      t.evaluatorName = defaultEvaluatorName(t.department);
+      t.evaluatorName = ""; t.evaluatorAssigned = false;
       addHistory(t, { name: "Admin" }, "Bỏ phân công", "Người đánh giá đã bị xóa khỏi hệ thống");
     }
   }
@@ -822,7 +827,7 @@ export function updateMember(uid, { role, department }) {
     for (const t of Object.values(state.tickets)) {
       if (t.evaluatorUid === uid && EDITABLE.includes(t.status)) {
         t.evaluatorUid = null;
-        t.evaluatorName = defaultEvaluatorName(t.department);
+        t.evaluatorName = ""; t.evaluatorAssigned = false;
         addHistory(t, { name: "Admin" }, "Bỏ phân công", "Vai trò hoặc bộ phận của người đánh giá đã thay đổi");
       }
     }
@@ -908,18 +913,21 @@ export function assignEvaluator(ticketId, actor, mentorUid) {
     return fail("Chỉ Trưởng bộ phận của bộ phận này mới được phân công, và chỉ khi phiếu chưa gửi.");
   }
 
-  if (mentorUid) {
+  if (!mentorUid) return fail("Hãy chọn người đánh giá hoặc \"Trưởng bộ phận tự đánh giá\" trước khi lưu.");
+  if (mentorUid === SELF_EVALUATOR) {
+    ticket.evaluatorUid = null;
+    ticket.evaluatorName = actor.name || defaultEvaluatorName(ticket.department);
+    ticket.evaluatorAssigned = true;
+    addHistory(ticket, actor, "Phân công", "Trưởng bộ phận tự đánh giá");
+  } else {
     const mentor = state.members[mentorUid];
     if (!mentor || mentor.role !== "mentor" || mentor.department !== ticket.department) {
       return fail("Người hướng dẫn phải là tài khoản thuộc đúng bộ phận của phiếu.");
     }
     ticket.evaluatorUid = mentorUid;
     ticket.evaluatorName = mentor.fullName;
+    ticket.evaluatorAssigned = true;
     addHistory(ticket, actor, "Phân công", `Giao cho ${mentor.fullName}`);
-  } else {
-    ticket.evaluatorUid = null;
-    ticket.evaluatorName = defaultEvaluatorName(ticket.department);
-    addHistory(ticket, actor, "Phân công", "Trưởng bộ phận tự đánh giá");
   }
 
   write(state);
@@ -933,8 +941,10 @@ export function assignEvaluatorBulk(ticketIds, actor, mentorUid) {
   const ids = [...new Set(ticketIds || [])];
   if (!ids.length) return fail("Chưa chọn phiếu nào.");
 
+  if (!mentorUid) return fail("Hãy chọn người đánh giá hoặc \"Trưởng bộ phận tự đánh giá\" trước khi gán.");
+  const isSelf = mentorUid === SELF_EVALUATOR;
   let mentor = null;
-  if (mentorUid) {
+  if (!isSelf) {
     mentor = state.members[mentorUid];
     if (!mentor || mentor.role !== "mentor") return fail("Người hướng dẫn không hợp lệ.");
   }
@@ -944,14 +954,16 @@ export function assignEvaluatorBulk(ticketIds, actor, mentorUid) {
   for (const id of ids) {
     const ticket = state.tickets[id];
     if (!ticket || !permissionsFor(ticket, actor).assign) { skipped++; continue; }
-    if (mentor) {
+    if (!isSelf) {
       if (mentor.department !== ticket.department) { skipped++; continue; }
       ticket.evaluatorUid = mentorUid;
       ticket.evaluatorName = mentor.fullName;
+      ticket.evaluatorAssigned = true;
       addHistory(ticket, actor, "Phân công", `Giao cho ${mentor.fullName} (gán hàng loạt)`);
     } else {
       ticket.evaluatorUid = null;
-      ticket.evaluatorName = defaultEvaluatorName(ticket.department);
+      ticket.evaluatorName = actor.name || defaultEvaluatorName(ticket.department);
+      ticket.evaluatorAssigned = true;
       addHistory(ticket, actor, "Phân công", "Trưởng bộ phận tự đánh giá (gán hàng loạt)");
     }
     updated++;
@@ -1164,7 +1176,8 @@ export function loadSampleData() {
       school: state.interns[internId].school,
       department: dept,
       evaluatorUid: null,
-      evaluatorName: defaultEvaluatorName(dept),
+      evaluatorName: "",
+      evaluatorAssigned: false,
       status,
       scores,
       textPart4: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu (dữ liệu giả lập).",
