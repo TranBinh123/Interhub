@@ -153,6 +153,18 @@ function read() {
         catalogV4: p.catalogV4 === true,
         catalogV5: p.catalogV5 === true
       };
+      // Dữ liệu cũ chưa có cờ evaluatorAssigned: suy ra từ thông tin đã có, không làm mất phân công cũ.
+      for (const t of Object.values(state.tickets)) {
+        if (typeof t.evaluatorAssigned === "boolean") continue;
+        const assigned = !!t.evaluatorUid
+          || t.status !== STATUS.NOT_STARTED
+          || (t.history || []).some(h => h.action === "Phân công");
+        t.evaluatorAssigned = assigned;
+        if (assigned && !t.evaluatorUid && t.evaluatorName === defaultEvaluatorName(t.department)) {
+          const head = Object.values(state.members).find(m => m.role === "supervisor" && m.department === t.department);
+          if (head) t.evaluatorName = head.fullName;
+        }
+      }
       if (!state.catalogV4) {
         // Không xóa bộ phận nào khi nâng cấp dữ liệu; chỉ đánh dấu đã xử lý.
         state.catalogV4 = true;
