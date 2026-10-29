@@ -565,15 +565,16 @@
     function renderRoleNotes() {
       let html = "";
 
-      if (actor.role === "supervisor" || actor.role === "mentor") {
-        html = `
+      if (actor.role === "supervisor" || actor.role === "mentor" || (actor.role === "hr" && currentTicket.department === "PNS")) {
+        html += `
           <div class="form-group">
             <label>Nhận xét của Người hướng dẫn/Trưởng bộ phận</label>
             <textarea id="textPart4" placeholder="Nhận xét của Người hướng dẫn/Trưởng bộ phận...">${esc(currentTicket.textPart4)}</textarea>
           </div>
         `;
-      } else if (actor.role === "hr") {
-        html = `
+      }
+      if (actor.role === "hr") {
+        html += `
           <div class="form-group">
             <label>Nhận xét Phần V</label>
             <textarea id="textPart5" placeholder="Nhận xét của Phòng Nhân sự...">${esc(currentTicket.textPart5)}</textarea>

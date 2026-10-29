@@ -1074,7 +1074,7 @@
         document.getElementById("userDisplayRole").textContent = roleText[userProfile.role] || userProfile.role || "—";
       }
       document.getElementById("userDisplayEmail").textContent = currentUser.email;
-      document.getElementById("navAssignments").hidden = userProfile?.role !== "supervisor";
+      document.getElementById("navAssignments").hidden = !["supervisor", "hr"].includes(userProfile?.role);
       document.getElementById("navManage").hidden = userProfile?.role !== "hr";
       // Chỉ Phòng Nhân sự được tạo phiếu/kỳ (thực hiện ở trang quản lý)
       const isHR = userProfile?.role === "hr";
@@ -1124,6 +1124,7 @@
     // Phòng Nhân sự: Tổng quan và Phiếu đánh giá (theo prototype)
     // ============================================
     const HR_PER_PAGE = 25;
+    const HR_DEPT = "PNS"; // Bộ phận của Phòng Nhân sự (khớp HR_DEPARTMENT trong demo-store.js)
     const HR_ORDER = ["cho_xac_nhan", "dang_thuc_hien", "tra_ve", "chua_bat_dau", "da_chot"];
     const HR_COLOR = {
       cho_xac_nhan: "#e0a526",
@@ -1433,7 +1434,7 @@
         document.getElementById(id)?.classList.add("hidden"));
       ["hrDashboard", "hrTicketFilters", "hrTicketRows"].forEach(id =>
         document.getElementById(id)?.classList.remove("hidden"));
-      ["navPeriods", "navReports", "navAssignments"].forEach(id => {
+      ["navPeriods", "navReports"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.hidden = true;
       });
@@ -1563,10 +1564,12 @@
       }
 
       const actor = actorInfo();
-      const all = DemoStore.listTickets(actor, period.id);
-      const mentors = DemoStore.mentorsOf(actor.department);
+      // Phòng Nhân sự phân công cho SVTT của chính Phòng Nhân sự
+      const dept = isHR() ? HR_DEPT : actor.department;
+      const all = DemoStore.listTickets(actor, period.id).filter(t => t.department === dept);
+      const mentors = DemoStore.mentorsOf(dept);
       document.getElementById("assignSummary").textContent =
-        `Bộ phận ${actor.department || "—"}: ${all.length} phiếu · ${mentors.length} người hướng dẫn · ${all.filter(t => !t.evaluatorUid).length} phiếu chưa giao.`;
+        `Bộ phận ${dept || "—"}: ${all.length} phiếu · ${mentors.length} người hướng dẫn · ${all.filter(t => !t.evaluatorUid).length} phiếu chưa giao.`;
 
       // Danh sách người hướng dẫn cho ô gán hàng loạt
       const bulkMentor = document.getElementById("assignBulkMentor");
@@ -1593,8 +1596,8 @@
       }
       updateAssignBulkBar(list);
 
-      if (!DemoStore.departmentKnown(actor.department)) {
-        box.innerHTML = `<tr class="empty-state"><td colspan="6">Bộ phận của bạn (${escapeHtml(actor.department || "chưa có")}) chưa có trong danh mục. Liên hệ Admin.</td></tr>`;
+      if (!DemoStore.departmentKnown(dept)) {
+        box.innerHTML = `<tr class="empty-state"><td colspan="6">Bộ phận của bạn (${escapeHtml(dept || "chưa có")}) chưa có trong danh mục. Liên hệ Admin.</td></tr>`;
         return;
       }
 
