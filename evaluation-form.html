@@ -303,6 +303,10 @@
       display: none !important;
     }
 
+    [hidden] {
+      display: none !important;
+    }
+
     @media (max-width: 768px) {
       body {
         padding: 16px;
@@ -422,7 +426,7 @@
       <!-- Actions -->
       <div class="form-actions">
         <button type="submit" class="btn btn-primary" id="submitBtn">
-          💾 Lưu
+          💾 Lưu nháp
         </button>
         <button type="button" class="btn btn-secondary" id="submitForReviewBtn">
           ✓ Gửi phê duyệt
@@ -662,6 +666,8 @@
       $("submitBtn").disabled = !p.scores;
       $("resetBtn").disabled = !p.scores;
       $("submitForReviewBtn").disabled = !p.submit;
+      // Đã gửi (hoặc không còn quyền gửi) thì ẩn nút gửi phê duyệt
+      $("submitForReviewBtn").hidden = !p.submit;
     }
 
     // ============================================

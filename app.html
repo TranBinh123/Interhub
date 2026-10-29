@@ -395,6 +395,11 @@
     .hidden {
       display: none !important;
     }
+
+    /* thuộc tính hidden luôn thắng, kể cả khi .btn đặt display riêng */
+    [hidden] {
+      display: none !important;
+    }
     /* ===== Giao diện hiện đại (v2) ===== */
     :root {
       --radius: 12px;
@@ -1083,6 +1088,12 @@
         el.addEventListener("input", handleHrInput);
       });
       document.getElementById("assignments").addEventListener("change", handleAssignChange);
+
+      // Quay lại từ trang phiếu (nút Quay lại / bfcache) hoặc đổi tab: nạp lại dữ liệu mới nhất
+      window.addEventListener("pageshow", () => { if (currentUser) loadDashboardData(); });
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && currentUser) loadDashboardData();
+      });
       document.getElementById("assignSearch").addEventListener("input", () => { renderAssignments(); });
 
       // Navigation
