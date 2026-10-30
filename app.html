@@ -1440,7 +1440,10 @@
                       <td>${escapeHtml(DemoStore.departmentName(t.department))}</td>
                       <td>${escapeHtml(hrEvaluatorLabel(t))}</td>
                       <td><span class="hr-badge hr-badge--${t.status}">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</span></td>
-                      <td><a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
+                      <td>
+                        <a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a>
+                        ${t.status === STATUS.FINALIZED ? `<a class="hr-btn-sm" href="./print-ticket.html?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">In phiếu</a>` : ""}
+                      </td>
                     </tr>`).join("")}
                 </tbody>
               </table>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>InternHub - In phiếu đánh giá</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    :root {
+      --primary: #0a6a73;
+      --surface: #ffffff;
+      --surface-2: #f3f6f9;
+      --text: #12212f;
+      --text-muted: #556675;
+      --border: #c9d3dc;
+      --error: #a82e28;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Be Vietnam Pro", system-ui, sans-serif;
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      max-width: 820px;
+      margin: 16px auto 0;
+      padding: 0 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar a { color: var(--primary); text-decoration: none; font-weight: 600; }
+    .btn {
+      font: inherit;
+      padding: 9px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--primary);
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-ghost { background: var(--surface); color: var(--primary); }
+
+    .message-box {
+      max-width: 820px;
+      margin: 40px auto;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--error);
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .sheet {
+      max-width: 820px;
+      margin: 16px auto 40px;
+      background: var(--surface);
+      padding: 36px 40px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .sheet-head { text-align: center; margin-bottom: 20px; }
+    .sheet-head .org { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+    .sheet-head h1 { font-size: 20px; margin: 6px 0 2px; text-transform: uppercase; letter-spacing: 0.02em; }
+    .sheet-head .sub { color: var(--text-muted); }
+
+    h2 { font-size: 14px; text-transform: uppercase; margin: 22px 0 8px; letter-spacing: 0.03em; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid var(--border); padding: 7px 9px; vertical-align: top; text-align: left; }
+    th { background: var(--surface-2); font-weight: 600; font-size: 13px; }
+    td.num, th.num { text-align: center; width: 60px; }
+    td.score { text-align: center; width: 80px; font-variant-numeric: tabular-nums; }
+    .info td:first-child { width: 34%; color: var(--text-muted); }
+    .part-row td { background: var(--surface-2); font-weight: 600; }
+    .result-table td { text-align: center; }
+    .note-box { border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; min-height: 48px; white-space: pre-wrap; }
+
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 28px;
+      text-align: center;
+    }
+    .signatures .title { font-weight: 600; }
+    .signatures .hint { color: var(--text-muted); font-size: 12px; }
+    .signatures .space { height: 70px; }
+
+    @page { size: A4; margin: 14mm; }
+
+    @media print {
+      body { background: #fff; font-size: 12px; }
+      .no-print { display: none !important; }
+      .sheet { max-width: none; margin: 0; padding: 0; border: none; border-radius: 0; }
+      th { background: #eee !important; }
+      .part-row td { background: #f2f2f2 !important; }
+      .note-box { border-color: #999; }
+      table, tr, .signatures, .note-box { break-inside: avoid; }
+    }
+
+    @media (max-width: 600px) {
+      .sheet { padding: 22px 16px; margin: 8px; }
+      .signatures { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print" id="toolbar" hidden>
+    <a href="./evaluation-form.html" id="backLink">← Quay lại phiếu</a>
+    <button type="button" class="btn" id="printBtn">🖨 In phiếu</button>
+  </div>
+
+  <div class="message-box" id="loadingState">Đang tải phiếu...</div>
+
+  <main class="sheet" id="sheet" hidden></main>
+
+  <script type="module">
+    import { Auth } from "./JS/auth.js";
+    import {
+      DemoStore, ITEMS, PARTS, STATUS, STATUS_LABEL, partScore, formatDateTime
+    } from "./JS/demo-store.js";
+
+    const $ = id => document.getElementById(id);
+    const ticketId = new URLSearchParams(window.location.search).get("id");
+
+    function esc(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function showError(text) {
+      $("loadingState").hidden = false;
+      $("loadingState").textContent = text;
+      $("sheet").hidden = true;
+      $("toolbar").hidden = true;
+    }
+
+    function fmt(v) {
+      return v === null || v === undefined ? "—" : v.toFixed(2);
+    }
+
+    async function bootstrap() {
+      if (!ticketId) return showError("❌ Không tìm thấy phiếu");
+
+      let user = null;
+      try {
+        user = await Auth.waitForUser();
+      } catch (error) {
+        console.error("Không thể kiểm tra đăng nhập:", error);
+      }
+      if (!user) {
+        window.location.replace("./index.html");
+        return;
+      }
+
+      let profile = null;
+      try {
+        profile = await Auth.getProfile(user.uid);
+      } catch (error) {
+        console.error("Không thể tải hồ sơ người dùng:", error);
+      }
+      if (!profile || profile.status !== "approved" || profile.isActive !== true) {
+        window.location.replace("./index.html");
+        return;
+      }
+      profile = DemoStore.effectiveProfile(user.uid, profile);
+
+      const actor = {
+        uid: user.uid,
+        name: profile.fullName || user.email,
+        role: profile.role,
+        department: profile.department
+      };
+
+      const ticket = DemoStore.getTicket(ticketId);
+      if (!ticket) return showError("❌ Phiếu không tồn tại");
+      if (!DemoStore.canView(ticket, actor)) return showError("❌ Bạn không có quyền xem phiếu này");
+      if (!DemoStore.permissionsFor(ticket, actor).print) {
+        return showError(`❌ Chỉ in được phiếu đã chốt. Phiếu hiện ở trạng thái: ${STATUS_LABEL[ticket.status] || ticket.status}.`);
+      }
+
+      render(ticket);
+    }
+
+    function render(t) {
+      const period = DemoStore.listPeriods().find(p => p.id === t.periodId);
+      const intern = DemoStore.listInterns().find(i => i.internId === t.internId);
+      const finalizedAt = [...(t.history || [])].reverse().find(h => h.action === "Chốt phiếu")?.at;
+
+      const parts = PARTS.map((part, index) => ({ name: part.name, score: partScore(t.scores, index) }));
+      const scoresOk = parts.every(p => p.score !== null);
+      const final = scoresOk ? parts.reduce((sum, p) => sum + p.score, 0) / parts.length : null;
+
+      const itemRows = PARTS.map((part, pIndex) => {
+        const rows = ITEMS
+          .map((item, i) => ({ item, i }))
+          .filter(({ item }) => item.part === pIndex)
+          .map(({ item, i }) => `
+            <tr>
+              <td class="num">${esc(item.key)}</td>
+              <td>${esc(item.label)}</td>
+              <td class="score">${t.scores[i] === null || t.scores[i] === undefined ? "—" : esc(t.scores[i])}</td>
+            </tr>`).join("");
+        return `
+          <tr class="part-row"><td colspan="2">${esc(part.name)}</td><td class="score">${fmt(parts[pIndex].score)}</td></tr>
+          ${rows}`;
+      }).join("");
+
+      const sheet = $("sheet");
+      sheet.innerHTML = `
+        <header class="sheet-head">
+          <div class="org">Phòng Nhân sự</div>
+          <h1>Phiếu đánh giá thực tập sinh</h1>
+          <div class="sub">${esc(period?.name || "")}</div>
+        </header>
+
+        <h2>Thông tin thực tập sinh</h2>
+        <table class="info">
+          <tr><td>Mã SVTT</td><td>${esc(t.internId)}</td></tr>
+          <tr><td>Họ và tên</td><td>${esc(t.internName)}</td></tr>
+          <tr><td>Trường</td><td>${esc(intern?.school || t.school || "—")}</td></tr>
+          <tr><td>Bộ phận</td><td>${esc(DemoStore.departmentName(t.department))}</td></tr>
+          <tr><td>Người đánh giá</td><td>${esc(t.evaluatorName || "—")}</td></tr>
+          <tr><td>Ngày chốt phiếu</td><td>${esc(finalizedAt ? formatDateTime(finalizedAt) : "—")}</td></tr>
+        </table>
+
+        <h2>Bảng điểm</h2>
+        <table>
+          <thead>
+            <tr><th class="num">Mã</th><th>Nội dung đánh giá</th><th class="score">Điểm</th></tr>
+          </thead>
+          <tbody>${itemRows}</tbody>
+        </table>
+
+        <h2>Kết quả</h2>
+        <table class="result-table">
+          <tr>
+            <th>Phần I</th><th>Phần II</th><th>Phần III</th><th>Điểm cuối</th><th>Xếp loại</th>
+          </tr>
+          <tr>
+            <td>${fmt(parts[0].score)}</td>
+            <td>${fmt(parts[1].score)}</td>
+            <td>${fmt(parts[2].score)}</td>
+            <td><strong>${fmt(final)}</strong></td>
+            <td>&nbsp;</td>
+          </tr>
+        </table>
+
+        <h2>Nhận xét của người hướng dẫn</h2>
+        <div class="note-box">${esc(t.textPart4 || "")}</div>
+
+        <h2>Nhận xét của Phòng Nhân sự</h2>
+        <div class="note-box">${esc(t.textPart5 || "")}</div>
+
+        <h2>Ý kiến hội đồng</h2>
+        <div class="note-box">${esc(t.textCommittee || "")}</div>
+
+        <div class="signatures">
+          <div>
+            <div class="title">Người đánh giá</div>
+            <div class="hint">(Ký, ghi rõ họ tên)</div>
+            <div class="space"></div>
+            <div>${esc(t.evaluatorName || "")}</div>
+          </div>
+          <div>
+            <div class="title">Phòng Nhân sự</div>
+            <div class="hint">(Ký, ghi rõ họ tên)</div>
+            <div class="space"></div>
+          </div>
+        </div>
+      `;
+
+      sheet.hidden = false;
+      $("toolbar").hidden = false;
+      $("loadingState").hidden = true;
+      document.title = `Phiếu ${t.internId} - ${t.internName}`;
+    }
+
+    $("printBtn").addEventListener("click", () => window.print());
+
+    bootstrap();
+  </script>
+</body>
+</html>

@@ -757,8 +757,14 @@
           ${p.reopen ? `<button type="button" class="btn btn-secondary" id="reopenBtn">Mở lại phiếu</button>` : ""}
         </div>` : "";
 
+      const printHtml = p.print ? `
+        <div style="margin-bottom:12px;">
+          <a class="btn btn-secondary" href="./print-ticket.html?id=${encodeURIComponent(currentTicket.id)}" target="_blank" rel="noopener">🖨 In phiếu</a>
+        </div>` : "";
+
       panel.innerHTML = `
         <h3 style="margin-top:0;">${reviewing ? "Trưởng bộ phận duyệt" : "Đào tạo kiểm tra"}</h3>
+        ${printHtml}
         ${actionsHtml}
         <h4>Lịch sử thao tác</h4>
         <ul>${historyHtml}</ul>
