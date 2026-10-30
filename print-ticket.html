@@ -75,9 +75,9 @@
 
     .sheet-head { text-align: center; margin-bottom: 20px; }
     .head-top { display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px; align-items: start; text-align: center; }
-    .head-left { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .sheet-head .logo { display: block; max-height: 64px; max-width: 200px; object-fit: contain; }
-    .sheet-head .org { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text); }
+    .head-left { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; }
+    .sheet-head .logo { display: block; height: 56px; width: auto; max-width: 160px; object-fit: contain; flex-shrink: 0; }
+    .sheet-head .org { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text); text-align: left; }
     .head-right .national { font-size: 13px; font-weight: 700; text-transform: uppercase; }
     .head-right .motto { font-size: 13px; font-weight: 700; text-decoration: underline; }
     @media (max-width: 600px) { .head-top { grid-template-columns: 1fr; } }
