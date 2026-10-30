@@ -1071,6 +1071,12 @@
       userProfile = profile;
       setupUI();
       loadDashboardData();
+
+      // Mở đúng mục khi đến từ trang khác, ví dụ ?view=evaluations từ nút "Quay lại" của phiếu in
+      const requestedView = new URLSearchParams(window.location.search).get("view");
+      if (requestedView && document.querySelector(`.nav-link[data-view="${requestedView}"]`)) {
+        switchView(requestedView);
+      }
     }
 
     // ============================================

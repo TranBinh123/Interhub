@@ -75,9 +75,10 @@
 
     .sheet-head { text-align: center; margin-bottom: 20px; }
     .head-top { display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px; align-items: start; text-align: center; }
-    .head-left { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; }
+    .head-left { display: flex; flex-direction: row; align-items: flex-start; justify-content: center; gap: 10px; }
     .sheet-head .logo { display: block; height: 56px; width: auto; max-width: 160px; object-fit: contain; flex-shrink: 0; }
     .sheet-head .org { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text); text-align: center; line-height: 1.35; }
+    .head-right { line-height: 1.35; }
     .head-right .national { font-size: 13px; font-weight: 700; text-transform: uppercase; }
     .head-right .motto { font-size: 13px; font-weight: 700; text-decoration: underline; }
     @media (max-width: 600px) { .head-top { grid-template-columns: 1fr; } }
@@ -128,7 +129,7 @@
 </head>
 <body>
   <div class="toolbar no-print" id="toolbar" hidden>
-    <a href="./evaluation-form.html" id="backLink">← Quay lại phiếu</a>
+    <a href="./app.html?view=evaluations" id="backLink">← Quay lại danh sách phiếu</a>
     <button type="button" class="btn" id="printBtn">🖨 In phiếu</button>
   </div>
 
