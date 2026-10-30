@@ -889,14 +889,15 @@ export function permissionsFor(ticket, actor) {
   const none = {
     scores: false, part4: false, part5: false, committee: false,
     submit: false, returnTicket: false, finalize: false, reopen: false, assign: false,
-    approve: false, supReturn: false
+    approve: false, supReturn: false, print: false
   };
   if (!ticket || !actor) return none;
 
   if (actor.role === "hr") {
     const waiting = ticket.status === STATUS.WAITING;
     const finalized = ticket.status === STATUS.FINALIZED;
-    const base = { ...none, part5: waiting, committee: waiting, returnTicket: waiting, finalize: waiting, reopen: finalized };
+    // In phiếu: chỉ phiếu đã chốt mới in được
+    const base = { ...none, part5: waiting, committee: waiting, returnTicket: waiting, finalize: waiting, reopen: finalized, print: finalized };
     // SVTT của Phòng Nhân sự: phân công người hướng dẫn và tự chấm như Trưởng bộ phận
     if (ticket.department === HR_DEPARTMENT && EDITABLE.includes(ticket.status)) {
       return { ...base, assign: true, scores: true, part4: true, submit: true };
