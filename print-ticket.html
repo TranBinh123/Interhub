@@ -74,14 +74,8 @@
     }
 
     .sheet-head { text-align: center; margin-bottom: 20px; }
-    .head-top { display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px; align-items: start; text-align: center; }
-    .head-left { display: flex; flex-direction: row; align-items: flex-start; justify-content: center; gap: 10px; }
-    .sheet-head .logo { display: block; height: 56px; width: auto; max-width: 160px; object-fit: contain; flex-shrink: 0; }
-    .sheet-head .org { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text); text-align: center; line-height: 1.35; }
-    .head-right { line-height: 1.35; }
-    .head-right .national { font-size: 13px; font-weight: 700; text-transform: uppercase; }
-    .head-right .motto { font-size: 13px; font-weight: 700; text-decoration: underline; }
-    @media (max-width: 600px) { .head-top { grid-template-columns: 1fr; } }
+    .sheet-head .logo { display: block; max-height: 56px; max-width: 220px; margin: 0 auto 8px; object-fit: contain; }
+    .sheet-head .org { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); }
     .sheet-head h1 { font-size: 20px; margin: 6px 0 2px; text-transform: uppercase; letter-spacing: 0.02em; }
     .sheet-head .sub { color: var(--text-muted); }
 
@@ -117,8 +111,7 @@
       th { background: #eee !important; }
       .part-row td { background: #f2f2f2 !important; }
       .note-box { border-color: #999; }
-      tr, .signatures, .note-box, .info, .result-table { break-inside: avoid; }
-      h2 { break-after: avoid; }
+      table, tr, .signatures, .note-box { break-inside: avoid; }
     }
 
     @media (max-width: 600px) {
@@ -129,7 +122,7 @@
 </head>
 <body>
   <div class="toolbar no-print" id="toolbar" hidden>
-    <a href="./app.html?view=evaluations" id="backLink">← Quay lại danh sách phiếu</a>
+    <a href="./evaluation-form.html" id="backLink">← Quay lại phiếu</a>
     <button type="button" class="btn" id="printBtn">🖨 In phiếu</button>
   </div>
 
@@ -146,10 +139,8 @@
     // Thông tin in trên đầu phiếu. Đặt file logo tại assets/logo.png (nếu chưa có thì logo tự ẩn).
     const PRINT_CONFIG = {
       logoUrl: "./assets/logo.png",
-      companyLines: ["CÔNG TY CPDV", "CÁP TREO BÀ NÀ"],
-      nationalName: "CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM",
-      nationalMotto: "Độc lập – Tự do – Hạnh phúc",
-      formTitle: "PHIẾU ĐÁNH GIÁ SINH VIÊN THỰC TẬP"
+      companyName: "Tên công ty",
+      formTitle: "Phiếu đánh giá thực tập sinh"
     };
 
     const $ = id => document.getElementById(id);
@@ -242,16 +233,8 @@
       const sheet = $("sheet");
       sheet.innerHTML = `
         <header class="sheet-head">
-          <div class="head-top">
-            <div class="head-left">
-              <img class="logo" src="${esc(PRINT_CONFIG.logoUrl)}" alt="" onerror="this.remove()">
-              <div class="org">${PRINT_CONFIG.companyLines.map(line => `<div>${esc(line)}</div>`).join("")}</div>
-            </div>
-            <div class="head-right">
-              <div class="national">${esc(PRINT_CONFIG.nationalName)}</div>
-              <div class="motto">${esc(PRINT_CONFIG.nationalMotto)}</div>
-            </div>
-          </div>
+          <img class="logo" src="${esc(PRINT_CONFIG.logoUrl)}" alt="" onerror="this.remove()">
+          <div class="org">${esc(PRINT_CONFIG.companyName)}</div>
           <h1>${esc(PRINT_CONFIG.formTitle)}</h1>
           <div class="sub">${esc(period?.name || "")}</div>
         </header>
@@ -294,7 +277,7 @@
         <h2>Nhận xét của Phòng Nhân sự</h2>
         <div class="note-box">${esc(t.textPart5 || "")}</div>
 
-        <h2>Ý kiến hội đồng</h2>
+        <h2>Ý kiến Tổ Công tác sinh viên</h2>
         <div class="note-box">${esc(t.textCommittee || "")}</div>
 
         <div class="signatures">
@@ -315,8 +298,7 @@
       sheet.hidden = false;
       $("toolbar").hidden = false;
       $("loadingState").hidden = true;
-      // Không đặt tiêu đề trang: trình duyệt sẽ in tiêu đề này ở đầu mỗi trang
-      document.title = " ";
+      document.title = `Phiếu ${t.internId} - ${t.internName}`;
     }
 
     $("printBtn").addEventListener("click", () => window.print());

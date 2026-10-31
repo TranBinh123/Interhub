@@ -1388,10 +1388,10 @@
 
     // Nhóm hiển thị trên đầu danh sách phiếu của Phòng Nhân sự
     const HR_GROUPS = [
-      { key: "pns", title: "Phòng Nhân sự đánh giá", hint: "SVTT của Phòng Nhân sự. Phòng Nhân sự hoặc người hướng dẫn thuộc PNS chấm." },
+      { key: "pns", title: "Phòng Nhân sự đánh giá", hint: "" },
       { key: "waiting_confirm", title: "Chờ Phòng Nhân sự xác nhận", hint: "Bộ phận đã gửi phiếu. Cần xác nhận, chốt hoặc trả về." },
       { key: "waiting_dept", title: "Đang đợi Bộ phận đánh giá", hint: "Chưa gửi hoặc đã bị trả về, bộ phận đang xử lý." },
-      { key: "finalized", title: "Đã chốt", hint: "Phiếu đã hoàn tất." }
+      { key: "finalized", title: "Đã chốt", hint: "" }
     ];
 
     function hrGroupOf(t) {
@@ -1422,7 +1422,7 @@
           <section class="hr-group hr-group--${g.key}">
             <div class="hr-group__head">
               <h3>${escapeHtml(g.title)} <span class="hr-count">${items.length}</span></h3>
-              <p class="hr-meta">${escapeHtml(g.hint)}</p>
+              ${g.hint ? `<p class="hr-meta">${escapeHtml(g.hint)}</p>` : ""}
             </div>
             <div class="hr-table-wrap">
               <table class="hr-table">
