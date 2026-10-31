@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="InternHub - Hệ thống đánh giá thực tập sinh Sun World">
   <title>InternHub – Đánh giá thực tập sinh</title>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
 
   <style>
     * {
@@ -53,7 +53,7 @@
       padding: 40px 5vw;
       background:
         linear-gradient(180deg, rgba(226, 241, 252, 0.92) 0%, rgba(240, 247, 252, 0.84) 55%, rgba(253, 246, 230, 0.9) 100%),
-        url("./assets/login-bg.jpg") center bottom / cover no-repeat,
+        url("./assets/cablecar.jpg") center bottom / cover no-repeat,
         #e9f3fb;
     }
 
@@ -80,9 +80,25 @@
     }
 
     .hero h1 .accent {
-      color: var(--gold-2);
-      font-style: italic;
+      position: relative;
+      display: inline-block;
+      font-family: 'Dancing Script', cursive;
+      font-size: 1.22em;
       font-weight: 700;
+      line-height: 1;
+      color: var(--gold-2);
+      padding: 0 4px 16px;
+    }
+
+    /* Nét gạch chân cong dưới chữ "thực tập sinh" */
+    .hero h1 .accent::after {
+      content: '';
+      position: absolute;
+      left: 6%;
+      right: -4%;
+      bottom: 0;
+      height: 14px;
+      background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 14' preserveAspectRatio='none'%3E%3Cpath d='M2 9 C60 2, 140 2, 198 10' stroke='%23f29a12' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     }
 
     .hero-subtitle {
@@ -185,19 +201,63 @@
       margin-bottom: 24px;
     }
 
+    .auth-switch {
+      position: relative;
+    }
+
+    /* Viên trượt nằm dưới nút đang chọn */
+    .auth-switch::before {
+      content: '';
+      position: absolute;
+      top: 6px;
+      bottom: 6px;
+      left: 6px;
+      width: calc(50% - 9px);
+      border-radius: 999px;
+      background: var(--navy);
+      box-shadow: 0 6px 14px rgba(20, 49, 92, 0.25);
+      transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .auth-switch[data-mode="register"]::before {
+      transform: translateX(calc(100% + 6px));
+    }
+
     .auth-switch .btn {
+      position: relative;
+      z-index: 1;
       height: 44px;
       border-radius: 999px;
       background: transparent;
       color: var(--navy);
       box-shadow: none;
       border: none;
+      transition: color 0.3s;
     }
 
-    .auth-switch .btn-primary {
-      background: var(--navy);
+    .auth-switch .btn.btn-primary {
+      background: transparent;
       color: #ffffff;
-      box-shadow: 0 6px 14px rgba(20, 49, 92, 0.25);
+      box-shadow: none;
+    }
+
+    /* Khung nội dung trượt vào khi chuyển tab hoặc chuyển Đăng nhập / Đăng ký */
+    @keyframes slideFromLeft {
+      from { opacity: 0; transform: translateX(-28px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes slideFromRight {
+      from { opacity: 0; transform: translateX(28px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .enter-left {
+      animation: slideFromLeft 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+
+    .enter-right {
+      animation: slideFromRight 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
     }
 
     /* Ô nhập */
@@ -536,7 +596,7 @@
         <div id="userSuccess" class="message success hidden"></div>
 
         <div id="userLoginStep">
-          <div class="auth-switch">
+          <div class="auth-switch" data-mode="login">
             <button type="button" class="btn btn-primary" id="showLoginBtn">Đăng nhập</button>
             <button type="button" class="btn" id="showRegisterBtn">Đăng ký</button>
           </div>
@@ -694,12 +754,24 @@
         });
 
         // Update content
+        const prev = document.querySelector(".tab-content.active");
+        const next = document.getElementById(tabName);
         document.querySelectorAll(".tab-content").forEach((content) => {
           content.classList.remove("active");
         });
-        document.getElementById(tabName).classList.add("active");
+        next.classList.add("active");
+        if (prev !== next) {
+          playEnter(next, tabName === "admin" ? "enter-right" : "enter-left");
+        }
       });
     });
+
+    // Chạy lại hiệu ứng trượt cho một khung nội dung
+    function playEnter(el, cls) {
+      el.classList.remove("enter-left", "enter-right");
+      void el.offsetWidth;
+      el.classList.add(cls);
+    }
 
     // Hiện / ẩn mật khẩu
     document.getElementById("togglePwd").addEventListener("click", () => {
@@ -710,10 +782,14 @@
     // Đăng nhập / đăng ký bằng email + mật khẩu
     function setUserMode(mode) {
       const isLogin = mode === "login";
-      document.getElementById("loginForm").style.display = isLogin ? "block" : "none";
-      document.getElementById("registerForm").style.display = isLogin ? "none" : "block";
+      const shown = document.getElementById(isLogin ? "loginForm" : "registerForm");
+      const hidden = document.getElementById(isLogin ? "registerForm" : "loginForm");
+      hidden.style.display = "none";
+      shown.style.display = "block";
+      playEnter(shown, isLogin ? "enter-left" : "enter-right");
       document.getElementById("showLoginBtn").classList.toggle("btn-primary", isLogin);
       document.getElementById("showRegisterBtn").classList.toggle("btn-primary", !isLogin);
+      document.querySelector(".auth-switch").dataset.mode = mode;
     }
     document.getElementById("showLoginBtn").addEventListener("click", () => setUserMode("login"));
     document.getElementById("showRegisterBtn").addEventListener("click", () => setUserMode("register"));
