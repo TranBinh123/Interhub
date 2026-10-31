@@ -424,7 +424,6 @@ function renderPeriods() {
       <div class="ih-section__heading">
         <div>
           <h2>Kỳ đánh giá</h2>
-          <p>Tạo kỳ theo tháng, rồi tạo phiếu cho toàn bộ SVTT trong danh sách. Phiếu đã có sẽ không bị tạo trùng.</p>
         </div>
       </div>
 
@@ -554,13 +553,10 @@ function renderInterns() {
       <div class="ih-section__heading">
         <div>
           <h2>Sinh viên thực tập</h2>
-          <p>Nhập từ CSV (Excel: Save As → CSV UTF-8) hoặc thêm, sửa, xóa thủ công. Bộ phận phải có trong danh mục.</p>
         </div>
       </div>
 
       <p><strong>${interns.length}</strong> SVTT · ${departments.length} bộ phận trong danh mục</p>
-      <p>Cột CSV: ${INTERN_COLUMNS.map(html).join(", ")}. Bắt buộc: Mã SV, Họ tên, Bộ phận.
-         Dòng lỗi không được nhập; SVTT trùng Mã SV được giữ nguyên.</p>
 
       <label class="ih-file">
         <input type="file" accept=".csv,text/csv" data-import-file>
@@ -721,7 +717,7 @@ function renderDepartments() {
       <div class="ih-section__heading">
         <div>
           <h2>Danh mục bộ phận</h2>
-          <p>Bộ phận dùng cho SVTT, tài khoản và phân công. Không xóa được bộ phận đang có SVTT hoặc tài khoản.</p>
+          <p>Không xóa được bộ phận đang có SVTT hoặc tài khoản.</p>
         </div>
       </div>
 

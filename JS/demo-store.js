@@ -99,7 +99,7 @@ export const PARTS = [
   { name: "III. Chuyên môn nghiệp vụ", from: 9, to: 14 }
 ];
 
-export const SCORE_MIN = 0;
+export const SCORE_MIN = 1;
 export const SCORE_MAX = 10;
 export const SCORE_STEP = 0.5;
 
