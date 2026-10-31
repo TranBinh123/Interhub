@@ -81,11 +81,13 @@
 
     .hero h1 .accent {
       position: relative;
-      display: inline-block;
+      display: block;
+      width: fit-content;
+      margin-top: 4px;
       font-family: 'Dancing Script', cursive;
-      font-size: 1.22em;
+      font-size: 1.45em;
       font-weight: 700;
-      line-height: 1;
+      line-height: 1.05;
       color: var(--gold-2);
       padding: 0 4px 16px;
     }
@@ -541,15 +543,72 @@
       }
     }
 
+    /* Điện thoại: một cột, logo và tiêu đề căn giữa, dải tính năng kính mờ, thẻ đăng nhập rộng hết màn hình */
     @media (max-width: 600px) {
+      .page {
+        padding: 24px 16px 32px;
+        gap: 20px;
+      }
+
+      .brand-logo {
+        height: 72px;
+        margin: 0 auto 14px;
+      }
+
+      .hero h1 {
+        font-size: 30px;
+      }
+
+      .hero h1 .accent {
+        font-size: 1.45em;
+        margin: 4px auto 0;
+      }
+
+      .hero-subtitle {
+        font-size: 15px;
+      }
+
+      .features {
+        margin-top: 20px;
+        padding: 16px 6px;
+        border-radius: 40px;
+        background: rgba(255, 255, 255, 0.62);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(20, 49, 92, 0.12);
+      }
+
       .features li {
         min-width: 0;
-        padding: 0 10px;
+        padding: 0 8px;
+        font-size: 13px;
+        line-height: 1.35;
+        gap: 8px;
       }
 
       .f-icon {
-        width: 48px;
-        height: 48px;
+        width: 46px;
+        height: 46px;
+      }
+
+      .f-icon svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .panel {
+        max-width: none;
+        padding: 28px 22px 24px;
+        border-radius: 28px;
+      }
+
+      .panel h2 {
+        font-size: 26px;
+      }
+
+      .form-group input,
+      .form-group select {
+        height: 52px;
       }
     }
   </style>
@@ -560,7 +619,7 @@
     <section class="hero">
       <img class="brand-logo" src="./assets/logo.png" alt="Sun World Bà Nà Hills" onerror="this.remove()">
       <h1>Quản lý &amp; đánh giá <span class="accent">thực tập sinh</span></h1>
-      <p class="hero-subtitle">Hệ thống đánh giá SVTT tại Sun World Ba Na Hills</p>
+      <p class="hero-subtitle">Hệ thống tập trung của Sun World Bà Nà Hills cho phòng Nhân sự</p>
 
       <ul class="features">
         <li>
@@ -587,7 +646,7 @@
     <!-- Cột phải: thẻ đăng nhập -->
     <section class="panel">
       <span class="panel-bar"></span>
-      <h2>🏷️ Đăng nhập</h2>
+      <h2>Đăng nhập</h2>
       <p class="panel-sub">Truy cập hệ thống để bắt đầu công việc của bạn</p>
 
       <!-- User Tab -->
@@ -598,7 +657,7 @@
         <div id="userLoginStep">
           <div class="auth-switch" data-mode="login">
             <button type="button" class="btn btn-primary" id="showLoginBtn">Đăng nhập</button>
-            <button type="button" class="btn" id="showRegisterBtn">🔖 Đăng ký</button>
+            <button type="button" class="btn" id="showRegisterBtn">Đăng ký</button>
           </div>
 
           <form id="loginForm">
