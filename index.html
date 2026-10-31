@@ -57,6 +57,11 @@
         #e9f3fb;
     }
 
+    /* Giữ cụm từ không bị ngắt dòng */
+    .nowrap {
+      white-space: nowrap;
+    }
+
     /* ===== Cột trái: thương hiệu và giới thiệu ===== */
     .hero {
       min-width: 0;
@@ -622,14 +627,14 @@
     <section class="hero">
       <img class="brand-logo" src="./assets/logo.png" alt="Sun World Bà Nà Hills" onerror="this.remove()">
       <h1>Quản lý &amp; đánh giá <span class="accent">thực tập sinh</span></h1>
-      <p class="hero-subtitle">Hệ thống đánh giá Sinh viên thực tập tại Sun World Ba Na Hills</p>
+      <p class="hero-subtitle">Hệ thống đánh giá Sinh viên thực tập tại <span class="nowrap">Sun World Ba Na Hills</span></p>
 
       <ul class="features">
         <li>
           <span class="f-icon">
             <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
           </span>
-          <span>Phiếu đánh giá thực tập</span>
+          <span>Phiếu đánh giá <span class="nowrap">thực tập</span></span>
         </li>
         <li>
           <span class="f-icon">
