@@ -788,6 +788,325 @@
     .hr-group__head .hr-meta { margin: 2px 0 12px; }
     .hr-count { display: inline-block; min-width: 26px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
     .hr-more { display: flex; justify-content: center; margin-top: 12px; }
+  
+
+    /* =====================================================
+       INTERNHUB — DASHBOARD REDESIGN (Image 2)
+       Chỉ thay đổi lớp trình bày; không thay đổi nghiệp vụ.
+       ===================================================== */
+    :root {
+      color-scheme: light;
+      --primary: #075b60;
+      --primary-dark: #06464c;
+      --accent: #e6bd70;
+      --surface: #ffffff;
+      --surface-2: #f2f7fb;
+      --text: #142b49;
+      --text-muted: #627b98;
+      --border: #dce7f1;
+      --primary-soft: #e9f5f5;
+      --accent-soft: #fff5df;
+      --radius: 16px;
+      --shadow-sm: 0 3px 12px rgba(27, 66, 102, .055);
+      --shadow-md: 0 10px 28px rgba(27, 66, 102, .09);
+    }
+
+    body {
+      background: #f1f6fb;
+      color: var(--text);
+      font-size: 14px;
+      letter-spacing: -.01em;
+    }
+    .app-container { grid-template-columns: 256px minmax(0, 1fr); }
+
+    /* Sidebar */
+    .sidebar {
+      position: relative;
+      min-height: 100vh;
+      padding: 24px 14px 18px;
+      background:
+        radial-gradient(ellipse at 15% 92%, rgba(36, 157, 150, .24), transparent 42%),
+        linear-gradient(180deg, #075b60 0%, #064b52 55%, #063f48 100%);
+      color: #fff;
+      box-shadow: 5px 0 24px rgba(10, 49, 67, .08);
+      z-index: 20;
+    }
+    .sidebar::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 150px;
+      pointer-events: none;
+      opacity: .22;
+      background: radial-gradient(ellipse at 15% 100%, transparent 35%, rgba(104, 209, 192, .25) 36%, transparent 37%);
+    }
+    .logo {
+      gap: 11px;
+      margin: 0 4px 26px;
+      padding: 2px 7px;
+      font-size: 19px;
+      letter-spacing: -.04em;
+      color: #fff;
+    }
+    .logo::after {
+      content: "SUN WORLD BA NA HILLS";
+      display: block;
+      position: absolute;
+      top: 49px;
+      left: 58px;
+      color: rgba(255,255,255,.66);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: .13em;
+    }
+    .logo svg {
+      width: 34px; height: 34px;
+      color: var(--accent);
+      filter: drop-shadow(0 2px 5px rgba(230,189,112,.2));
+    }
+    .user-info {
+      margin: 12px 0 24px;
+      padding: 14px 13px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 14px;
+      background: rgba(255,255,255,.075);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .user-info strong { color: #fff; font-size: 13px; }
+    .user-email { color: rgba(255,255,255,.73); font-size: 11px; }
+    .nav { position: relative; z-index: 1; }
+    .nav-item { margin-bottom: 7px; }
+    .nav-link {
+      min-height: 43px;
+      padding: 11px 13px;
+      border-radius: 11px;
+      color: rgba(255,255,255,.82);
+      font-size: 13px;
+      font-weight: 500;
+      transition: background .18s ease, color .18s ease, transform .18s ease;
+    }
+    .nav-link:hover { background: rgba(255,255,255,.10); color: #fff; transform: translateX(2px); }
+    .nav-link.active {
+      color: #173451;
+      background: linear-gradient(100deg, #f1d18e, #e5bd72);
+      box-shadow: 0 5px 14px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.45);
+      font-weight: 700;
+    }
+    .nav-divider { background: rgba(255,255,255,.15); margin: 18px 4px 12px; }
+    .logout-btn {
+      position: relative; z-index: 1;
+      min-height: 42px;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 11px;
+      background: rgba(255,255,255,.055);
+      color: #fff;
+    }
+
+    /* Header */
+    .main-content { min-width: 0; background: #f1f6fb; }
+    .topbar {
+      position: relative;
+      min-height: 96px;
+      overflow: hidden;
+      padding: 20px 30px;
+      border: 0;
+      border-bottom: 1px solid #dce8f2;
+      background:
+        radial-gradient(ellipse at 83% 10%, rgba(124,190,225,.22), transparent 32%),
+        linear-gradient(105deg, #fff 0%, #f5faff 55%, #e7f3fc 100%);
+    }
+    .topbar::after {
+      content: "";
+      position: absolute;
+      right: -3%; top: -90px;
+      width: 47%; height: 210px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0), rgba(133,190,222,.14));
+      transform: rotate(-8deg);
+      pointer-events: none;
+    }
+    .topbar-title, .topbar-actions { position: relative; z-index: 1; }
+    .topbar-title h1 { color: #142d4c; font-size: 24px; letter-spacing: -.035em; }
+    .topbar-title p { color: #647f9c; font-size: 13px; }
+    .menu-toggle {
+      width: 40px; height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: rgba(255,255,255,.8);
+      color: #28617b;
+    }
+    .content { padding: 24px 28px 34px; overflow-x: hidden; }
+
+    /* Simulation banner */
+    .message.show:not(.success):not(.error) {
+      border: 1px solid #f4dfb9;
+      border-radius: 13px;
+      background: #fff8ec !important;
+      color: #a45a13 !important;
+      box-shadow: 0 2px 8px rgba(143,97,31,.035);
+    }
+    .message { line-height: 1.55; }
+
+    /* Shared surfaces */
+    .card, .hr-panel, .hr-group {
+      border: 1px solid #dce7f1;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+    .card { padding: 22px; }
+    .card h2, .hr-panel__head h2 { color: #173451; font-size: 16px; letter-spacing: -.025em; }
+    .hr-head { align-items: center; margin: 4px 0 17px; }
+    .hr-head h1 { color: #173451; font-size: 21px; letter-spacing: -.035em; }
+    .hr-sub { color: #6b829c; font-size: 12px; }
+    .hr-field label { color: #637b95; font-size: 11px; font-weight: 700; }
+    .hr-select, .hr-input, input[type="search"], input[type="text"], input[type="email"], select, textarea {
+      min-height: 40px;
+      border: 1px solid #d8e4ef;
+      border-radius: 10px;
+      background-color: #fff;
+      color: #183653;
+      box-shadow: 0 1px 2px rgba(20,55,80,.025);
+    }
+    .hr-select:focus, .hr-input:focus, input:focus, select:focus, textarea:focus {
+      border-color: #2a9290;
+      box-shadow: 0 0 0 3px rgba(42,146,144,.12);
+    }
+
+    /* Period selector cards */
+    .hr-periods { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .hr-pcard {
+      min-height: 128px;
+      padding: 17px;
+      border: 1px solid #d8e8f3;
+      border-radius: 15px;
+      background: linear-gradient(145deg, #fff 0%, #f6fbff 100%);
+      box-shadow: 0 3px 12px rgba(36,91,130,.045);
+    }
+    .hr-pcard:hover { border-color: #6eb7bd; box-shadow: var(--shadow-md); transform: translateY(-1px); }
+    .hr-pcard.is-selected { border-color: #36a0a0; box-shadow: 0 0 0 2px rgba(54,160,160,.12), var(--shadow-sm); }
+    .hr-code { color: #173451; font-size: 14px; }
+    .hr-chip { border-radius: 999px; padding: 5px 10px; background: #edf2f7; }
+    .hr-chip.is-open { background: #dcf5e9; color: #16804d; }
+    .hr-bar { height: 9px; background: #e5edf4; }
+
+    /* KPI row inserted into HR dashboard */
+    .hr-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 0 0 17px;
+    }
+    .hr-kpi {
+      position: relative;
+      min-height: 132px;
+      overflow: hidden;
+      padding: 17px 18px;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(27,66,102,.045);
+    }
+    .hr-kpi__top { display:flex; align-items:center; gap:11px; }
+    .hr-kpi__icon {
+      display:grid; place-items:center;
+      width:39px; height:39px; flex:0 0 39px;
+      border-radius:12px; font-size:19px;
+      background:rgba(255,255,255,.72);
+    }
+    .hr-kpi__label { font-size:12px; font-weight:600; opacity:.9; }
+    .hr-kpi__value { margin:9px 0 0 50px; font-size:30px; line-height:1; font-weight:800; letter-spacing:-.045em; }
+    .hr-kpi__hint { margin:7px 0 0 50px; font-size:11px; opacity:.78; }
+    .hr-kpi--blue { color:#185a9a; background:linear-gradient(135deg,#f0f6ff,#e4efff); border-color:#d8e7fb; }
+    .hr-kpi--green { color:#087b59; background:linear-gradient(135deg,#edfbf4,#dcf7e9); border-color:#cceedd; }
+    .hr-kpi--amber { color:#a95b08; background:linear-gradient(135deg,#fff8e9,#ffefd1); border-color:#f6e4c0; }
+    .hr-kpi--red { color:#bd3535; background:linear-gradient(135deg,#fff1f0,#ffe3e1); border-color:#f8d8d5; }
+
+    /* Main dashboard panels */
+    .hr-cols { grid-template-columns: minmax(0, 1.18fr) minmax(0, .92fr); gap: 16px; margin-bottom: 16px; }
+    .hr-panel { padding: 20px; margin-bottom: 16px; }
+    .hr-panel__head { align-items: center; margin-bottom: 15px; }
+    .hr-panel__head h2 { font-size: 16px; }
+    .hr-big { color: #078a79; font-size: 40px; letter-spacing: -.05em; }
+    .hr-legend { gap: 2px; }
+    .hr-legend button { min-height: 32px; border-radius: 8px; color: #294765; font-size: 12px; }
+    .hr-legend button:hover { background: #f2f7fb; }
+    .hr-sw { width: 9px; height: 9px; border-radius: 50%; }
+    .hr-queue li { padding: 12px 0; border-color: #edf1f5; }
+    .hr-btn-sm { border-radius: 8px; padding: 8px 12px; background: #087c78; }
+    .hr-table-wrap, .table-wrap { border: 1px solid #e0e9f1; border-radius: 12px; background: #fff; }
+    .hr-table { font-size: 12px; }
+    .hr-table th { color: #5d7793; background: #f2f6fa; font-size: 10px; }
+    .hr-table th, .hr-table td { padding: 13px 15px; }
+    .hr-table tbody tr:hover { background: #f2f9fa; }
+    .hr-group { padding: 17px; }
+    .hr-group__head h3 { color: #173451; }
+    .hr-empty-box { border-color: #dce7f1; border-radius: 14px; background: #f9fbfd; }
+
+    /* Tables and buttons across other views */
+    table { font-size: 12px; }
+    th { color: #607995; background: #f2f6fa; }
+    th, td { border-color: #e8eef4; }
+    tbody tr:hover { background: #f3f9fa; }
+    .btn { min-height: 36px; border-radius: 9px; }
+    .btn-primary { background: #087c78; box-shadow: 0 3px 8px rgba(8,124,120,.16); }
+    .btn-primary:hover { background: #066761; }
+    .btn-secondary { border: 1px solid #dce6ef; background: #f7fafc; color: #31516e; }
+    .btn-secondary:hover { background: #edf4f8; }
+    .status-badge, .hr-badge { border-radius: 999px; }
+
+    /* Mobile/tablet */
+    @media (max-width: 1100px) {
+      .content { padding: 20px; }
+      .hr-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .hr-cols { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .app-container { display:block; min-height:100vh; }
+      .sidebar {
+        display:flex;
+        position:fixed;
+        inset:0 auto 0 0;
+        width:min(286px, 84vw);
+        height:100dvh;
+        transform:translateX(-105%);
+        transition:transform .24s ease;
+        box-shadow:12px 0 36px rgba(8,37,54,.22);
+      }
+      .app-container.sidebar-open .sidebar { display:flex; transform:translateX(0); }
+      .app-container.sidebar-open::before {
+        content:""; position:fixed; inset:0; z-index:15;
+        background:rgba(13,35,52,.42); backdrop-filter:blur(2px);
+      }
+      .topbar { min-height:78px; padding:14px 16px; }
+      .topbar-title h1 { font-size:20px; }
+      .topbar-title p { max-width:68vw; font-size:11px; }
+      .content { padding:15px 13px 28px; }
+      .hr-head { align-items:stretch; }
+      .hr-head .hr-field { width:100%; }
+      .hr-head .hr-select { width:100%; }
+      .hr-periods { grid-template-columns:1fr; }
+      .hr-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+      .hr-kpi { min-height:116px; padding:13px 12px; border-radius:13px; }
+      .hr-kpi__icon { width:32px; height:32px; flex-basis:32px; border-radius:10px; font-size:16px; }
+      .hr-kpi__label { font-size:10px; }
+      .hr-kpi__value { margin:10px 0 0 43px; font-size:26px; }
+      .hr-kpi__hint { margin:6px 0 0 43px; font-size:10px; }
+      .hr-panel { padding:15px; border-radius:14px; }
+      .hr-big { font-size:34px; }
+      .hr-table-wrap, .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .hr-table { min-width:650px; }
+      .hr-table th, .hr-table td { padding:11px 12px; }
+      .card { padding:16px; }
+      .assign-toolbar, .assign-bulk { align-items:stretch; }
+      .assign-toolbar > *, .assign-bulk > select, .assign-bulk > button { width:100%; min-width:0; }
+      .assign-bulk label { width:100%; }
+    }
+    @media (max-width: 390px) {
+      .hr-kpis { grid-template-columns:1fr 1fr; }
+      .hr-kpi__value { font-size:23px; }
+      .hr-kpi__label { font-size:9px; }
+    }
+
   </style>
 </head>
 <body>
@@ -1264,6 +1583,29 @@
 
         <div class="hr-periods">
           ${cards || `<p class="hr-empty">Chưa có kỳ đánh giá. Tạo kỳ ở mục "Quản lý SVTT & kỳ".</p>`}
+        </div>
+
+        <div class="hr-kpis" aria-label="Chỉ số tổng quan">
+          <article class="hr-kpi hr-kpi--blue">
+            <div class="hr-kpi__top"><span class="hr-kpi__icon">👥</span><span class="hr-kpi__label">Tổng số phiếu</span></div>
+            <div class="hr-kpi__value">${total}</div>
+            <div class="hr-kpi__hint">Trong kỳ ${escapeHtml(period?.id || "—")}</div>
+          </article>
+          <article class="hr-kpi hr-kpi--green">
+            <div class="hr-kpi__top"><span class="hr-kpi__icon">✓</span><span class="hr-kpi__label">Đã chốt</span></div>
+            <div class="hr-kpi__value">${c.da_chot}</div>
+            <div class="hr-kpi__hint">${pct}% tổng số phiếu</div>
+          </article>
+          <article class="hr-kpi hr-kpi--amber">
+            <div class="hr-kpi__top"><span class="hr-kpi__icon">◷</span><span class="hr-kpi__label">Chưa chốt</span></div>
+            <div class="hr-kpi__value">${Math.max(0, total - c.da_chot)}</div>
+            <div class="hr-kpi__hint">${Math.max(0, 100 - pct)}% tổng số phiếu</div>
+          </article>
+          <article class="hr-kpi hr-kpi--red">
+            <div class="hr-kpi__top"><span class="hr-kpi__icon">!</span><span class="hr-kpi__label">Cần xác nhận</span></div>
+            <div class="hr-kpi__value">${c.cho_xac_nhan}</div>
+            <div class="hr-kpi__hint">Phiếu chờ Phòng Nhân sự</div>
+          </article>
         </div>
 
         <div class="hr-cols">
