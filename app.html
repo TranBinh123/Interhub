@@ -1205,6 +1205,8 @@
     .mentor-bar i { display: block; height: 100%; }
     .mentor-flag { display: inline-block; min-width: 26px; text-align: center; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: rgba(224, 90, 74, 0.14); color: #b42318; }
     .mentor-flag--ok { background: rgba(45, 140, 127, 0.16); color: #17675c; }
+    .hr-bulkbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; font-size: 13px; color: var(--text-muted, #64748b); }
+    .hr-print-check { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -1633,6 +1635,8 @@
       da_chot: "#2d8c7f"
     };
     const hrState = { periodId: "", dept: "", status: "", evaluator: "", q: "", limits: {} };
+    // Phiếu đã chọn để in hàng loạt (Phòng Nhân sự)
+    const hrPrintSel = new Set();
 
     function isHR() {
       return userProfile?.role === "hr";
@@ -1860,7 +1864,7 @@
         .filter(t => !hrState.status || t.status === hrState.status)
         .filter(t => !hrState.evaluator || hrEvaluatorLabel(t) === hrState.evaluator)
         .filter(t => !q || `${t.internName} ${t.internId} ${schools.get(t.internId) || ""}`.toLowerCase().includes(q))
-        .sort((a, b) => (HR_ORDER.indexOf(a.status) - HR_ORDER.indexOf(b.status)) || (a.internId < b.internId ? -1 : 1));
+        .sort((a, b) => a.internId.localeCompare(b.internId, "vi", { numeric: true }));
     }
 
     // Bộ lọc được vẽ một lần mỗi khi đổi kỳ, để ô tìm kiếm không mất con trỏ khi gõ
@@ -1932,7 +1936,13 @@
       }
 
       const schools = hrSchoolMap();
-      box.innerHTML = HR_GROUPS.map(g => {
+      const printable = list.filter(t => t.status === STATUS.FINALIZED);
+      const bar = printable.length ? `
+        <div class="hr-bulkbar">
+          <span>${printable.length} phiếu đã chốt trong danh sách · đã chọn ${printable.filter(t => hrPrintSel.has(t.id)).length}</span>
+          <button type="button" class="hr-btn-sm" data-hr-print-batch>In hàng loạt</button>
+        </div>` : "";
+      box.innerHTML = bar + HR_GROUPS.map(g => {
         const items = list.filter(t => hrGroupOf(t) === g.key);
         if (!items.length) return "";
         const limit = hrState.limits[g.key] || HR_PER_PAGE;
@@ -1968,7 +1978,7 @@
                       <td><span class="hr-badge hr-badge--${t.status}">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</span></td>
                       <td>
                         <a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a>
-                        ${t.status === STATUS.FINALIZED ? `<a class="hr-btn-sm" href="./print-ticket.html?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">In phiếu</a>` : ""}
+                        ${t.status === STATUS.FINALIZED ? `<label class="hr-print-check"><input type="checkbox" data-hr-print-select="${escapeHtml(t.id)}" ${hrPrintSel.has(t.id) ? "checked" : ""}> Chọn in</label><a class="hr-btn-sm" href="./print-ticket.html?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">In phiếu</a>` : ""}
                       </td>
                     </tr>`).join("")}
                 </tbody>
@@ -2004,6 +2014,17 @@
 
     function handleHrClick(event) {
       if (!isHR()) return;
+
+      const batch = event.target.closest("[data-hr-print-batch]");
+      if (batch) {
+        // In các phiếu đã chọn; nếu chưa chọn thì in toàn bộ phiếu đã chốt đang lọc
+        const printable = hrFiltered().filter(t => t.status === STATUS.FINALIZED);
+        const chosen = printable.filter(t => hrPrintSel.has(t.id));
+        const ids = (chosen.length ? chosen : printable).map(t => t.id);
+        if (!ids.length) return;
+        window.open(`./print-ticket.html?ids=${ids.map(id => encodeURIComponent(id)).join(",")}`, "_blank", "noopener");
+        return;
+      }
 
       if (event.target.closest("[data-hr-go-committee]")) {
         switchView("assignments");
@@ -2046,6 +2067,13 @@
     function handleHrChange(event) {
       if (!isHR()) return;
       const t = event.target;
+
+      if (t.matches("[data-hr-print-select]")) {
+        if (t.checked) hrPrintSel.add(t.dataset.hrPrintSelect);
+        else hrPrintSel.delete(t.dataset.hrPrintSelect);
+        renderHrTicketRows();
+        return;
+      }
 
       if (t.matches("[data-hr-dept-filter]") || t.id === "hrDept") {
         hrState.dept = t.value;
@@ -2571,6 +2599,11 @@
       document.getElementById("statTotal").textContent = s.total;
     }
 
+    // Sắp xếp theo mã sinh viên
+    function byInternId(list) {
+      return [...list].sort((a, b) => String(a.internId).localeCompare(String(b.internId), "vi", { numeric: true }));
+    }
+
     function escapeHtml(value) {
       return String(value ?? "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -2607,14 +2640,14 @@
         displayTicketsGroupedByEvaluator();
         return;
       }
-      const rows = tickets.map(t => ticketRow(t, "createdAt"));
+      const rows = byInternId(tickets).map(t => ticketRow(t, "createdAt"));
       fillTable("ticketsTable", rows, "Chưa có phiếu nào");
     }
 
     // Trưởng bộ phận: nhóm phiếu theo người đánh giá; nhóm tự đánh giá đặt cuối
     function displayTicketsGroupedByEvaluator() {
       const groups = new Map();
-      for (const t of tickets) {
+      for (const t of byInternId(tickets)) {
         const key = t.evaluatorUid || (t.evaluatorAssigned ? "__self__" : "__waiting__");
         if (!groups.has(key)) {
           groups.set(key, {

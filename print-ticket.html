@@ -125,6 +125,8 @@
       .sheet { padding: 22px 16px; margin: 8px; }
       .signatures { grid-template-columns: 1fr; }
     }
+    .sheet-page { page-break-after: always; }
+    .sheet-page:last-child { page-break-after: auto; }
   </style>
 </head>
 <body>
@@ -173,7 +175,7 @@
     }
 
     async function bootstrap() {
-      if (!ticketId) return showError("❌ Không tìm thấy phiếu");
+      if (!ticketId && !new URLSearchParams(window.location.search).get("ids")) return showError("❌ Không tìm thấy phiếu");
 
       let user = null;
       try {
@@ -205,17 +207,25 @@
         department: profile.department
       };
 
-      const ticket = DemoStore.getTicket(ticketId);
-      if (!ticket) return showError("❌ Phiếu không tồn tại");
-      if (!DemoStore.canView(ticket, actor)) return showError("❌ Bạn không có quyền xem phiếu này");
-      if (!DemoStore.permissionsFor(ticket, actor).print) {
-        return showError(`❌ Chỉ in được phiếu đã chốt. Phiếu hiện ở trạng thái: ${STATUS_LABEL[ticket.status] || ticket.status}.`);
-      }
+      // Một phiếu (?id=) hoặc nhiều phiếu (?ids=a,b,c): mỗi phiếu một trang A4
+      const idList = new URLSearchParams(window.location.search).get("ids");
+      const ids = (idList || ticketId || "").split(",").map(x => x.trim()).filter(Boolean);
+      if (!ids.length) return showError("❌ Thiếu mã phiếu");
 
-      render(ticket);
+      const tickets = [];
+      for (const id of ids) {
+        const t = DemoStore.getTicket(id);
+        if (!t) return showError(`❌ Phiếu không tồn tại: ${id}`);
+        if (!DemoStore.canView(t, actor)) return showError("❌ Bạn không có quyền xem phiếu này");
+        if (!DemoStore.permissionsFor(t, actor).print) {
+          return showError(`❌ Chỉ in được phiếu đã chốt. Phiếu ${t.internId} đang ở trạng thái: ${STATUS_LABEL[t.status] || t.status}.`);
+        }
+        tickets.push(t);
+      }
+      render(tickets);
     }
 
-    function render(t) {
+    function sheetHtml(t) {
       const period = DemoStore.listPeriods().find(p => p.id === t.periodId);
       const intern = DemoStore.listInterns().find(i => i.internId === t.internId);
       const finalizedAt = [...(t.history || [])].reverse().find(h => h.action === "Chốt phiếu")?.at;
@@ -238,8 +248,7 @@
           ${rows}`;
       }).join("");
 
-      const sheet = $("sheet");
-      sheet.innerHTML = `
+      return `
         <header class="sheet-head">
           <div class="head-top">
             <div class="head-left">
@@ -311,7 +320,11 @@
           </div>
         </div>
       `;
+    }
 
+    function render(list) {
+      const sheet = $("sheet");
+      sheet.innerHTML = list.map(t => `<section class="sheet-page">${sheetHtml(t)}</section>`).join("");
       sheet.hidden = false;
       $("toolbar").hidden = false;
       $("loadingState").hidden = true;
