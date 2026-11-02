@@ -177,6 +177,7 @@ function read() {
           t.committeeScore = done ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
         }
         delete t.committeeScores;
+        if (!t.attendance) t.attendance = {};
         if (t.committeeUid === undefined) t.committeeUid = null;
         if (typeof t.committeeName !== "string") t.committeeName = "";
         if (typeof t.strengths !== "string") t.strengths = t.textPart4 || "";
@@ -362,7 +363,7 @@ export function createPeriod({ month, name }) {
   state.periods[id] = {
     id,
     month,
-    name: String(name || "").trim() || `Tháng ${Number(m)}/${y}`,
+    name: String(name || "").trim() || periodLabel(month),
     status: "dang_mo",
     createdAt: now()
   };
@@ -381,13 +382,23 @@ export function createPeriod({ month, name }) {
 //  - Về đúng ngày cuối tháng hoặc thực tập tiếp sang tháng sau → phiếu thường.
 //  - Bắt đầu giữa tháng: vẫn tính vào tháng đó, được đánh dấu để tham khảo.
 
+// Tên mặc định của kỳ, ví dụ "Kỳ 10/2026 (26/09 – 25/10)"
+export function periodLabel(month) {
+  const [y, m] = month.split("-").map(Number);
+  const b = monthBounds(month);
+  const fmt = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+  return `Kỳ ${String(m).padStart(2, "0")}/${y} (${fmt(b.start)} – ${fmt(b.end)})`;
+}
+
+// Kỳ "tháng M": từ ngày 26 tháng M-1 đến ngày 25 tháng M
 function monthBounds(month) {
   const [y, m] = month.split("-").map(Number);
   const pad = n => String(n).padStart(2, "0");
-  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const prevY = m === 1 ? y - 1 : y;
+  const prevM = m === 1 ? 12 : m - 1;
   return {
-    start: `${y}-${pad(m)}-01`,
-    end: `${y}-${pad(m)}-${pad(lastDay)}`
+    start: `${prevY}-${pad(prevM)}-26`,
+    end: `${y}-${pad(m)}-25`
   };
 }
 
@@ -406,11 +417,10 @@ export function internshipInPeriod(intern, month) {
 // Loại phiếu cho SVTT trong một tháng
 export function evaluationReason(intern, month) {
   const { start, end } = monthBounds(month);
-  const monthPrefix = month;
-  if (intern.endDate && intern.endDate.startsWith(monthPrefix) && intern.endDate < end) {
+  if (intern.endDate && intern.endDate >= start && intern.endDate < end) {
     return { type: "early_leave", note: `Kết thúc thực tập sớm, ngày về ${fmtDate(intern.endDate)}` };
   }
-  if (intern.startDate && intern.startDate.startsWith(monthPrefix) && intern.startDate > start) {
+  if (intern.startDate && intern.startDate > start && intern.startDate <= end) {
     return { type: "start_mid_month", note: `Bắt đầu thực tập ngày ${fmtDate(intern.startDate)}` };
   }
   return { type: "regular", note: "" };
@@ -472,6 +482,7 @@ export function syncPeriodTickets(periodId) {
       committeeUid: state.schoolCommittee[intern.school || ""] || null,
       committeeName: memberName(state, state.schoolCommittee[intern.school || ""]),
       committeeScore: null,
+      attendance: {},
       strengths: "",
       improvements: "",
       sendCount: 0,
@@ -935,7 +946,7 @@ export function canView(ticket, actor) {
 // chính người dùng Phòng Nhân sự cũng có thể chấm SVTT thuộc bộ phận này.
 export const HR_DEPARTMENT = "PNS";
 
-export function permissionsFor(ticket, actor) {
+function rolePermissions(ticket, actor) {
   const none = {
     scores: false, committeeScores: false, strengths: false, improvements: false,
     submit: false, returnTicket: false, finalize: false, reopen: false,
@@ -978,6 +989,12 @@ export function permissionsFor(ticket, actor) {
     return { ...base, scores: true, strengths: true, improvements: true, submit: true };
   }
   return base;
+}
+
+// Chấm công do Người hướng dẫn được phân công thực hiện (cùng quyền với điểm)
+export function permissionsFor(ticket, actor) {
+  const p = rolePermissions(ticket, actor);
+  return { ...p, attendance: p.scores };
 }
 
 // Phòng Nhân sự chỉ tự đánh giá SVTT của chính Phòng Nhân sự
@@ -1226,6 +1243,12 @@ export function submit(id, actor) {
 
   const missing = ticket.scores.filter(v => v === null).length;
   if (missing > 0) return fail(`Còn ${missing} hạng mục chưa chấm điểm. Hãy điền đủ 15 hạng mục trước khi gửi.`);
+  const minNote = 30;
+  const lenStrengths = String(ticket.strengths || "").trim().length;
+  const lenImprovements = String(ticket.improvements || "").trim().length;
+  if (lenStrengths < minNote || lenImprovements < minNote) {
+    return fail(`Nhận xét SVTT phải có tối thiểu ${minNote} ký tự ở cả hai ô Ưu điểm và Điểm hạn chế (hiện: ${lenStrengths} và ${lenImprovements}).`);
+  }
 
   // Người hướng dẫn gửi thì phải qua Trưởng bộ phận duyệt; Trưởng bộ phận tự chấm (hoặc tự gửi) thì gửi thẳng Tổ Công tác sinh viên
   const viaMentor = actor.role === "mentor" && !!ticket.evaluatorUid && ticket.evaluatorUid === actor.uid;
@@ -1312,6 +1335,56 @@ export function finalize(id, actor) {
 }
 
 // ============================================
+// Chấm công: khoảng ngày của phiếu = kỳ ∩ thời gian thực tập của SVTT
+function ticketSpan(state, ticket) {
+  const period = state.periods[ticket.periodId];
+  const intern = state.interns[ticket.internId];
+  if (!period || !intern?.startDate || !intern?.endDate) return null;
+  const { start, end } = monthBounds(period.month);
+  const from = intern.startDate > start ? intern.startDate : start;
+  const to = intern.endDate < end ? intern.endDate : end;
+  return from <= to ? { start: from, end: to } : null;
+}
+
+function weekdayOf(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = Chủ nhật
+}
+
+// Danh sách ngày chấm công: o (đi làm), v (vắng), Off (nghỉ trong tuần) do người hướng dẫn chọn. Chưa ghi thì để trống.
+export function attendanceDays(ticketId) {
+  const state = read();
+  const ticket = state.tickets[ticketId];
+  const span = ticket ? ticketSpan(state, ticket) : null;
+  if (!span) return [];
+  const days = [];
+  for (let d = span.start; d <= span.end; d = addDays(d, 1)) {
+    const wd = weekdayOf(d);
+    const recorded = !!ticket.attendance?.[d];
+    days.push({ date: d, weekday: wd, code: recorded ? ticket.attendance[d] : "", recorded });
+  }
+  return days;
+}
+
+export const ATTENDANCE_CODES = ["o", "v", "Off"];
+
+export function setAttendance(ticketId, actor, date, code) {
+  const state = read();
+  const ticket = state.tickets[ticketId];
+  if (!ticket) return fail("Phiếu không tồn tại.");
+  if (!permissionsFor(ticket, actor).attendance) return fail("Bạn không có quyền chấm công phiếu này.");
+  if (code && !ATTENDANCE_CODES.includes(code)) return fail("Ký hiệu chấm công: o (đi làm), v (vắng), Off (nghỉ).");
+  const span = ticketSpan(state, ticket);
+  if (!span || date < span.start || date > span.end) return fail("Ngày không thuộc thời gian thực tập của SVTT trong kỳ này.");
+
+  ticket.attendance = { ...(ticket.attendance || {}) };
+  if (code) ticket.attendance[date] = code;
+  else delete ticket.attendance[date];
+  ticket.updatedAt = now();
+  write(state);
+  return ok({ ticket: { ...ticket } });
+}
+
 // Dữ liệu mẫu (chỉ khi Admin chủ động nạp)
 // ============================================
 function mulberry32(seed) {
@@ -1484,5 +1557,8 @@ export const DemoStore = {
   reopen,
   stats,
   scoreSummary,
+  attendanceDays,
+  setAttendance,
+  ATTENDANCE_CODES,
   formatDateTime
 };
