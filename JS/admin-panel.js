@@ -13,13 +13,16 @@ import { DemoStore, INTERN_COLUMNS, MEMBER_ROLES } from "./demo-store.js";
 import { COLLECTIONS, ROLES, USER_STATUS } from "./firebase-config.js";
 
 const ADMIN_EMAIL = "dptbinh193@gmail.com";
+// Vai trò không thuộc bộ phận nào
+const NO_DEPT_ROLES = [ROLES.HR, ROLES.COMMITTEE];
 const firestore = getFirestore();
 
 // Chỉ hai vai trò này được phép gán khi duyệt tài khoản.
 const ASSIGNABLE_ROLES = {
   [ROLES.HR]: "Phòng Nhân sự",
   [ROLES.SUPERVISOR]: "Trưởng bộ phận",
-  [ROLES.MENTOR]: "Người hướng dẫn"
+  [ROLES.MENTOR]: "Người hướng dẫn",
+  [ROLES.COMMITTEE]: "Tổ Công tác sinh viên"
 };
 
 // Nhãn hiển thị, bao gồm cả các vai trò cũ nếu có trong dữ liệu.
@@ -28,6 +31,7 @@ const ROLE_LABELS = {
   [ROLES.HR]: "Phòng Nhân sự",
   [ROLES.SUPERVISOR]: "Trưởng bộ phận",
   [ROLES.MENTOR]: "Người hướng dẫn",
+  [ROLES.COMMITTEE]: "Tổ Công tác sinh viên",
   [ROLES.INTERN]: "Sinh viên thực tập",
   [ROLES.USER]: "Người dùng"
 };
@@ -41,7 +45,7 @@ const STATUS_LABELS = {
 const TICKET_STATUS_LABELS = {
   chua_bat_dau: "Chưa bắt đầu",
   dang_thuc_hien: "Đang thực hiện",
-  cho_xac_nhan: "Chờ Phòng Nhân sự xác nhận",
+  cho_to_cong_tac: "Chờ Tổ Công tác sinh viên",
   da_chot: "Đã chốt"
 };
 
@@ -271,7 +275,7 @@ function renderOverview() {
   ).length;
 
   const pendingTickets = tickets.filter(
-    ticket => ticket.status === "cho_xac_nhan"
+    ticket => ticket.status === "cho_to_cong_tac"
   ).length;
 
   const finalizedTickets = tickets.filter(
@@ -417,7 +421,7 @@ function userRow(user) {
     controls = `
       <div class="ih-actions">
         <select aria-label="Vai trò" data-member-role-for="${id}">${roleOptions}</select>
-        <span data-dept-wrap-for="${id}" ${role === ROLES.HR ? "hidden" : ""}>${deptSelectHtml(deptCode, `aria-label="Bộ phận" data-member-dept-for="${id}"`, true)}</span>
+        <span data-dept-wrap-for="${id}" ${NO_DEPT_ROLES.includes(role) ? "hidden" : ""}>${deptSelectHtml(deptCode, `aria-label="Bộ phận" data-member-dept-for="${id}"`, true)}</span>
         <button type="button" class="ih-btn ih-btn--secondary"
           data-action="save-member" data-user-id="${id}">Lưu</button>
         ${deleteButton}
@@ -431,7 +435,7 @@ function userRow(user) {
         <strong>${html(user.fullName || "Chưa cập nhật")}</strong>
         <small>${html(user.email || "")}</small>
       </td>
-      <td>${role === ROLES.HR ? "—" : html(departmentLabel(deptCode))}</td>
+      <td>${NO_DEPT_ROLES.includes(role) ? "—" : html(departmentLabel(deptCode))}</td>
       <td>${html(ROLE_LABELS[role] || "Chưa gán")}</td>
       <td>
         <span class="ih-status ih-status--${html(status)}">
@@ -491,7 +495,7 @@ function renderPeriods() {
                       </td>
                       <td>${period.status === "dang_mo" ? "Đang mở" : html(period.status || "—")}</td>
                       <td>${periodTickets.length}</td>
-                      <td>${periodTickets.filter(t => t.status === "cho_xac_nhan").length}</td>
+                      <td>${periodTickets.filter(t => t.status === "cho_to_cong_tac").length}</td>
                       <td>${periodTickets.filter(t => t.status === "da_chot").length}</td>
                       <td>
                         <button type="button" class="ih-btn ih-btn--secondary"
@@ -924,7 +928,7 @@ async function handleDemoAction(action, button) {
     const uid = button.dataset.userId;
     const role = mountNode.querySelector(`[data-member-role-for="${CSS.escape(uid)}"]`)?.value;
     const department = mountNode.querySelector(`[data-member-dept-for="${CSS.escape(uid)}"]`)?.value;
-    if (role !== "hr" && !department) {
+    if (!NO_DEPT_ROLES.includes(role) && !department) {
       announce("Người hướng dẫn và Trưởng bộ phận phải chọn bộ phận.", "error");
       return true;
     }
@@ -943,7 +947,7 @@ async function handleFileChange(event) {
   if (input instanceof HTMLSelectElement && input.matches("[data-role-for], [data-member-role-for]")) {
     const uid = input.dataset.roleFor || input.dataset.memberRoleFor;
     const wrap = mountNode.querySelector(`[data-dept-wrap-for="${CSS.escape(uid)}"]`);
-    if (wrap) wrap.hidden = input.value === ROLES.HR;
+    if (wrap) wrap.hidden = NO_DEPT_ROLES.includes(input.value);
     return;
   }
 
@@ -1054,7 +1058,7 @@ async function handleAction(event) {
         `[data-dept-for="${CSS.escape(userId)}"]`
       )?.value || "";
 
-      if (role !== ROLES.HR && !deptCode) {
+      if (!NO_DEPT_ROLES.includes(role) && !deptCode) {
         announce("Trưởng bộ phận và người hướng dẫn phải được chọn bộ phận.", "error");
         button.disabled = false;
         return;
@@ -1070,7 +1074,7 @@ async function handleAction(event) {
 
       // Đồng bộ để có hồ sơ thành viên, rồi ghi bộ phận Admin đã chọn
       await refreshData();
-      if (role !== ROLES.HR) {
+      if (!NO_DEPT_ROLES.includes(role)) {
         const result = DemoStore.updateMember(userId, { role, department: deptCode });
         if (!result.ok) throw new Error(result.error);
       }
