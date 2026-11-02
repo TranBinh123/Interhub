@@ -140,7 +140,7 @@
   <script type="module">
     import { Auth } from "./JS/auth.js";
     import {
-      DemoStore, ITEMS, PARTS, STATUS, STATUS_LABEL, partScore, formatDateTime
+      DemoStore, ITEMS, PARTS, STATUS, STATUS_LABEL, partScore, scoreSummary, formatDateTime
     } from "./JS/demo-store.js";
 
     // Thông tin in trên đầu phiếu. Đặt file logo tại assets/logo.png (nếu chưa có thì logo tự ẩn).
@@ -220,9 +220,10 @@
       const intern = DemoStore.listInterns().find(i => i.internId === t.internId);
       const finalizedAt = [...(t.history || [])].reverse().find(h => h.action === "Chốt phiếu")?.at;
 
-      const parts = PARTS.map((part, index) => ({ name: part.name, score: partScore(t.scores, index) }));
-      const scoresOk = parts.every(p => p.score !== null);
-      const final = scoresOk ? parts.reduce((sum, p) => sum + p.score, 0) / parts.length : null;
+      const committeeScores = t.committeeScores || Array(ITEMS.length).fill(null);
+      const deptParts = PARTS.map((part, index) => partScore(t.scores, index));
+      const committeeParts = PARTS.map((part, index) => partScore(committeeScores, index));
+      const summary = scoreSummary({ scores: t.scores, committeeScores });
 
       const itemRows = PARTS.map((part, pIndex) => {
         const rows = ITEMS
@@ -233,9 +234,10 @@
               <td class="num">${esc(item.key)}</td>
               <td>${esc(item.label)}</td>
               <td class="score">${t.scores[i] === null || t.scores[i] === undefined ? "—" : esc(t.scores[i])}</td>
+              <td class="score">${committeeScores[i] === null || committeeScores[i] === undefined ? "—" : esc(committeeScores[i])}</td>
             </tr>`).join("");
         return `
-          <tr class="part-row"><td colspan="2">${esc(part.name)}</td><td class="score">${fmt(parts[pIndex].score)}</td></tr>
+          <tr class="part-row"><td colspan="2">${esc(part.name)}</td><td class="score">${fmt(deptParts[pIndex])}</td><td class="score">${fmt(committeeParts[pIndex])}</td></tr>
           ${rows}`;
       }).join("");
 
@@ -263,13 +265,14 @@
           <tr><td>Trường</td><td>${esc(intern?.school || t.school || "—")}</td></tr>
           <tr><td>Bộ phận</td><td>${esc(DemoStore.departmentName(t.department))}</td></tr>
           <tr><td>Người đánh giá</td><td>${esc(t.evaluatorName || "—")}</td></tr>
+          <tr><td>Tổ Công tác sinh viên</td><td>${esc(t.committeeName || "—")}</td></tr>
           <tr><td>Ngày chốt phiếu</td><td>${esc(finalizedAt ? formatDateTime(finalizedAt) : "—")}</td></tr>
         </table>
 
         <h2>Bảng điểm</h2>
         <table>
           <thead>
-            <tr><th class="num">Mã</th><th>Nội dung đánh giá</th><th class="score">Điểm</th></tr>
+            <tr><th class="num">Mã</th><th>Nội dung đánh giá</th><th class="score">Điểm bộ phận</th><th class="score">Điểm Tổ CTSV</th></tr>
           </thead>
           <tbody>${itemRows}</tbody>
         </table>
@@ -277,25 +280,24 @@
         <h2>Kết quả</h2>
         <table class="result-table">
           <tr>
-            <th>Phần I</th><th>Phần II</th><th>Phần III</th><th>Điểm cuối</th><th>Xếp loại</th>
+            <th>Phần I</th><th>Phần II</th><th>Phần III</th><th>Điểm bộ phận</th><th>Điểm Tổ CTSV</th><th>Điểm cuối</th><th>Xếp loại</th>
           </tr>
           <tr>
-            <td>${fmt(parts[0].score)}</td>
-            <td>${fmt(parts[1].score)}</td>
-            <td>${fmt(parts[2].score)}</td>
-            <td><strong>${fmt(final)}</strong></td>
+            <td>${fmt(deptParts[0])}</td>
+            <td>${fmt(deptParts[1])}</td>
+            <td>${fmt(deptParts[2])}</td>
+            <td>${fmt(summary.dept)}</td>
+            <td>${fmt(summary.committee)}</td>
+            <td><strong>${fmt(summary.final)}</strong></td>
             <td>&nbsp;</td>
           </tr>
         </table>
 
-        <h2>Nhận xét của người hướng dẫn</h2>
-        <div class="note-box">${esc(t.textPart4 || "")}</div>
+        <h2>Ưu điểm</h2>
+        <div class="note-box">${esc(t.strengths || "")}</div>
 
-        <h2>Nhận xét của Phòng Nhân sự</h2>
-        <div class="note-box">${esc(t.textPart5 || "")}</div>
-
-        <h2>Ý kiến hội đồng</h2>
-        <div class="note-box">${esc(t.textCommittee || "")}</div>
+        <h2>Điểm hạn chế cần cải thiện</h2>
+        <div class="note-box">${esc(t.improvements || "")}</div>
 
         <div class="signatures">
           <div>
@@ -305,9 +307,10 @@
             <div>${esc(t.evaluatorName || "")}</div>
           </div>
           <div>
-            <div class="title">Phòng Nhân sự</div>
+            <div class="title">Tổ Công tác sinh viên</div>
             <div class="hint">(Ký, ghi rõ họ tên)</div>
             <div class="space"></div>
+            <div>${esc(t.committeeName || "")}</div>
           </div>
         </div>
       `;

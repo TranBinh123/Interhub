@@ -378,7 +378,8 @@
               <tr>
                 <th>Tiêu chí</th>
                 <th>Mô tả</th>
-                <th>Điểm</th>
+                <th>Điểm bộ phận</th>
+                <th>Điểm Tổ CTSV</th>
               </tr>
             </thead>
             <tbody id="scoresTable">
@@ -413,6 +414,14 @@
             <div class="result-value" id="resultC">—</div>
           </div>
           <div class="result-card">
+            <div class="result-label">Điểm bộ phận</div>
+            <div class="result-value" id="resultDept">—</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Điểm Tổ CTSV</div>
+            <div class="result-value" id="resultCommittee">—</div>
+          </div>
+          <div class="result-card">
             <div class="result-label">Điểm cuối</div>
             <div class="result-value" id="resultFinal">—</div>
           </div>
@@ -443,7 +452,7 @@
     import {
       DemoStore, ITEMS, PARTS, STATUS, STATUS_LABEL,
       SCORE_MIN, SCORE_MAX, SCORE_STEP, DEMO_BANNER,
-      partScore, formatDateTime
+      partScore, scoreSummary, formatDateTime
     } from "./JS/demo-store.js";
 
     const $ = id => document.getElementById(id);
@@ -452,6 +461,7 @@
     let actor = null;
     let currentTicket = null;
     let currentScores = Array(ITEMS.length).fill(null);
+    let currentCommittee = Array(ITEMS.length).fill(null);
 
     function esc(value) {
       return String(value ?? "")
@@ -527,6 +537,7 @@
 
       currentTicket = ticket;
       currentScores = [...ticket.scores];
+      currentCommittee = [...ticket.committeeScores];
 
       $("loadingState").classList.add("hidden");
       $("evaluationForm").classList.remove("hidden");
@@ -549,7 +560,7 @@
         `);
       }
       $("statusLine").textContent =
-        `Người đánh giá: ${currentTicket.evaluatorName || "—"} · Trạng thái: ${STATUS_LABEL[currentTicket.status]} · Đã gửi ${currentTicket.sendCount} lần · Cập nhật ${formatDateTime(currentTicket.updatedAt)}`;
+        `Người đánh giá: ${currentTicket.evaluatorName || "—"} · Tổ CTSV: ${currentTicket.committeeName || "—"} · Trạng thái: ${STATUS_LABEL[currentTicket.status]} · Đã gửi ${currentTicket.sendCount} lần · Cập nhật ${formatDateTime(currentTicket.updatedAt)}`;
     }
 
     function populateForm() {
@@ -563,30 +574,16 @@
     // Ô nhận xét theo vai trò
     // ============================================
     function renderRoleNotes() {
-      let html = "";
-
-      if (actor.role === "supervisor" || actor.role === "mentor" || (actor.role === "hr" && currentTicket.department === "PNS")) {
-        html += `
-          <div class="form-group">
-            <label>Nhận xét của Người hướng dẫn/Trưởng bộ phận</label>
-            <textarea id="textPart4" placeholder="Nhận xét của Người hướng dẫn/Trưởng bộ phận...">${esc(currentTicket.textPart4)}</textarea>
-          </div>
-        `;
-      }
-      if (actor.role === "hr") {
-        html += `
-          <div class="form-group">
-            <label>Nhận xét của Phòng Nhân sự</label>
-            <textarea id="textPart5" placeholder="Nhận xét của Phòng Nhân sự...">${esc(currentTicket.textPart5)}</textarea>
-          </div>
-          <div class="form-group">
-            <label>Ý kiến Tổ công tác sinh viên</label>
-            <textarea id="textCommittee" placeholder="Nhận xét của tổ công tác...">${esc(currentTicket.textCommittee)}</textarea>
-          </div>
-        `;
-      }
-
-      $("roleNotesContainer").innerHTML = html;
+      $("roleNotesContainer").innerHTML = `
+        <div class="form-group">
+          <label for="strengths">Ưu điểm</label>
+          <textarea id="strengths" placeholder="Ưu điểm nổi bật của sinh viên...">${esc(currentTicket.strengths)}</textarea>
+        </div>
+        <div class="form-group">
+          <label for="improvements">Điểm hạn chế cần cải thiện</label>
+          <textarea id="improvements" placeholder="Những điểm sinh viên cần cải thiện...">${esc(currentTicket.improvements)}</textarea>
+        </div>
+      `;
     }
 
     // ============================================
@@ -597,19 +594,23 @@
       PARTS.forEach(part => {
         html += `
           <tr class="part-header">
-            <td colspan="3"><span class="part-label">${esc(part.name)}</span></td>
+            <td colspan="4"><span class="part-label">${esc(part.name)}</span></td>
           </tr>`;
         for (let idx = part.from; idx <= part.to; idx++) {
           const item = ITEMS[idx];
-          const value = currentScores[idx] ?? "";
           html += `
             <tr>
               <td>${item.key}</td>
               <td>${esc(item.label)}</td>
               <td>
-                <input type="number" class="score-input"
+                <input type="number" class="score-input" data-kind="dept"
                        min="${SCORE_MIN}" max="${SCORE_MAX}" step="${SCORE_STEP}"
-                       value="${value}" data-index="${idx}">
+                       value="${currentScores[idx] ?? ""}" data-index="${idx}">
+              </td>
+              <td>
+                <input type="number" class="score-input" data-kind="committee"
+                       min="${SCORE_MIN}" max="${SCORE_MAX}" step="${SCORE_STEP}"
+                       value="${currentCommittee[idx] ?? ""}" data-index="${idx}">
               </td>
             </tr>`;
         }
@@ -622,33 +623,33 @@
       if (!input.matches(".score-input")) return;
 
       const idx = Number(input.dataset.index);
+      const target = input.dataset.kind === "committee" ? currentCommittee : currentScores;
       if (input.value === "") {
-        currentScores[idx] = null;
+        target[idx] = null;
       } else {
         const value = Number(input.value);
         if (Number.isNaN(value) || value < SCORE_MIN || value > SCORE_MAX) {
           showMessage("error", `Điểm phải từ ${SCORE_MIN} đến ${SCORE_MAX}`);
-          input.value = currentScores[idx] ?? "";
+          input.value = target[idx] ?? "";
           return;
         }
-        currentScores[idx] = value;
+        target[idx] = value;
       }
       updateResults();
     });
 
-    // Điểm từng phần và điểm cuối theo README mục 2.4. Không xếp loại (chờ xác nhận).
+    // Điểm bộ phận = trung bình ba phần (README mục 2.4); Điểm cuối = (điểm bộ phận + điểm Tổ CTSV) / 2
     function updateResults() {
       const fmt = v => (v === null || v === undefined ? "—" : v.toFixed(2));
-      const A = partScore(currentScores, 0);
-      const B = partScore(currentScores, 1);
-      const C = partScore(currentScores, 2);
-      const final = A !== null && B !== null && C !== null ? (A + B + C) / 3 : null;
+      const summary = scoreSummary({ scores: currentScores, committeeScores: currentCommittee });
 
-      $("resultA").textContent = fmt(A);
-      $("resultB").textContent = fmt(B);
-      $("resultC").textContent = fmt(C);
-      $("resultFinal").textContent = fmt(final);
-      $("resultGrade").textContent = final === null ? "—" : "Chờ xác nhận thang xếp loại";
+      $("resultA").textContent = fmt(partScore(currentScores, 0));
+      $("resultB").textContent = fmt(partScore(currentScores, 1));
+      $("resultC").textContent = fmt(partScore(currentScores, 2));
+      $("resultDept").textContent = fmt(summary.dept);
+      $("resultCommittee").textContent = fmt(summary.committee);
+      $("resultFinal").textContent = fmt(summary.final);
+      $("resultGrade").textContent = summary.final === null ? "—" : "Chờ xác nhận thang xếp loại";
     }
 
     // ============================================
@@ -657,15 +658,18 @@
     function applyPermissions() {
       const p = DemoStore.permissionsFor(currentTicket, actor);
 
-      document.querySelectorAll(".score-input").forEach(input => {
+      document.querySelectorAll('.score-input[data-kind="dept"]').forEach(input => {
         input.disabled = !p.scores;
       });
-      $("textPart4") && ($("textPart4").disabled = !p.part4);
-      $("textPart5") && ($("textPart5").disabled = !p.part5);
-      $("textCommittee") && ($("textCommittee").disabled = !p.committee);
+      document.querySelectorAll('.score-input[data-kind="committee"]').forEach(input => {
+        input.disabled = !p.committeeScores;
+      });
+      $("strengths") && ($("strengths").disabled = !p.strengths);
+      $("improvements") && ($("improvements").disabled = !p.improvements);
 
-      $("submitBtn").disabled = !p.scores;
-      $("resetBtn").disabled = !p.scores;
+      const canSave = p.scores || p.committeeScores;
+      $("submitBtn").disabled = !canSave;
+      $("resetBtn").disabled = !canSave;
       $("submitForReviewBtn").disabled = !p.submit;
       // Đã gửi (hoặc không còn quyền gửi) thì ẩn nút gửi phê duyệt
       $("submitForReviewBtn").hidden = !p.submit;
@@ -676,9 +680,8 @@
     // ============================================
     function collectNotes() {
       const notes = {};
-      if ($("textPart4")) notes.textPart4 = $("textPart4").value;
-      if ($("textPart5")) notes.textPart5 = $("textPart5").value;
-      if ($("textCommittee")) notes.textCommittee = $("textCommittee").value;
+      if ($("strengths")) notes.strengths = $("strengths").value;
+      if ($("improvements")) notes.improvements = $("improvements").value;
       return notes;
     }
 
@@ -686,6 +689,7 @@
       const p = DemoStore.permissionsFor(currentTicket, actor);
       const result = DemoStore.saveDraft(ticketId, actor, {
         scores: p.scores ? currentScores : null,
+        committeeScores: p.committeeScores ? currentCommittee : null,
         notes: collectNotes()
       });
       if (!result.ok) {
@@ -715,11 +719,12 @@
       refresh();
       showMessage("success", result.ticket.status === "cho_truong_bo_phan"
         ? "✓ Đã gửi, chờ Trưởng bộ phận duyệt (dữ liệu mô phỏng)"
-        : "✓ Đã gửi phiếu, chờ Phòng Nhân sự xác nhận (dữ liệu mô phỏng)");
+        : "✓ Đã gửi phiếu, chờ Tổ Công tác sinh viên chấm điểm (dữ liệu mô phỏng)");
     });
 
     $("resetBtn").addEventListener("click", () => {
       currentScores = [...currentTicket.scores];
+      currentCommittee = [...currentTicket.committeeScores];
       renderScoresTable();
       updateResults();
       applyPermissions();
@@ -750,7 +755,7 @@
           <textarea id="returnReason" placeholder="${p.reopen ? "Nêu lý do mở lại phiếu đã chốt..." : "Nêu rõ nội dung cần bổ sung..."}"></textarea>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${p.approve ? `<button type="button" class="btn btn-primary" id="approveBtn">Duyệt và gửi Phòng Nhân sự</button>` : ""}
+          ${p.approve ? `<button type="button" class="btn btn-primary" id="approveBtn">Duyệt và gửi Tổ Công tác sinh viên</button>` : ""}
           ${p.supReturn ? `<button type="button" class="btn btn-secondary" id="supReturnBtn">Trả về người hướng dẫn</button>` : ""}
           ${p.returnTicket ? `<button type="button" class="btn btn-secondary" id="returnBtn">Trả về bổ sung</button>` : ""}
           ${p.finalize ? `<button type="button" class="btn btn-primary" id="finalizeBtn">Xác nhận chốt</button>` : ""}
@@ -763,7 +768,7 @@
         </div>` : "";
 
       panel.innerHTML = `
-        <h3 style="margin-top:0;">${reviewing ? "Trưởng bộ phận duyệt" : "Đào tạo kiểm tra"}</h3>
+        <h3 style="margin-top:0;">${reviewing ? "Trưởng bộ phận duyệt" : p.committeeScores || p.finalize ? "Tổ Công tác sinh viên" : "Phòng Nhân sự"}</h3>
         ${printHtml}
         ${actionsHtml}
         <h4>Lịch sử thao tác</h4>
@@ -775,7 +780,7 @@
         if (!result.ok) return showMessage("error", "❌ " + result.error);
         currentTicket = result.ticket;
         refresh();
-        showMessage("success", "✓ Đã duyệt và gửi Phòng Nhân sự (dữ liệu mô phỏng)");
+        showMessage("success", "✓ Đã duyệt và gửi Tổ Công tác sinh viên (dữ liệu mô phỏng)");
       });
 
       $("supReturnBtn")?.addEventListener("click", () => {
