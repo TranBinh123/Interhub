@@ -1,0 +1,106 @@
+{
+  "description": "Firestore Database Schema cho InternHub",
+  "collections": {
+    "users": {
+      "description": "Đăng ký người dùng",
+      "document_structure": {
+        "uid": "string - Firebase Auth UID",
+        "email": "string - Email từ Google Sign-in",
+        "fullName": "string - Họ tên (viết hoa chữ cái đầu)",
+        "position": "string - Chức danh (Chuyên viên Phòng Nhân sự, Trưởng bộ phận, ...)",
+        "department": "string - Bộ phận (ID từ departments collection)",
+        "role": "string - admin | hr | supervisor | intern",
+        "status": "string - pending | approved | rejected",
+        "createdAt": "timestamp - Ngày đăng ký",
+        "approvedAt": "timestamp - Ngày phê duyệt (null nếu pending)",
+        "approvedBy": "string - UID của admin phê duyệt",
+        "lastLogin": "timestamp - Lần đăng nhập gần nhất",
+        "isActive": "boolean - Tài khoản hoạt động"
+      }
+    },
+    "tickets": {
+      "description": "Phiếu đánh giá sinh viên",
+      "document_structure": {
+        "id": "string - Mã phiếu (ví dụ: EV-2026-10-SV-0001)",
+        "internId": "string - Mã sinh viên",
+        "periodId": "string - Kỳ đánh giá (EV-2026-10, ...)",
+        "evaluatorId": "string - UID người đánh giá",
+        "department": "string - Bộ phận",
+        "status": "string - chua_bat_dau | dang_thuc_hien | cho_xac_nhan | da_chot",
+        "scores": "array[15] - Điểm 15 hạng mục",
+        "textPart4": "string - Nhận xét Phần IV (Trưởng bộ phận)",
+        "textPart5": "string - Nhận xét Phần V",
+        "textCommittee": "string - Nhận xét Tổ công tác sinh viên",
+        "result": {
+          "A": "number - Điểm Phần I",
+          "B": "number - Điểm Phần II",
+          "C": "number - Điểm Phần III",
+          "final": "number - Điểm cuối (làm tròn 2 chữ)",
+          "finalRaw": "number - Điểm cuối gốc",
+          "grade": "string - Xuất sắc | Giỏi | Khá | Chưa đạt Khá",
+          "gradeVersion": "number - Phiên bản tiêu chí lúc chốt",
+          "finalizedAt": "timestamp - Thời gian chốt"
+        },
+        "sendCount": "number - Lần gửi",
+        "returned": "boolean - Bị trả về",
+        "returnReason": "string - Lý do trả về",
+        "history": "array - Lịch sử thao tác",
+        "createdAt": "timestamp - Ngày tạo",
+        "updatedAt": "timestamp - Cập nhật gần nhất"
+      }
+    },
+    "periods": {
+      "description": "Kỳ đánh giá",
+      "document_structure": {
+        "id": "string - Mã kỳ (EV-2026-10)",
+        "name": "string - Tên kỳ",
+        "status": "string - Nháp | Đang mở | Đang chốt | Đã khóa",
+        "dueDate": "date - Hạn gửi",
+        "createdAt": "timestamp"
+      }
+    },
+    "departments": {
+      "description": "Bộ phận/phòng ban",
+      "document_structure": {
+        "id": "string - Mã bộ phận (FB, HR, ...)",
+        "name": "string - Tên bộ phận",
+        "manager": "string - UID trưởng bộ phận"
+      }
+    },
+    "evaluation_items": {
+      "description": "15 hạng mục đánh giá",
+      "document_structure": {
+        "index": "number - 0-14",
+        "part": "number - 0 (Phần I) | 1 (Phần II) | 2 (Phần III)",
+        "key": "string - I.1, I.2, ... III.6",
+        "label": "string - Mô tả hạng mục",
+        "criteria": "string - Tiêu chí chi tiết"
+      }
+    },
+    "activity_logs": {
+      "description": "Nhật ký hoạt động (audit trail)",
+      "document_structure": {
+        "timestamp": "timestamp - Thời gian",
+        "actor": "string - UID người thực hiện",
+        "action": "string - gui | tra_ve | chot | duyetUser | tuChoi | ...",
+        "targetId": "string - Mã phiếu hoặc user ID",
+        "details": "object - Chi tiết thao tác",
+        "changes": "object - Thay đổi (so sánh trước/sau)"
+      }
+    }
+  },
+  "security_rules": {
+    "users": {
+      "read": "Chỉ admin và user của chính họ",
+      "write": "Chỉ admin có quyền approve/reject"
+    },
+    "tickets": {
+      "read": "Admin, HR, supervisor (của bộ phận mình), evaluator (phiếu mình)",
+      "write": "Evaluator của phiếu, HR khi chốt"
+    },
+    "activity_logs": {
+      "read": "Admin, HR",
+      "write": "System only"
+    }
+  }
+}
