@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>InternHub - Đánh giá thực tập sinh</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <div class="app-container" id="appContainer">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+        </svg>
+        <span class="logo__brand">
+          <span class="logo__title">InternHub</span>
+          <span class="logo__tag">Grow Together</span>
+        </span>
+      </div>
+
+      <div class="user-info">
+        <strong id="userDisplayName">—</strong>
+        <div class="user-email" id="userDisplayRole">—</div>
+        <div class="user-email" id="userDisplayEmail">—</div>
+      </div>
+
+      <ul class="nav">
+        <li class="nav-item">
+          <button class="nav-link active" data-view="dashboard">
+            📊 Tổng quan
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-view="evaluations">
+            📋 Phiếu đánh giá
+          </button>
+        </li>
+        <li class="nav-item" id="navManage" hidden>
+          <a class="nav-link" href="./admin.html">
+            🗂 Quản lý SVTT & kỳ
+          </a>
+        </li>
+        <li class="nav-item" id="navAssignments" hidden>
+          <button class="nav-link" data-view="assignments">
+            🧭 Phân công đánh giá
+          </button>
+        </li>
+        <li class="nav-item" id="navInterns" hidden>
+          <button class="nav-link" data-view="interns">
+            🎓 Thực tập sinh
+          </button>
+        </li>
+        <li class="nav-item" id="navTimesheet" hidden>
+          <button class="nav-link" data-view="timesheet">
+            🕒 Chấm công
+          </button>
+        </li>
+        <li class="nav-item" id="navPeriods">
+          <button class="nav-link" data-view="periods">
+            📅 Kỳ đánh giá
+          </button>
+        </li>
+        <li class="nav-item" id="navReports">
+          <button class="nav-link" data-view="reports">
+            📈 Báo cáo
+          </button>
+        </li>
+      </ul>
+
+      <div class="nav-divider"></div>
+
+      <button class="logout-btn" id="logoutBtn">🚪 Đăng xuất</button>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main-content">
+      <!-- Topbar -->
+      <div class="topbar">
+        <div class="topbar-title">
+          <h1 id="pageTitle">Tổng quan</h1>
+          <p id="pageSubtitle">—</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" id="notifBtn" type="button" title="Thông báo" aria-label="Thông báo">
+            🔔<span class="icon-btn__dot"></span>
+          </button>
+          <div class="topbar-user">
+            <div class="topbar-user__avatar">👤</div>
+            <div class="topbar-user__meta">
+              <strong id="topbarUserName">—</strong>
+              <span id="topbarUserRole">—</span>
+            </div>
+          </div>
+          <button class="menu-toggle" id="menuToggle">☰</button>
+        </div>
+      </div>
+
+      <!-- Content area -->
+      <div class="content">
+        <!-- Messages -->
+        <div id="successMessage" class="message success"></div>
+        <div id="errorMessage" class="message error"></div>
+
+        <!-- Dashboard view -->
+        <div id="dashboard" class="view">
+          <div id="hrDashboard" class="hidden"></div>
+          <div class="card hidden" id="followBox"></div>
+          <div class="card mentor-box hidden" id="mentorBox"></div>
+          <div class="card" id="todoBox"></div>
+
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+              <div class="stat-label">Phiếu đang xử lý</div>
+              <div class="stat-value" id="statPending">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Phiếu đã chốt</div>
+              <div class="stat-value" id="statFinalized">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Tổng phiếu tháng này</div>
+              <div class="stat-value" id="statTotal">—</div>
+            </div>
+          </div>
+
+          <div class="card" id="recentCard">
+            <h2>Phiếu gần đây</h2>
+            <div class="table-wrap">
+              <table id="recentTicketsTable">
+                <thead>
+                  <tr>
+                    <th>Mã phiếu</th>
+                    <th>Sinh viên</th>
+                    <th>Bộ phận</th>
+                    <th>Trạng thái</th>
+                    <th>Cập nhật</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="empty-state">
+                    <td colspan="6">Chưa có phiếu nào</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assignments view (Trưởng bộ phận) -->
+        <div id="assignments" class="view hidden">
+          <div class="card hidden" id="committeeSchoolCard">
+            <h2>Phân công Tổ Công tác sinh viên theo Trường</h2>
+            <p>Mỗi Trường giao cho một thành viên Tổ Công tác sinh viên. Mọi phiếu chưa chốt của SVTT thuộc Trường đó được giao theo, kể cả phiếu tạo sau này.</p>
+            <div class="table-wrap">
+              <table class="assign-table">
+                <thead>
+                  <tr>
+                    <th>Trường</th>
+                    <th class="r">SVTT</th>
+                    <th class="r">Chờ Tổ CTSV</th>
+                    <th class="r">Đã có điểm Tổ CTSV</th>
+                    <th>Tổ CTSV phụ trách</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="committeeSchoolTable"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Phân công đánh giá</h2>
+            <p>Giao từng phiếu của bộ phận cho một người hướng dẫn (hoặc tự đánh giá). Phòng Nhân sự còn phân công Tổ Công tác sinh viên chấm điểm cho từng phiếu. Chỉ sửa được phân công khi phiếu chưa chốt.</p>
+            <p id="assignSummary" class="assign-summary"></p>
+
+            <div class="assign-toolbar">
+              <input type="search" id="assignSearch" placeholder="Tìm theo tên hoặc mã SV" class="search-input">
+              <select id="assignDeptFilter" hidden></select>
+              <select id="assignStatusFilter">
+                <option value="all">Tất cả phiếu</option>
+                <option value="unassigned">Chưa giao</option>
+                <option value="assigned">Đã giao</option>
+              </select>
+            </div>
+
+            <div class="assign-bulk">
+              <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="assignSelectAll"> Chọn tất cả đang hiển thị
+              </label>
+              <span id="assignSelectedCount" class="count-badge">Đã chọn 0 phiếu</span>
+              <select id="assignBulkMentor"></select>
+              <button type="button" class="btn btn-primary btn-sm" id="assignBulkApply" data-action="assign-bulk">Gán cho các phiếu đã chọn</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="assignBulkClear" data-action="assign-clear">Bỏ chọn</button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="assign-table">
+                <thead>
+                  <tr>
+                    <th style="width:44px;"></th>
+                    <th>Sinh viên</th>
+                    <th>Trạng thái</th>
+                    <th>Người đánh giá hiện tại</th>
+                    <th>Giao cho</th>
+                    <th>Tổ CTSV</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="assignTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evaluations view -->
+        <div id="evaluations" class="view hidden">
+          <div class="card">
+            <h2 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 16px;">
+              <span>Danh sách phiếu đánh giá</span>
+              <a class="btn btn-primary btn-sm" id="createTicketBtn" href="./admin.html" hidden>+ Tạo phiếu</a>
+            </h2>
+            <div id="hrTicketFilters" class="hidden"></div>
+            <div id="hrTicketRows" class="hidden"></div>
+            <div class="table-wrap" id="ticketsTableWrap">
+              <table id="ticketsTable">
+                <thead>
+                  <tr>
+                    <th>Mã phiếu</th>
+                    <th>Sinh viên</th>
+                    <th>Bộ phận</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày tạo</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="empty-state">
+                    <td colspan="6">Chưa có phiếu nào</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Periods view -->
+        <div id="periods" class="view hidden">
+          <div class="card">
+            <h2 style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 6px;">
+              <span>Các kỳ đánh giá</span>
+              <a class="btn btn-primary btn-sm" id="createPeriodBtn" href="./admin.html" hidden>+ Kỳ mới</a>
+            </h2>
+            <p id="periodsHint" style="margin: 0 0 16px; color: var(--text-muted); font-size: 13px;"></p>
+            <div class="table-wrap">
+              <table id="periodsTable">
+                <thead>
+                  <tr>
+                    <th>Mã kỳ</th>
+                    <th>Tên kỳ</th>
+                    <th>Trạng thái</th>
+                    <th>Phiếu của bạn</th>
+                    <th>Đã hoàn tất</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="empty-state">
+                    <td colspan="5">Chưa có kỳ nào</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interns view -->
+        <div id="interns" class="view hidden">
+          <div class="card" id="internsRoot"></div>
+        </div>
+
+        <!-- Timesheet view -->
+        <div id="timesheet" class="view hidden">
+          <div class="card" id="timesheetRoot"></div>
+        </div>
+
+        <!-- Reports view -->
+        <div id="reports" class="view hidden">
+          <div class="card" id="reportsRoot"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import { initApp } from "./JS/layout.js";
+    initApp();
+  </script>
+</body>
+</html>
