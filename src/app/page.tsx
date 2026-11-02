@@ -1,10 +1,26 @@
-import { redirect } from "next/navigation";
-
-/**
- * InternHub được phục vụ dưới dạng HTML + ES Modules trong public/Interhub.
- * Không khởi tạo PostgreSQL/Drizzle tại trang chủ vì ứng dụng hiện tại
- * sử dụng Firebase và không cần DATABASE_URL để render giao diện.
- */
-export default function HomePage(): never {
-  redirect("/Interhub/index.html");
+export default function HomePage() {
+  return (
+    <main
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100%",
+        height: "100dvh",
+        margin: 0,
+        padding: 0,
+        overflow: "hidden",
+      }}
+    >
+      <iframe
+        src="/Interhub/index.html"
+        title="InternHub"
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          display: "block",
+        }}
+      />
+    </main>
+  );
 }
