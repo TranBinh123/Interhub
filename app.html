@@ -1137,32 +1137,6 @@
     .topbar-user__meta strong { font-size: 13px; color: #173451; }
     .topbar-user__meta span { font-size: 11px; color: var(--text-muted); }
 
-    /* Hero banner */
-    .hero-banner {
-      position: relative;
-      overflow: hidden;
-      border-radius: 18px;
-      margin-bottom: 20px;
-      padding: 28px 32px;
-      min-height: 170px;
-      color: #fff;
-      background:
-        linear-gradient(180deg, rgba(5,40,55,.1), rgba(5,30,45,.55)),
-        linear-gradient(120deg, #2f8f9c 0%, #1c6b78 35%, #0f4a55 70%, #0a3942 100%);
-      box-shadow: var(--shadow-md);
-    }
-    .hero-banner__brand { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; opacity: .9; margin-bottom: 8px; position: relative; z-index: 1; }
-    .hero-banner__text h2 { margin: 0; font-size: 26px; line-height: 1.28; letter-spacing: -.02em; max-width: 420px; position: relative; z-index: 1; }
-    .hero-banner__desc { margin: 14px 0 0; max-width: 420px; font-size: 13px; color: rgba(255,255,255,.85); position: relative; z-index: 1; }
-    .hero-banner__scene {
-      position: absolute; right: 0; top: 0; bottom: 0; width: 48%;
-      background: radial-gradient(ellipse at 70% 25%, rgba(255,255,255,.18), transparent 55%);
-      pointer-events: none;
-    }
-    .hero-banner__cable { position: absolute; right: 6%; top: 30%; width: 74%; height: 2px; background: rgba(255,255,255,.35); transform: rotate(-9deg); }
-    .hero-banner__car { position: absolute; font-size: 22px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.35)); }
-    .hero-banner__car--1 { right: 20%; top: 18%; transform: rotate(-9deg); }
-    .hero-banner__car--2 { right: 38%; top: 31%; transform: rotate(-9deg); }
 
     /* Icon tiêu đề section */
     .hr-head__icon {
@@ -1206,17 +1180,6 @@
       display: grid; place-items: center; font-size: 24px;
     }
 
-    /* Banner trang trí cột phải */
-    .hr-side-banner {
-      border-radius: 16px; padding: 22px 20px; color: #fff;
-      background: linear-gradient(150deg, #11787a 0%, #0a4c52 100%);
-      display: flex; flex-direction: column; justify-content: space-between;
-      box-shadow: var(--shadow-sm); min-height: 100%;
-    }
-    .hr-side-banner__quote { font-size: 17px; font-weight: 700; line-height: 1.32; margin: 0 0 18px; }
-    .hr-side-banner__icons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .hr-side-banner__icons div { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; opacity: .95; }
-    .hr-side-banner__icons span { font-size: 20px; }
 
     /* Thanh tiến độ theo bộ phận (1 màu) */
     .hr-progress-cell { display: flex; align-items: center; gap: 10px; min-width: 160px; }
@@ -1225,16 +1188,7 @@
     .hr-progress-pct { font-size: 12px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
     .hr-chev { text-align: right; color: var(--text-muted); font-size: 18px; }
 
-    /* 3 cột: tiến độ kỳ / cần xác nhận / banner trang trí */
-    .hr-cols { grid-template-columns: minmax(0, 1.1fr) minmax(0, .95fr) minmax(0, .8fr); }
-
-    @media (max-width: 1100px) {
-      .hero-banner__scene { width: 42%; }
-    }
     @media (max-width: 768px) {
-      .hero-banner { padding: 20px; min-height: 150px; }
-      .hero-banner__text h2 { font-size: 20px; }
-      .hero-banner__scene { display: none; }
       .topbar-user__meta { display: none; }
       .topbar-user { padding: 4px; }
       .donut { --size: 112px; }
@@ -1331,19 +1285,6 @@
 
         <!-- Dashboard view -->
         <div id="dashboard" class="view">
-          <div class="hero-banner">
-            <div class="hero-banner__brand">🪂 InternHub</div>
-            <div class="hero-banner__text">
-              <h2>Kết nối hôm nay<br>Kiến tạo tương lai</h2>
-            </div>
-            <p class="hero-banner__desc">Cùng đồng hành với các bạn SVTT trong hành trình học hỏi và phát triển tại Sun World Bà Nà Hills.</p>
-            <div class="hero-banner__scene" aria-hidden="true">
-              <div class="hero-banner__cable"></div>
-              <span class="hero-banner__car hero-banner__car--1">🚡</span>
-              <span class="hero-banner__car hero-banner__car--2">🚡</span>
-            </div>
-          </div>
-
           <div id="hrDashboard" class="hidden"></div>
           <div class="card hidden" id="followBox"></div>
           <div class="card" id="todoBox"></div>
@@ -1829,15 +1770,6 @@
             ${queueHtml}
           </section>
 
-          <aside class="hr-side-banner">
-            <p class="hr-side-banner__quote">Cùng xây dựng<br>đội ngũ tương lai!</p>
-            <div class="hr-side-banner__icons">
-              <div><span>🤝</span>Kết nối</div>
-              <div><span>📖</span>Học hỏi</div>
-              <div><span>📈</span>Phát triển</div>
-              <div><span>⭐</span>Thành công</div>
-            </div>
-          </aside>
         </div>
 
         <section class="hr-panel">
