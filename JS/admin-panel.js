@@ -4,7 +4,7 @@
  // Tương thích API hiện có trong JS/auth.js và JS/db.js
  // ============================================
 
-import { getFirestore, collection, getDocs } from
+import { getFirestore, collection, getDocs, onSnapshot } from
   "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
 import { Auth } from "./auth.js";
@@ -121,6 +121,32 @@ function ensureAdmin() {
       "Bạn không có quyền truy cập bảng quản trị. Vui lòng đăng nhập bằng tài khoản Admin."
     );
   }
+}
+
+// Theo dõi realtime danh sách tài khoản: đăng ký mới hiện ngay, không cần bấm "Làm mới"
+let unwatchUsers = null;
+
+function watchUsers() {
+  if (currentRole !== "admin" || unwatchUsers) return;
+
+  unwatchUsers = onSnapshot(
+    collection(firestore, COLLECTIONS.USERS),
+    snapshot => {
+      users = snapshot.docs.map(item => ({
+        id: item.id,
+        ...item.data()
+      }));
+      DemoStore.syncMembers(users);
+      if (mountNode) renderView();
+    },
+    error => {
+      console.error("[InternHub Admin] Users listener error", error);
+      unwatchUsers = null;
+      loadError =
+        "Không thể tải danh sách tài khoản. Vui lòng kiểm tra Firestore Rules rồi bấm Làm mới.";
+      if (mountNode) renderView();
+    }
+  );
 }
 
 async function refreshData() {
@@ -1134,6 +1160,7 @@ export async function initAdminPanel(target = "adminPanelRoot", options = {}) {
     });
   }
   await refreshData();
+  watchUsers();
 }
 
 export async function refreshAdminPanel() {
