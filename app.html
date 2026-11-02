@@ -196,6 +196,7 @@
     .topbar-actions {
       display: flex;
       gap: 12px;
+      align-items: center;
     }
 
     .menu-toggle {
@@ -848,17 +849,6 @@
       letter-spacing: -.04em;
       color: #fff;
     }
-    .logo::after {
-      content: "SUN WORLD BA NA HILLS";
-      display: block;
-      position: absolute;
-      top: 49px;
-      left: 58px;
-      color: rgba(255,255,255,.66);
-      font-size: 8px;
-      font-weight: 600;
-      letter-spacing: .13em;
-    }
     .logo svg {
       width: 34px; height: 34px;
       color: var(--accent);
@@ -1107,6 +1097,149 @@
       .hr-kpi__label { font-size:9px; }
     }
 
+    /* =====================================================
+       INTERNHUB v3 — Lời chào, banner, donut (theo ảnh mẫu)
+       ===================================================== */
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo::after { content: none; }
+    .logo__brand { display: flex; flex-direction: column; line-height: 1.2; }
+    .logo__title { font-weight: 700; font-size: 17px; }
+    .logo__tag { font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+    .icon-btn {
+      position: relative;
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      display: grid; place-items: center;
+      font-size: 17px; cursor: pointer;
+      color: #28617b;
+    }
+    .icon-btn__dot {
+      position: absolute; top: 7px; right: 8px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #e0493f; box-shadow: 0 0 0 2px #fff;
+    }
+    .topbar-user {
+      display: flex; align-items: center; gap: 10px;
+      padding: 4px 14px 4px 4px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--border);
+    }
+    .topbar-user__avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--primary-soft); color: var(--primary);
+      display: grid; place-items: center; font-size: 15px; flex: 0 0 auto;
+    }
+    .topbar-user__meta { display: flex; flex-direction: column; line-height: 1.25; }
+    .topbar-user__meta strong { font-size: 13px; color: #173451; }
+    .topbar-user__meta span { font-size: 11px; color: var(--text-muted); }
+
+    /* Hero banner */
+    .hero-banner {
+      position: relative;
+      overflow: hidden;
+      border-radius: 18px;
+      margin-bottom: 20px;
+      padding: 28px 32px;
+      min-height: 170px;
+      color: #fff;
+      background:
+        linear-gradient(180deg, rgba(5,40,55,.1), rgba(5,30,45,.55)),
+        linear-gradient(120deg, #2f8f9c 0%, #1c6b78 35%, #0f4a55 70%, #0a3942 100%);
+      box-shadow: var(--shadow-md);
+    }
+    .hero-banner__brand { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; opacity: .9; margin-bottom: 8px; position: relative; z-index: 1; }
+    .hero-banner__text h2 { margin: 0; font-size: 26px; line-height: 1.28; letter-spacing: -.02em; max-width: 420px; position: relative; z-index: 1; }
+    .hero-banner__desc { margin: 14px 0 0; max-width: 420px; font-size: 13px; color: rgba(255,255,255,.85); position: relative; z-index: 1; }
+    .hero-banner__scene {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 48%;
+      background: radial-gradient(ellipse at 70% 25%, rgba(255,255,255,.18), transparent 55%);
+      pointer-events: none;
+    }
+    .hero-banner__cable { position: absolute; right: 6%; top: 30%; width: 74%; height: 2px; background: rgba(255,255,255,.35); transform: rotate(-9deg); }
+    .hero-banner__car { position: absolute; font-size: 22px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.35)); }
+    .hero-banner__car--1 { right: 20%; top: 18%; transform: rotate(-9deg); }
+    .hero-banner__car--2 { right: 38%; top: 31%; transform: rotate(-9deg); }
+
+    /* Icon tiêu đề section */
+    .hr-head__icon {
+      display: inline-grid; place-items: center;
+      width: 34px; height: 34px; margin-right: 10px;
+      border-radius: 10px; background: var(--primary-soft); color: var(--primary);
+      font-size: 16px; vertical-align: -9px;
+    }
+
+    /* Thẻ kỳ: dạng ngang có icon + mũi tên */
+    .hr-pcard { flex-direction: row; align-items: center; gap: 14px; cursor: pointer; }
+    .hr-pcard__icon {
+      display: grid; place-items: center; flex: 0 0 auto;
+      width: 42px; height: 42px; border-radius: 12px;
+      background: var(--primary-soft); color: var(--primary); font-size: 18px;
+    }
+    .hr-pcard__body { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+    .hr-pcard__chevron { flex: 0 0 auto; font-size: 20px; color: var(--text-muted); }
+
+    /* Biểu đồ tròn (donut) */
+    .hr-progress-row { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
+    .hr-progress-row .hr-legend { flex: 1; min-width: 210px; margin: 0; }
+    .donut {
+      --size: 136px;
+      width: var(--size); height: var(--size);
+      border-radius: 50%;
+      display: grid; place-items: center;
+      flex: 0 0 auto;
+    }
+    .donut__hole {
+      width: calc(var(--size) - 32px); height: calc(var(--size) - 32px);
+      border-radius: 50%; background: var(--surface);
+      box-shadow: inset 0 0 0 1px rgba(16,32,46,.04);
+    }
+
+    /* Trạng thái rỗng có icon */
+    .hr-empty-icon-wrap { text-align: center; padding: 30px 10px; }
+    .hr-empty-icon {
+      width: 60px; height: 60px; margin: 0 auto 14px;
+      border-radius: 50%; background: var(--primary-soft);
+      display: grid; place-items: center; font-size: 24px;
+    }
+
+    /* Banner trang trí cột phải */
+    .hr-side-banner {
+      border-radius: 16px; padding: 22px 20px; color: #fff;
+      background: linear-gradient(150deg, #11787a 0%, #0a4c52 100%);
+      display: flex; flex-direction: column; justify-content: space-between;
+      box-shadow: var(--shadow-sm); min-height: 100%;
+    }
+    .hr-side-banner__quote { font-size: 17px; font-weight: 700; line-height: 1.32; margin: 0 0 18px; }
+    .hr-side-banner__icons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .hr-side-banner__icons div { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; opacity: .95; }
+    .hr-side-banner__icons span { font-size: 20px; }
+
+    /* Thanh tiến độ theo bộ phận (1 màu) */
+    .hr-progress-cell { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+    .hr-bar--single { flex: 1; }
+    .hr-bar--single i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1f9c8f, #17b38f); }
+    .hr-progress-pct { font-size: 12px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+    .hr-chev { text-align: right; color: var(--text-muted); font-size: 18px; }
+
+    /* 3 cột: tiến độ kỳ / cần xác nhận / banner trang trí */
+    .hr-cols { grid-template-columns: minmax(0, 1.1fr) minmax(0, .95fr) minmax(0, .8fr); }
+
+    @media (max-width: 1100px) {
+      .hero-banner__scene { width: 42%; }
+    }
+    @media (max-width: 768px) {
+      .hero-banner { padding: 20px; min-height: 150px; }
+      .hero-banner__text h2 { font-size: 20px; }
+      .hero-banner__scene { display: none; }
+      .topbar-user__meta { display: none; }
+      .topbar-user { padding: 4px; }
+      .donut { --size: 112px; }
+    }
+
   </style>
 </head>
 <body>
@@ -1117,7 +1250,10 @@
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
         </svg>
-        InternHub
+        <span class="logo__brand">
+          <span class="logo__title">InternHub</span>
+          <span class="logo__tag">Grow Together</span>
+        </span>
       </div>
 
       <div class="user-info">
@@ -1173,6 +1309,16 @@
           <p id="pageSubtitle">—</p>
         </div>
         <div class="topbar-actions">
+          <button class="icon-btn" id="notifBtn" type="button" title="Thông báo" aria-label="Thông báo">
+            🔔<span class="icon-btn__dot"></span>
+          </button>
+          <div class="topbar-user">
+            <div class="topbar-user__avatar">👤</div>
+            <div class="topbar-user__meta">
+              <strong id="topbarUserName">—</strong>
+              <span id="topbarUserRole">—</span>
+            </div>
+          </div>
           <button class="menu-toggle" id="menuToggle">☰</button>
         </div>
       </div>
@@ -1185,6 +1331,19 @@
 
         <!-- Dashboard view -->
         <div id="dashboard" class="view">
+          <div class="hero-banner">
+            <div class="hero-banner__brand">🪂 InternHub</div>
+            <div class="hero-banner__text">
+              <h2>Kết nối hôm nay<br>Kiến tạo tương lai</h2>
+            </div>
+            <p class="hero-banner__desc">Cùng đồng hành với các bạn SVTT trong hành trình học hỏi và phát triển tại Sun World Bà Nà Hills.</p>
+            <div class="hero-banner__scene" aria-hidden="true">
+              <div class="hero-banner__cable"></div>
+              <span class="hero-banner__car hero-banner__car--1">🚡</span>
+              <span class="hero-banner__car hero-banner__car--2">🚡</span>
+            </div>
+          </div>
+
           <div id="hrDashboard" class="hidden"></div>
           <div class="card hidden" id="followBox"></div>
           <div class="card" id="todoBox"></div>
@@ -1403,12 +1562,19 @@
     // ============================================
     function setupUI() {
       // Display user info
+      const roleText = { hr: "Phòng Nhân sự", supervisor: "Trưởng bộ phận", mentor: "Người hướng dẫn" };
       if (userProfile) {
         document.getElementById("userDisplayName").textContent = userProfile.fullName || "—";
-        const roleText = { hr: "Phòng Nhân sự", supervisor: "Trưởng bộ phận", mentor: "Người hướng dẫn" };
         document.getElementById("userDisplayRole").textContent = roleText[userProfile.role] || userProfile.role || "—";
       }
       document.getElementById("userDisplayEmail").textContent = currentUser.email;
+
+      // Khối user + lời chào ở góc trên bên phải (topbar)
+      document.getElementById("topbarUserName").textContent = userProfile?.fullName || currentUser.email;
+      document.getElementById("topbarUserRole").textContent = roleText[userProfile?.role] || userProfile?.role || "—";
+      document.getElementById("notifBtn")?.addEventListener("click", () => showMessage("success", "Không có thông báo mới."));
+      applyPageHeader("dashboard");
+
       document.getElementById("navAssignments").hidden = !["supervisor", "hr"].includes(userProfile?.role);
       document.getElementById("navManage").hidden = userProfile?.role !== "hr";
       // Chỉ Phòng Nhân sự được tạo phiếu/kỳ (thực hiện ở trang quản lý)
@@ -1453,6 +1619,28 @@
         window.location.replace("./index.html");
       });
 
+    }
+
+    // Tiêu đề + lời chào trên topbar theo từng trang
+    function applyPageHeader(viewName) {
+      const h1 = document.getElementById("pageTitle");
+      const p = document.getElementById("pageSubtitle");
+      if (!h1 || !p) return;
+
+      if (viewName === "dashboard") {
+        h1.innerHTML = `👋 Xin chào, ${escapeHtml(userProfile?.fullName || "bạn")}!`;
+        p.textContent = "Chúc bạn một ngày làm việc hiệu quả!";
+        return;
+      }
+
+      const titles = {
+        evaluations: "Phiếu đánh giá",
+        periods: "Các kỳ đánh giá",
+        assignments: "Phân công đánh giá",
+        reports: "Báo cáo"
+      };
+      h1.textContent = titles[viewName] || "—";
+      p.textContent = "";
     }
 
     // ============================================
@@ -1510,6 +1698,28 @@
       return `<div class="hr-bar" role="img" aria-label="${escapeHtml(label)}">${segs}</div>`;
     }
 
+    // Biểu đồ tròn (donut) cho tiến độ kỳ
+    function hrDonut(counts, total) {
+      if (!total) {
+        return `<div class="donut" style="background:conic-gradient(var(--border) 0 100%)"><div class="donut__hole"></div></div>`;
+      }
+      let acc = 0;
+      const stops = HR_ORDER.filter(k => counts[k]).map(k => {
+        const start = acc;
+        acc += (counts[k] / total) * 100;
+        return `${HR_COLOR[k]} ${start}% ${acc}%`;
+      }).join(", ");
+      return `<div class="donut" style="background:conic-gradient(${stops})"><div class="donut__hole"></div></div>`;
+    }
+
+    // Thanh tiến độ 1 màu cho bảng theo bộ phận
+    function hrDeptBar(pct) {
+      return `<div class="hr-progress-cell">
+        <div class="hr-bar hr-bar--single"><i style="width:${pct}%"></i></div>
+        <span class="hr-progress-pct">${pct}%</span>
+      </div>`;
+    }
+
     function hrDeptOptions(selected) {
       return [
         `<option value="">Tất cả bộ phận</option>`,
@@ -1537,13 +1747,16 @@
         const open = p.status === "dang_mo";
         return `
           <button type="button" class="hr-pcard${p.id === hrState.periodId ? " is-selected" : ""}" data-hr-period="${escapeHtml(p.id)}">
-            <span class="hr-pcard__top">
-              <span class="hr-code">${escapeHtml(p.id)}</span>
-              <span class="hr-chip${open ? " is-open" : ""}">${open ? "Đang mở" : "Đã đóng"}</span>
+            <span class="hr-pcard__icon">📅</span>
+            <span class="hr-pcard__body">
+              <span class="hr-pcard__top">
+                <span class="hr-code">${escapeHtml(p.id)}</span>
+                <span class="hr-chip${open ? " is-open" : ""}">${open ? "Đang mở" : "Đã đóng"}</span>
+              </span>
+              <span class="hr-meta">Đã chốt ${pc.da_chot}/${pl.length}</span>
+              ${hrBar(pc, pl.length)}
             </span>
-            <span class="hr-meta">${escapeHtml(p.name || "")}</span>
-            ${hrBar(pc, pl.length)}
-            <span class="hr-meta">Đã chốt ${pc.da_chot}/${pl.length}</span>
+            <span class="hr-pcard__chevron">›</span>
           </button>`;
       }).join("");
 
@@ -1558,7 +1771,7 @@
               <a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a>
             </li>`).join("")}</ul>
            ${queue.length > 8 ? `<p class="hr-meta">Hiển thị 8 phiếu đầu trên tổng ${queue.length}.</p>` : ""}`
-        : `<p class="hr-empty">Không có phiếu nào đang chờ xác nhận.</p>`;
+        : `<div class="hr-empty-icon-wrap"><div class="hr-empty-icon">✅</div><p class="hr-empty">Không có phiếu nào đang chờ xác nhận.</p></div>`;
 
       const deptRows = DemoStore.listDepartments()
         .filter(d => !hrState.dept || d.code === hrState.dept)
@@ -1572,8 +1785,8 @@
       box.innerHTML = `
         <div class="hr-head">
           <div>
-            <h1>Tổng quan đánh giá</h1>
-            <p class="hr-sub">Theo dõi tiến độ từng kỳ. Chỉ phiếu đã chốt được tính là hoàn tất.</p>
+            <h1><span class="hr-head__icon">📊</span>Tổng quan</h1>
+            <p class="hr-sub">Theo dõi tiến độ từng kỳ. Chi tiết được cập nhật theo thời gian thực.</p>
           </div>
           <div class="hr-field">
             <label for="hrDeptDash">Bộ phận</label>
@@ -1585,29 +1798,6 @@
           ${cards || `<p class="hr-empty">Chưa có kỳ đánh giá. Tạo kỳ ở mục "Quản lý SVTT & kỳ".</p>`}
         </div>
 
-        <div class="hr-kpis" aria-label="Chỉ số tổng quan">
-          <article class="hr-kpi hr-kpi--blue">
-            <div class="hr-kpi__top"><span class="hr-kpi__icon">👥</span><span class="hr-kpi__label">Tổng số phiếu</span></div>
-            <div class="hr-kpi__value">${total}</div>
-            <div class="hr-kpi__hint">Trong kỳ ${escapeHtml(period?.id || "—")}</div>
-          </article>
-          <article class="hr-kpi hr-kpi--green">
-            <div class="hr-kpi__top"><span class="hr-kpi__icon">✓</span><span class="hr-kpi__label">Đã chốt</span></div>
-            <div class="hr-kpi__value">${c.da_chot}</div>
-            <div class="hr-kpi__hint">${pct}% tổng số phiếu</div>
-          </article>
-          <article class="hr-kpi hr-kpi--amber">
-            <div class="hr-kpi__top"><span class="hr-kpi__icon">◷</span><span class="hr-kpi__label">Chưa chốt</span></div>
-            <div class="hr-kpi__value">${Math.max(0, total - c.da_chot)}</div>
-            <div class="hr-kpi__hint">${Math.max(0, 100 - pct)}% tổng số phiếu</div>
-          </article>
-          <article class="hr-kpi hr-kpi--red">
-            <div class="hr-kpi__top"><span class="hr-kpi__icon">!</span><span class="hr-kpi__label">Cần xác nhận</span></div>
-            <div class="hr-kpi__value">${c.cho_xac_nhan}</div>
-            <div class="hr-kpi__hint">Phiếu chờ Phòng Nhân sự</div>
-          </article>
-        </div>
-
         <div class="hr-cols">
           <section class="hr-panel">
             <div class="hr-panel__head">
@@ -1615,18 +1805,20 @@
               <span class="hr-meta">${total} phiếu</span>
             </div>
             <div class="hr-big">${pct}%</div>
-            <p class="hr-meta">hoàn tất · đã chốt ${c.da_chot}/${total} phiếu</p>
-            <div style="margin-top:14px;">${hrBar(c, total)}</div>
-            <ul class="hr-legend">
-              ${HR_ORDER.map(k => `
-                <li>
-                  <button type="button" data-hr-open-status="${k}">
-                    <span class="hr-sw" style="background:${HR_COLOR[k]}"></span>
-                    ${escapeHtml(STATUS_LABEL[k])}
-                    <b>${c[k]}</b>
-                  </button>
-                </li>`).join("")}
-            </ul>
+            <p class="hr-meta">Hoàn tất – đã chốt ${c.da_chot}/${total} phiếu</p>
+            <div class="hr-progress-row">
+              ${hrDonut(c, total)}
+              <ul class="hr-legend">
+                ${HR_ORDER.map(k => `
+                  <li>
+                    <button type="button" data-hr-open-status="${k}">
+                      <span class="hr-sw" style="background:${HR_COLOR[k]}"></span>
+                      ${escapeHtml(STATUS_LABEL[k])}
+                      <b>${c[k]}</b>
+                    </button>
+                  </li>`).join("")}
+              </ul>
+            </div>
           </section>
 
           <section class="hr-panel">
@@ -1636,6 +1828,16 @@
             </div>
             ${queueHtml}
           </section>
+
+          <aside class="hr-side-banner">
+            <p class="hr-side-banner__quote">Cùng xây dựng<br>đội ngũ tương lai!</p>
+            <div class="hr-side-banner__icons">
+              <div><span>🤝</span>Kết nối</div>
+              <div><span>📖</span>Học hỏi</div>
+              <div><span>📈</span>Phát triển</div>
+              <div><span>⭐</span>Thành công</div>
+            </div>
+          </aside>
         </div>
 
         <section class="hr-panel">
@@ -1653,17 +1855,22 @@
                     <th class="r">Tổng</th>
                     <th class="r">Chờ xác nhận</th>
                     <th class="r">Đã chốt</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${deptRows.map(r => `
+                  ${deptRows.map(r => {
+                    const dp = r.n ? Math.round((r.dc.da_chot / r.n) * 100) : 0;
+                    return `
                     <tr data-hr-open-dept="${escapeHtml(r.d.code)}">
                       <td>${escapeHtml(r.d.name)}</td>
-                      <td class="hr-w">${hrBar(r.dc, r.n)}</td>
+                      <td class="hr-w">${hrDeptBar(dp)}</td>
                       <td class="r">${r.n}</td>
                       <td class="r">${r.dc.cho_xac_nhan}</td>
                       <td class="r">${r.dc.da_chot}</td>
-                    </tr>`).join("")}
+                      <td class="hr-chev">›</td>
+                    </tr>`;
+                  }).join("")}
                 </tbody>
               </table>
             </div>` : `<p class="hr-empty">Chưa có phiếu trong kỳ này.</p>`}
@@ -1916,15 +2123,8 @@
       if (viewName === "periods") renderPeriods();
       if (isHR() && (viewName === "dashboard" || viewName === "evaluations")) renderHrAll();
 
-      // Update title
-      const titles = {
-        dashboard: "Tổng quan",
-        evaluations: "Phiếu đánh giá",
-        periods: "Các kỳ đánh giá",
-        assignments: "Phân công đánh giá",
-        reports: "Báo cáo"
-      };
-      document.getElementById("pageTitle").textContent = titles[viewName] || "—";
+      // Update title / lời chào
+      applyPageHeader(viewName);
 
       // Close sidebar on mobile
       if (window.innerWidth <= 768) {
