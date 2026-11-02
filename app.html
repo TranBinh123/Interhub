@@ -1342,6 +1342,26 @@
 
         <!-- Assignments view (Trưởng bộ phận) -->
         <div id="assignments" class="view hidden">
+          <div class="card hidden" id="committeeSchoolCard">
+            <h2>Phân công Tổ Công tác sinh viên theo Trường</h2>
+            <p>Mỗi Trường giao cho một thành viên Tổ Công tác sinh viên. Mọi phiếu chưa chốt của SVTT thuộc Trường đó được giao theo, kể cả phiếu tạo sau này.</p>
+            <div class="table-wrap">
+              <table class="assign-table">
+                <thead>
+                  <tr>
+                    <th>Trường</th>
+                    <th class="r">SVTT</th>
+                    <th class="r">Chờ Tổ CTSV</th>
+                    <th class="r">Đã có điểm Tổ CTSV</th>
+                    <th>Tổ CTSV phụ trách</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="committeeSchoolTable"></tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="card">
             <h2>Phân công đánh giá</h2>
             <p>Giao từng phiếu của bộ phận cho một người hướng dẫn (hoặc tự đánh giá). Phòng Nhân sự còn phân công Tổ Công tác sinh viên chấm điểm cho từng phiếu. Chỉ sửa được phân công khi phiếu chưa chốt.</p>
@@ -1363,8 +1383,6 @@
               </label>
               <span id="assignSelectedCount" class="count-badge">Đã chọn 0 phiếu</span>
               <select id="assignBulkMentor"></select>
-              <select id="assignBulkCommittee" hidden></select>
-              <button type="button" class="btn btn-primary btn-sm" id="assignBulkCommitteeApply" data-action="assign-bulk-committee" hidden>Gán Tổ CTSV cho các phiếu đã chọn</button>
               <button type="button" class="btn btn-primary btn-sm" id="assignBulkApply" data-action="assign-bulk">Gán cho các phiếu đã chọn</button>
               <button type="button" class="btn btn-secondary btn-sm" id="assignBulkClear" data-action="assign-clear">Bỏ chọn</button>
             </div>
@@ -1718,16 +1736,21 @@
       }).join("");
 
       const queue = list.filter(t => t.status === STATUS.COMMITTEE);
-      const queueHtml = queue.length
-        ? `<ul class="hr-queue">${queue.slice(0, 8).map(t => `
+      const bySchool = new Map();
+      queue.forEach(t => {
+        const key = t.school || "";
+        bySchool.set(key, (bySchool.get(key) || 0) + 1);
+      });
+      const schoolInfo = new Map(DemoStore.listCommitteeSchools(period?.id).map(g => [g.school, g]));
+      const queueHtml = bySchool.size
+        ? `<ul class="hr-queue">${[...bySchool.entries()].sort((a, b) => b[1] - a[1]).map(([school, count]) => `
             <li>
               <div>
-                <strong>${escapeHtml(t.internName)}</strong>
-                <small>${escapeHtml(t.internId)} · ${escapeHtml(DemoStore.departmentName(t.department))} · ${escapeHtml(hrEvaluatorLabel(t))} · Tổ CTSV: ${escapeHtml(t.committeeName || "chưa phân công")}</small>
+                <strong>${escapeHtml(school || "Chưa có trường")}</strong>
+                <small>${count} phiếu chờ chấm · Tổ CTSV: ${escapeHtml(schoolInfo.get(school)?.committeeName || "chưa phân công")}</small>
               </div>
-              <a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a>
-            </li>`).join("")}</ul>
-           ${queue.length > 8 ? `<p class="hr-meta">Hiển thị 8 phiếu đầu trên tổng ${queue.length}.</p>` : ""}`
+              <button type="button" class="hr-btn-sm" data-hr-go-committee>Phân công</button>
+            </li>`).join("")}</ul>`
         : `<div class="hr-empty-icon-wrap"><div class="hr-empty-icon">✅</div><p class="hr-empty">Không có phiếu nào đang chờ Tổ Công tác sinh viên.</p></div>`;
 
       const deptRows = DemoStore.listDepartments()
@@ -1982,6 +2005,11 @@
     function handleHrClick(event) {
       if (!isHR()) return;
 
+      if (event.target.closest("[data-hr-go-committee]")) {
+        switchView("assignments");
+        return;
+      }
+
       const card = event.target.closest("[data-hr-period]");
       if (card) {
         hrState.periodId = card.dataset.hrPeriod;
@@ -2088,9 +2116,40 @@
     // Phòng Nhân sự chọn bộ phận cần phân công (mặc định Phòng Nhân sự)
     let assignDept = HR_DEPT;
 
+    // Phòng Nhân sự: giao Tổ Công tác sinh viên theo Trường (mỗi Trường một người phụ trách)
+    function renderCommitteeSchools() {
+      const card = document.getElementById("committeeSchoolCard");
+      if (!card) return;
+      const period = DemoStore.activePeriod();
+      const show = isHR() && !!period;
+      card.classList.toggle("hidden", !show);
+      if (!show) return;
+
+      const members = DemoStore.listMembers().filter(m => m.role === "committee");
+      const rows = DemoStore.listCommitteeSchools(period.id);
+      const notice = members.length ? "" :
+        `<tr class="empty-state"><td colspan="6">Chưa có tài khoản Tổ Công tác sinh viên. Admin cần duyệt tài khoản với vai trò "Tổ Công tác sinh viên".</td></tr>`;
+      document.getElementById("committeeSchoolTable").innerHTML = notice + (rows.length ? rows.map(g => `
+        <tr>
+          <td>${escapeHtml(g.school || "Chưa có trường")}</td>
+          <td class="r">${g.total}</td>
+          <td class="r">${g.toCommittee}</td>
+          <td class="r">${g.scored}</td>
+          <td>
+            <select data-school-committee aria-label="Tổ CTSV phụ trách ${escapeHtml(g.school || "chưa có trường")}">
+              <option value="">— Chưa phân công —</option>
+              ${members.map(m => `<option value="${escapeHtml(m.uid)}" ${g.committeeUid === m.uid ? "selected" : ""}>${escapeHtml(m.fullName)}</option>`).join("")}
+            </select>
+          </td>
+          <td><button type="button" class="btn btn-secondary btn-sm" data-action="save-school-committee"
+                data-school="${escapeHtml(g.school)}">Lưu</button></td>
+        </tr>`).join("") : `<tr class="empty-state"><td colspan="6">Chưa có SVTT nào trong kỳ này.</td></tr>`);
+    }
+
     function renderAssignments() {
       const box = document.getElementById("assignTable");
       if (!box) return;
+      renderCommitteeSchools();
 
       const actor = actorInfo();
       const period = DemoStore.activePeriod();
@@ -2109,7 +2168,6 @@
 
       const all = DemoStore.listTickets(actor, period.id).filter(t => t.department === dept);
       const mentors = DemoStore.mentorsOf(dept);
-      const committee = DemoStore.listMembers().filter(m => m.role === "committee");
       // Phòng Nhân sự chỉ tự đánh giá SVTT của chính Phòng Nhân sự
       const selfAllowed = !isHR() || dept === HR_DEPT;
       const selfLabel = isHR() ? "Phòng Nhân sự tự đánh giá" : "Trưởng bộ phận tự đánh giá";
@@ -2128,16 +2186,6 @@
         ...mentors.map(m => `<option value="${escapeHtml(m.uid)}">${escapeHtml(m.fullName)}</option>`)
       ].join("");
       if ([...bulkMentor.options].some(o => o.value === bulkValue)) bulkMentor.value = bulkValue;
-
-      const bulkCommittee = document.getElementById("assignBulkCommittee");
-      const bulkCValue = bulkCommittee.value;
-      bulkCommittee.innerHTML = [
-        `<option value="">— Chọn Tổ CTSV —</option>`,
-        ...committee.map(m => `<option value="${escapeHtml(m.uid)}">${escapeHtml(m.fullName)}</option>`)
-      ].join("");
-      if ([...bulkCommittee.options].some(o => o.value === bulkCValue)) bulkCommittee.value = bulkCValue;
-      bulkCommittee.hidden = !isHR();
-      document.getElementById("assignBulkCommitteeApply").hidden = !isHR();
 
       // Lọc theo ô tìm kiếm và trạng thái giao
       const q = (document.getElementById("assignSearch").value || "").trim().toLowerCase();
@@ -2172,9 +2220,6 @@
       if (!mentors.length) {
         notices.push(`Bộ phận chưa có người hướng dẫn nào. Admin cần duyệt tài khoản người hướng dẫn, chọn đúng bộ phận ở tab "Tài khoản", rồi bấm "Làm mới".`);
       }
-      if (isHR() && !committee.length) {
-        notices.push(`Chưa có tài khoản Tổ Công tác sinh viên. Admin cần duyệt tài khoản với vai trò "Tổ Công tác sinh viên".`);
-      }
       const mentorNotice = notices.map(text => `<tr><td colspan="7" class="empty-state">${escapeHtml(text)}</td></tr>`).join("");
 
       box.innerHTML = mentorNotice + list.map(t => {
@@ -2185,12 +2230,7 @@
           selfAllowed ? `<option value="__self__" ${t.evaluatorAssigned && !t.evaluatorUid ? "selected" : ""}>${selfLabel}</option>` : "",
           ...mentors.map(m => `<option value="${escapeHtml(m.uid)}" ${t.evaluatorUid === m.uid ? "selected" : ""}>${escapeHtml(m.fullName)}</option>`)
         ].join("");
-        const committeeCell = isHR()
-          ? `<select data-committee-for="${escapeHtml(t.id)}" aria-label="Tổ Công tác sinh viên" ${p.committeeAssign ? "" : "disabled"}>
-               <option value="" ${!t.committeeUid ? "selected" : ""}>— Chưa phân công —</option>
-               ${committee.map(m => `<option value="${escapeHtml(m.uid)}" ${t.committeeUid === m.uid ? "selected" : ""}>${escapeHtml(m.fullName)}</option>`).join("")}
-             </select>`
-          : escapeHtml(t.committeeName || "—");
+        const committeeCell = escapeHtml(t.committeeName || "—");
         const checked = assignSelected.has(t.id) ? "checked" : "";
         return `
           <tr>
@@ -2275,15 +2315,12 @@
         return;
       }
 
-      if (action === "assign-bulk-committee") {
-        const result = DemoStore.assignCommitteeBulk([...assignSelected], actor, document.getElementById("assignBulkCommittee").value);
-        if (result.ok) {
-          assignSelected.clear();
-          const note = result.skipped ? ` (bỏ qua ${result.skipped} phiếu không đủ điều kiện)` : "";
-          showMessage("success", `Đã phân công Tổ CTSV cho ${result.updated} phiếu${note}. (dữ liệu mô phỏng)`);
-        } else {
-          showMessage("error", result.error);
-        }
+      if (action === "save-school-committee") {
+        const value = button.closest("tr").querySelector("[data-school-committee]").value;
+        if (!value) return showMessage("error", "Hãy chọn Tổ Công tác sinh viên phụ trách Trường này.");
+        const result = DemoStore.assignCommitteeToSchool(button.dataset.school, actor, value);
+        if (result.ok) showMessage("success", `Đã giao ${result.updated} phiếu chưa chốt cho Tổ CTSV (dữ liệu mô phỏng)`);
+        else showMessage("error", result.error);
         renderAssignments();
         return;
       }
@@ -2295,7 +2332,6 @@
       const ticket = DemoStore.getTicket(id);
       if (!ticket) return;
       const evalSelect = document.querySelector(`[data-assign-for="${CSS.escape(id)}"]`);
-      const commSelect = document.querySelector(`[data-committee-for="${CSS.escape(id)}"]`);
       const saved = [];
       let failure = "";
 
@@ -2305,12 +2341,6 @@
         const r = DemoStore.assignEvaluator(id, actor, evalValue);
         if (r.ok) saved.push("người đánh giá"); else failure = r.error;
       }
-      const commValue = commSelect?.value || "";
-      if (!failure && commSelect && !commSelect.disabled && commValue && commValue !== (ticket.committeeUid || "")) {
-        const r = DemoStore.assignCommittee(id, actor, commValue);
-        if (r.ok) saved.push("Tổ CTSV"); else failure = r.error;
-      }
-
       if (failure) showMessage("error", failure);
       else if (saved.length) showMessage("success", `Đã lưu phân công ${saved.join(" và ")} (dữ liệu mô phỏng)`);
       else showMessage("success", "Chưa có thay đổi để lưu.");
