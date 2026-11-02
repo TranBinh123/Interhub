@@ -120,12 +120,13 @@ export function partScore(scores, partIndex) {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-// Điểm cuối = (điểm bộ phận + điểm Tổ Công tác sinh viên) / 2
+// Điểm cuối = (điểm trung bình Phần I–III của bộ phận + điểm Tổ Công tác sinh viên) / 2
 export function scoreSummary(ticket) {
-  const dept = calcResult(ticket.scores || []).final;
-  const committee = calcResult(ticket.committeeScores || []).final;
+  const parts = PARTS.map((p, i) => partScore(ticket.scores || [], i));
+  const dept = parts.every(v => v !== null) ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
+  const committee = typeof ticket.committeeScore === "number" ? ticket.committeeScore : null;
   const final = dept !== null && committee !== null ? (dept + committee) / 2 : null;
-  return { dept, committee, final };
+  return { parts, dept, committee, final };
 }
 
 export function calcResult(scores) {
@@ -140,7 +141,7 @@ export function calcResult(scores) {
 // Lưu trữ (localStorage, đọc lại mỗi lần để các tab luôn thấy dữ liệu mới nhất)
 // ============================================
 function emptyState() {
-  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {}, catalogV4: true, catalogV5: false };
+  return { periods: {}, interns: {}, tickets: {}, departments: {}, members: {}, schoolCommittee: {}, catalogV4: true, catalogV5: false };
 }
 
 // Thêm các bộ phận chính thức còn thiếu (không ghi đè bộ phận đã có)
@@ -164,12 +165,18 @@ function read() {
         tickets: p.tickets || {},
         departments: p.departments || {},
         members: p.members || {},
+        schoolCommittee: p.schoolCommittee || {},
         catalogV4: p.catalogV4 === true,
         catalogV5: p.catalogV5 === true
       };
       for (const t of Object.values(state.tickets)) {
         if (t.status === "cho_xac_nhan") t.status = STATUS.COMMITTEE;
-        if (!Array.isArray(t.committeeScores)) t.committeeScores = Array(ITEMS.length).fill(null);
+        if (t.committeeScore === undefined) {
+          const arr = Array.isArray(t.committeeScores) ? t.committeeScores : [];
+          const done = arr.length === ITEMS.length && arr.every(v => typeof v === "number");
+          t.committeeScore = done ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+        }
+        delete t.committeeScores;
         if (t.committeeUid === undefined) t.committeeUid = null;
         if (typeof t.committeeName !== "string") t.committeeName = "";
         if (typeof t.strengths !== "string") t.strengths = t.textPart4 || "";
@@ -242,6 +249,10 @@ function fail(error) {
 function addHistory(ticket, actor, action, note = "") {
   ticket.history.push({ at: now(), by: actor?.name || "—", action, note });
   ticket.updatedAt = now();
+}
+
+function memberName(state, uid) {
+  return (uid && state.members[uid]?.fullName) || "";
 }
 
 function defaultEvaluatorName(department) {
@@ -458,9 +469,9 @@ export function syncPeriodTickets(periodId) {
       evaluationNote: reason.note,
       status: STATUS.NOT_STARTED,
       scores: Array(ITEMS.length).fill(null),
-      committeeUid: null,
-      committeeName: "",
-      committeeScores: Array(ITEMS.length).fill(null),
+      committeeUid: state.schoolCommittee[intern.school || ""] || null,
+      committeeName: memberName(state, state.schoolCommittee[intern.school || ""]),
+      committeeScore: null,
       strengths: "",
       improvements: "",
       sendCount: 0,
@@ -834,6 +845,9 @@ export function removeMember(uid) {
 
 // Bỏ phân công Tổ CTSV của tài khoản ở các phiếu chưa chốt
 function unassignCommittee(state, uid) {
+  for (const [school, id] of Object.entries(state.schoolCommittee)) {
+    if (id === uid) delete state.schoolCommittee[school];
+  }
   for (const t of Object.values(state.tickets)) {
     if (t.committeeUid === uid && t.status !== STATUS.FINALIZED) {
       t.committeeUid = null;
@@ -1044,42 +1058,49 @@ export function assignEvaluatorBulk(ticketIds, actor, mentorUid) {
 }
 
 // ============================================
-// Phòng Nhân sự phân công tài khoản Tổ Công tác sinh viên chấm điểm từng phiếu
-export function assignCommittee(ticketId, actor, committeeUid) {
+// Phòng Nhân sự giao Tổ Công tác sinh viên theo Trường: áp dụng cho mọi phiếu chưa chốt của Trường đó
+// và cho phiếu tạo sau này. Mỗi Trường có một người phụ trách.
+export function assignCommitteeToSchool(school, actor, committeeUid) {
+  if (!actor || actor.role !== "hr") return fail("Chỉ Phòng Nhân sự mới được phân công Tổ Công tác sinh viên.");
   const state = read();
-  const ticket = state.tickets[ticketId];
-  if (!ticket) return fail("Phiếu không tồn tại.");
-  if (!permissionsFor(ticket, actor).committeeAssign) return fail("Bạn không có quyền phân công Tổ Công tác sinh viên cho phiếu này.");
+  const key = String(school ?? "");
   const member = state.members[committeeUid];
   if (!member || member.role !== "committee") return fail("Hãy chọn một tài khoản Tổ Công tác sinh viên.");
 
-  ticket.committeeUid = committeeUid;
-  ticket.committeeName = member.fullName;
-  addHistory(ticket, actor, "Phân công Tổ CTSV", `Giao cho ${member.fullName}`);
-  write(state);
-  return ok({ ticket: { ...ticket } });
-}
-
-export function assignCommitteeBulk(ticketIds, actor, committeeUid) {
-  const state = read();
-  const ids = [...new Set(ticketIds || [])];
-  if (!ids.length) return fail("Chưa chọn phiếu nào.");
-  const member = state.members[committeeUid];
-  if (!member || member.role !== "committee") return fail("Hãy chọn một tài khoản Tổ Công tác sinh viên.");
-
+  state.schoolCommittee[key] = committeeUid;
   let updated = 0;
-  let skipped = 0;
-  for (const id of ids) {
-    const ticket = state.tickets[id];
-    if (!ticket || !permissionsFor(ticket, actor).committeeAssign) { skipped++; continue; }
-    ticket.committeeUid = committeeUid;
-    ticket.committeeName = member.fullName;
-    addHistory(ticket, actor, "Phân công Tổ CTSV", `Giao cho ${member.fullName} (gán hàng loạt)`);
+  for (const t of Object.values(state.tickets)) {
+    if ((t.school || "") !== key || t.status === STATUS.FINALIZED) continue;
+    t.committeeUid = committeeUid;
+    t.committeeName = member.fullName;
+    addHistory(t, actor, "Phân công Tổ CTSV", `Giao cho ${member.fullName} (theo Trường ${key || "chưa có"})`);
     updated++;
   }
-  if (!updated) return fail("Không gán được phiếu nào: phiếu đã chốt hoặc ngoài quyền của bạn.");
   write(state);
-  return ok({ updated, skipped });
+  return ok({ updated });
+}
+
+// Các Trường trong kỳ: số SVTT/phiếu, số phiếu đang chờ Tổ CTSV, số đã có điểm Tổ CTSV, người phụ trách
+export function listCommitteeSchools(periodId = null) {
+  const state = read();
+  const groups = new Map();
+  for (const t of Object.values(state.tickets)) {
+    if (periodId && t.periodId !== periodId) continue;
+    const key = t.school || "";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        school: key, total: 0, open: 0, finalized: 0, toCommittee: 0, scored: 0,
+        committeeUid: state.schoolCommittee[key] || null, committeeName: ""
+      });
+    }
+    const g = groups.get(key);
+    g.total += 1;
+    if (t.status === STATUS.FINALIZED) g.finalized += 1; else g.open += 1;
+    if (t.status === STATUS.COMMITTEE) g.toCommittee += 1;
+    if (typeof t.committeeScore === "number") g.scored += 1;
+  }
+  for (const g of groups.values()) g.committeeName = memberName(state, g.committeeUid);
+  return [...groups.values()].sort((a, b) => a.school.localeCompare(b.school, "vi"));
 }
 
 // ============================================
@@ -1158,7 +1179,7 @@ export function todoFor(actor, periodId = null) {
 // Thao tác (mô phỏng)
 // ============================================
 // Lưu nháp: điểm và nhận xét. Chỉ ghi phần người dùng được phép sửa.
-export function saveDraft(id, actor, { scores, committeeScores, notes = {} }) {
+export function saveDraft(id, actor, { scores, committeeScore, notes = {} }) {
   const all = read();
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
@@ -1177,15 +1198,13 @@ export function saveDraft(id, actor, { scores, committeeScores, notes = {} }) {
     addHistory(ticket, actor, "Lưu điểm");
   }
 
-  if (committeeScores) {
+  if (committeeScore !== undefined) {
     if (!p.committeeScores) return fail("Bạn không có quyền chấm điểm Tổ Công tác sinh viên cho phiếu này.");
-    for (const v of committeeScores) {
-      if (v === null) continue;
-      if (typeof v !== "number" || v < SCORE_MIN || v > SCORE_MAX) {
-        return fail(`Điểm phải từ ${SCORE_MIN} đến ${SCORE_MAX}.`);
-      }
+    const v = committeeScore;
+    if (v !== null && (typeof v !== "number" || v < SCORE_MIN || v > SCORE_MAX || Math.round(v * 2) !== v * 2)) {
+      return fail(`Điểm Tổ Công tác sinh viên phải từ ${SCORE_MIN} đến ${SCORE_MAX}, bước 0.5.`);
     }
-    ticket.committeeScores = [...committeeScores];
+    ticket.committeeScore = v;
     addHistory(ticket, actor, "Lưu điểm Tổ CTSV");
   }
 
@@ -1284,8 +1303,7 @@ export function finalize(id, actor) {
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).finalize) return fail("Chỉ Tổ Công tác sinh viên được chốt phiếu đang chờ chấm điểm.");
-  const missingCommittee = (ticket.committeeScores || []).filter(v => v === null).length;
-  if (missingCommittee > 0) return fail(`Tổ Công tác sinh viên còn ${missingCommittee} hạng mục chưa chấm điểm.`);
+  if (typeof ticket.committeeScore !== "number") return fail("Tổ Công tác sinh viên chưa chấm điểm phiếu này.");
 
   ticket.status = STATUS.FINALIZED;
   addHistory(ticket, actor, "Chốt phiếu");
@@ -1348,10 +1366,7 @@ export function loadSampleData() {
       status === STATUS.NOT_STARTED ? 0 :
       status === STATUS.IN_PROGRESS ? Math.floor(rnd() * ITEMS.length) : ITEMS.length;
     for (let k = 0; k < filled; k++) scores[k] = Math.round((rnd() * 9 + 1) * 2) / 2;
-    const committeeScores = Array(ITEMS.length).fill(null);
-    if (status === STATUS.COMMITTEE || status === STATUS.FINALIZED) {
-      for (let k = 0; k < ITEMS.length; k++) committeeScores[k] = Math.round((rnd() * 9 + 1) * 2) / 2;
-    }
+    const committeeScore = status === STATUS.FINALIZED ? Math.round((rnd() * 9 + 1) * 2) / 2 : null;
 
     const stamp = new Date(Date.UTC(2026, 9, 1, 8, 0, 0) + i * 600000).toISOString();
     const id = `${period.id}-${internId}`;
@@ -1370,7 +1385,7 @@ export function loadSampleData() {
       scores,
       committeeUid: null,
       committeeName: "",
-      committeeScores,
+      committeeScore,
       strengths: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu về ưu điểm (dữ liệu giả lập).",
       improvements: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu về điểm cần cải thiện (dữ liệu giả lập).",
       sendCount: sent ? 1 : 0,
@@ -1460,8 +1475,8 @@ export const DemoStore = {
   permissionsFor,
   assignEvaluator,
   assignEvaluatorBulk,
-  assignCommittee,
-  assignCommitteeBulk,
+  assignCommitteeToSchool,
+  listCommitteeSchools,
   saveDraft,
   submit,
   returnTicket,
