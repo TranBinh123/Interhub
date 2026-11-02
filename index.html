@@ -394,6 +394,18 @@
       transform: none;
     }
 
+    /* Đã gửi thông tin: nút xám, không bấm lại được */
+    .btn-primary.btn-sent,
+    .btn-primary.btn-sent:hover,
+    .btn-primary.btn-sent:disabled {
+      background: #c9ced6;
+      color: #5b6676;
+      box-shadow: none;
+      opacity: 1;
+      cursor: not-allowed;
+      transform: none;
+    }
+
     .btn-secondary {
       background: var(--field);
       color: var(--navy);
@@ -917,8 +929,15 @@
         department: document.getElementById("department").value
       };
 
+      const submitBtn = e.submitter || e.target.querySelector("button[type=submit]");
+
       try {
-        await Auth.userSubmit(formData);
+        const ok = await Auth.userSubmit(formData);
+        if (ok && submitBtn) {
+          submitBtn.textContent = "Đã gửi thông tin";
+          submitBtn.classList.add("btn-sent");
+          submitBtn.disabled = true;
+        }
       } catch (error) {
         console.error("Signup error:", error);
       }
