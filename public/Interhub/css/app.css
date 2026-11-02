@@ -1205,3 +1205,561 @@ tbody tr:hover { background: #f3f9fa; }
 .view h3 { margin: 22px 0 8px; font-size: 15px; }
 .stat-value small { font-size: 13px; font-weight: 500; color: var(--text-muted); }
 .count-badge { font-size: 12.5px; font-weight: 600; }
+
+
+/* =====================================================
+   INTERNHUB — TIMESHEET DETAIL
+   Giao diện tổng hợp và chi tiết chấm công SVTT
+   ===================================================== */
+
+/* Tiêu đề trang */
+.ts-page-title {
+  margin: 0 0 6px;
+  color: #173451;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -.035em;
+}
+
+.ts-page-description {
+  margin: 0 0 18px;
+  color: #6b829c;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+/* Bảng tổng hợp */
+#timesheetRoot .table-wrap {
+  border: 1px solid #e0e9f1;
+  border-radius: 13px;
+  background: #fff;
+}
+
+#timesheetRoot .assign-table {
+  min-width: 820px;
+}
+
+#timesheetRoot .assign-table th {
+  white-space: nowrap;
+}
+
+#timesheetRoot .assign-table td {
+  color: #294765;
+}
+
+#timesheetRoot .assign-table td:first-child {
+  min-width: 180px;
+  font-weight: 650;
+  color: #173451;
+}
+
+#timesheetRoot .assign-table td:first-child small {
+  display: inline-block;
+  margin-top: 3px;
+  color: #8294a8;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+#timesheetRoot .assign-table td select {
+  min-width: 155px;
+  width: 100%;
+  max-width: 200px;
+  min-height: 36px;
+  padding: 7px 28px 7px 10px;
+  font-size: 12px;
+}
+
+#timesheetRoot .assign-table .btn {
+  white-space: nowrap;
+}
+
+/* Khu vực chi tiết */
+.ts-detail-panel {
+  margin-top: 20px;
+  padding: 22px;
+  border: 1px solid #dce7f1;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 5px 20px rgba(27, 66, 102, .055);
+  animation: ts-slide-down .2s ease;
+}
+
+@keyframes ts-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header chi tiết */
+.ts-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #e8eef4;
+}
+
+.ts-detail-header h3 {
+  margin: 5px 0 3px !important;
+  color: #173451;
+  font-size: 19px !important;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+.ts-detail-header p {
+  margin: 0;
+  color: #71859b;
+  font-size: 12px;
+}
+
+.ts-detail-header p span {
+  padding: 0 5px;
+  color: #b2bfcc;
+}
+
+.ts-detail-eyebrow {
+  color: #07847e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+/* Các ô tổng hợp */
+.ts-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 24px;
+}
+
+.ts-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 82px;
+  justify-content: center;
+  padding: 13px 16px;
+  border: 1px solid #e5edf4;
+  border-radius: 12px;
+  background: #f8fbfd;
+}
+
+.ts-summary-item span {
+  color: #71859b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ts-summary-item strong {
+  color: #173451;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tiêu đề từng khu vực */
+.ts-detail-section {
+  margin-bottom: 22px;
+}
+
+.ts-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+
+.ts-section-heading h4 {
+  margin: 0;
+  color: #173451;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.ts-section-heading p {
+  margin: 3px 0 0;
+  color: #8294a8;
+  font-size: 11px;
+}
+
+/* Lịch chấm công */
+.ts-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ts-calendar-placeholder {
+  min-width: 0;
+}
+
+.ts-calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 88px;
+  padding: 10px 5px;
+  border: 1px solid #e2eaf1;
+  border-radius: 11px;
+  background: #fbfcfe;
+  color: #294765;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
+}
+
+.ts-calendar-day:hover {
+  border-color: #75b9b7;
+  background: #f1f9f8;
+  transform: translateY(-2px);
+}
+
+.ts-calendar-day.is-selected {
+  border: 2px solid #087c78;
+  background: #eaf6f5;
+  box-shadow: 0 0 0 3px rgba(8, 124, 120, .08);
+}
+
+.ts-calendar-day.is-today {
+  position: relative;
+}
+
+.ts-calendar-day.is-today::after {
+  content: "Hôm nay";
+  position: absolute;
+  top: -7px;
+  right: 5px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: #173451;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.ts-calendar-weekday {
+  color: #8294a8;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ts-calendar-date {
+  color: #173451;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ts-calendar-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 21px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Màu trạng thái */
+.ts-status-work {
+  background: #e8f7ef;
+  color: #16804d;
+}
+
+.ts-status-absent {
+  background: #fff0ed;
+  color: #c34436;
+}
+
+.ts-status-off {
+  background: #fff5df;
+  color: #a66b0b;
+}
+
+.ts-status-empty {
+  background: #edf2f7;
+  color: #8a9aab;
+}
+
+.ts-calendar-day.ts-status-work {
+  border-color: #d2eddf;
+}
+
+.ts-calendar-day.ts-status-absent {
+  border-color: #f5d9d5;
+}
+
+.ts-calendar-day.ts-status-off {
+  border-color: #f2e4c4;
+}
+
+.ts-calendar-day.ts-status-empty {
+  border-color: #e2eaf1;
+}
+
+.ts-calendar-day.is-selected .ts-calendar-status {
+  box-shadow: 0 0 0 1px rgba(8, 124, 120, .12);
+}
+
+/* Hàng chỉnh sửa */
+.ts-editor {
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid #dce9ee;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #f5fafb 0%, #f9fbfd 100%);
+}
+
+.ts-editor-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 15px;
+}
+
+.ts-editor-title strong {
+  color: #173451;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.ts-editor-title small {
+  color: #8294a8;
+  font-size: 11px;
+}
+
+.ts-editor-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(120px, .8fr) minmax(180px, 1.2fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.ts-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ts-editor-field label {
+  color: #637b95;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ts-editor-field select,
+.ts-editor-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid #d8e4ef;
+  border-radius: 9px;
+  background-color: #fff;
+  color: #183653;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.ts-editor-field input[readonly] {
+  background: #edf3f7;
+  color: #627b98;
+  cursor: default;
+}
+
+.ts-editor-status select {
+  font-weight: 650;
+}
+
+.ts-readonly-status {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #e2eaf1;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ts-editor-note {
+  margin: 11px 0 0;
+  color: #8294a8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Thông tin ngày đang chọn */
+.ts-selected-info {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 9px;
+  background: #f4f8fb;
+  color: #71859b;
+  font-size: 12px;
+}
+
+.ts-selected-info strong {
+  color: #31516e;
+  font-weight: 700;
+}
+
+.ts-selected-info span {
+  padding: 0 5px;
+  color: #b2bfcc;
+}
+
+/* Trạng thái không có dữ liệu */
+.ts-empty {
+  padding: 28px 16px;
+  border: 1px dashed #dce7f1;
+  border-radius: 11px;
+  background: #f9fbfd;
+  color: #8294a8;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Responsive tablet */
+@media (max-width: 900px) {
+  .ts-detail-panel {
+    padding: 17px;
+  }
+
+  .ts-calendar {
+    gap: 6px;
+  }
+
+  .ts-calendar-day {
+    min-height: 78px;
+  }
+
+  .ts-calendar-weekday {
+    font-size: 9px;
+  }
+
+  .ts-calendar-date {
+    font-size: 14px;
+  }
+}
+
+/* Responsive mobile */
+@media (max-width: 600px) {
+  .ts-detail-panel {
+    margin-top: 15px;
+    padding: 14px;
+    border-radius: 13px;
+  }
+
+  .ts-detail-header {
+    align-items: flex-start;
+  }
+
+  .ts-detail-header h3 {
+    font-size: 16px !important;
+  }
+
+  .ts-detail-header .btn {
+    min-height: 32px;
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+
+  .ts-detail-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 14px 0 20px;
+  }
+
+  .ts-summary-item {
+    min-height: 70px;
+    padding: 10px 12px;
+  }
+
+  .ts-summary-item strong {
+    font-size: 22px;
+  }
+
+  .ts-calendar {
+    gap: 5px;
+  }
+
+  .ts-calendar-day {
+    min-height: 68px;
+    padding: 7px 2px;
+    gap: 4px;
+    border-radius: 8px;
+  }
+
+  .ts-calendar-weekday {
+    font-size: 8px;
+  }
+
+  .ts-calendar-date {
+    font-size: 12px;
+  }
+
+  .ts-calendar-status {
+    min-width: 25px;
+    min-height: 18px;
+    padding: 1px 5px;
+    font-size: 9px;
+  }
+
+  .ts-calendar-day.is-today::after {
+    top: -6px;
+    right: 1px;
+    padding: 1px 3px;
+    font-size: 7px;
+  }
+
+  .ts-editor {
+    padding: 13px;
+  }
+
+  .ts-editor-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .ts-editor-status {
+    grid-column: 1 / -1;
+  }
+
+  .ts-selected-info {
+    line-height: 1.8;
+  }
+}
+
+@media (max-width: 380px) {
+  .ts-calendar {
+    gap: 3px;
+  }
+
+  .ts-calendar-day {
+    min-height: 62px;
+  }
+
+  .ts-calendar-weekday {
+    font-size: 7px;
+  }
+
+  .ts-calendar-date {
+    font-size: 11px;
+  }
+}
