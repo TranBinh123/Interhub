@@ -1763,3 +1763,163 @@ tbody tr:hover { background: #f3f9fa; }
     font-size: 11px;
   }
 }
+
+/* ============================================================
+   Cập nhật giao diện (v2)
+   ============================================================ */
+
+/* Topbar luôn cố định khi cuộn */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Bảng dạng thẻ trên điện thoại: mỗi dòng là một thẻ, nhãn lấy từ data-label */
+@media (max-width: 768px) {
+  table.table-cards thead { display: none; }
+  table.table-cards,
+  table.table-cards tbody,
+  table.table-cards tr,
+  table.table-cards td { display: block; width: 100%; }
+  table.table-cards tbody tr:not(.empty-state):not(.group-row) {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+  table.table-cards td:not([colspan]) {
+    display: grid;
+    grid-template-columns: minmax(96px, 38%) 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 5px 0;
+    border: 0;
+    text-align: left;
+  }
+  table.table-cards td:not([colspan])::before {
+    content: attr(data-label);
+    color: #6b829c;
+    font-size: 12px;
+  }
+  table.table-cards td:not([colspan]):empty { display: none; }
+  table.table-cards td[colspan],
+  table.table-cards tr.empty-state td,
+  table.table-cards tr.group-row td {
+    text-align: left;
+    padding: 10px 0;
+  }
+  table.table-cards tr.empty-state,
+  table.table-cards tr.group-row { border: 0; background: none; }
+  table.table-cards .r { text-align: left; }
+}
+
+/* Dòng sinh viên gần về (còn trong 2 tuần trước ngày kết thúc) */
+.row-soon td { background: #fdeceb; }
+.row-soon td:first-child { box-shadow: inset 3px 0 0 #e05a4a; }
+
+/* Thanh công cụ lọc nhiều ô */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 0 0 14px; }
+.filter-bar label { display: block; font-size: 12px; color: #6b829c; margin-bottom: 4px; }
+.filter-bar .filter-field { display: flex; flex-direction: column; }
+.filter-bar .filter-grow { flex: 1 1 220px; }
+.filter-bar input, .filter-bar select { min-width: 150px; }
+.filter-bar input[type="date"] { min-width: 140px; }
+
+/* Thống kê nhanh (chip) */
+.stat-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.stat-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border-radius: 999px; font-size: 12px;
+  background: #edf2f7; color: #173451;
+}
+.stat-chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.stat-chip b { font-size: 13px; }
+.stat-chip--alert { background: #fdeceb; color: #b42318; }
+
+/* Nút xem thêm */
+.more-row { display: flex; justify-content: center; margin-top: 10px; }
+
+/* Nhóm trạng thái (danh sách phiếu) */
+.ev-group { margin-bottom: 18px; }
+.ev-group__head { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.ev-group__head h3 { margin: 0; font-size: 14px; color: #173451; }
+.ev-group__head .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.ev-group__head .count-badge { margin-left: auto; }
+
+/* Biểu đồ tròn báo cáo */
+.rp-donut-wrap { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; margin: 4px 0 8px; }
+.rp-donut { position: relative; width: 220px; height: 220px; flex: 0 0 auto; }
+.rp-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.rp-donut circle { fill: none; stroke-width: 34; transition: stroke-width .15s ease, opacity .15s ease; }
+.rp-donut circle.is-dim { opacity: .35; }
+.rp-donut circle.is-hover { stroke-width: 40; }
+.rp-donut__center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none; text-align: center;
+}
+.rp-donut__center strong { font-size: 26px; color: #173451; }
+.rp-donut__center span { font-size: 12px; color: #6b829c; }
+.rp-legend { list-style: none; margin: 0; padding: 0; flex: 1 1 240px; display: grid; gap: 6px; }
+.rp-legend li {
+  display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px; align-items: center;
+  padding: 7px 10px; border-radius: 10px; cursor: default; font-size: 13px;
+}
+.rp-legend li:hover, .rp-legend li.is-hover { background: #f1f6fb; }
+.rp-legend i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.rp-legend b { color: #173451; }
+.rp-legend small { color: #6b829c; }
+.rp-tip {
+  position: fixed; z-index: 60; pointer-events: none; display: none;
+  background: #173451; color: #fff; padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; line-height: 1.5; box-shadow: 0 6px 18px rgba(0,0,0,.2);
+  max-width: 240px;
+}
+.rp-tip.show { display: block; }
+
+/* Chi tiết chấm công: cửa sổ nổi giữa màn hình */
+.ts-detail-panel {
+  position: fixed !important;
+  inset: 0;
+  z-index: 50;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: rgba(13, 35, 52, .42) !important;
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px !important;
+  animation: none !important;
+  overflow-y: auto;
+}
+.ts-detail-panel[hidden] { display: none !important; }
+.ts-detail-box {
+  width: min(880px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 20px 50px rgba(8, 37, 54, .3);
+}
+
+@media (max-width: 768px) {
+  .ts-detail-panel { padding: 0 !important; align-items: flex-end; }
+  .ts-detail-box { width: 100%; max-height: 92dvh; border-radius: 18px 18px 0 0; padding: 18px 16px; }
+  .filter-bar .filter-field, .filter-bar select, .filter-bar input { width: 100%; min-width: 0; }
+  .filter-bar .filter-grow { flex-basis: 100%; }
+  .rp-donut { width: 180px; height: 180px; margin: 0 auto; }
+  .rp-legend { width: 100%; }
+}
+
+/* Ô lọc không bị kéo cao theo hàng */
+.filter-bar { align-items: flex-start; }
+.filter-bar .filter-field > input,
+.filter-bar .filter-field > select,
+.filter-bar > input,
+.filter-bar > select { height: auto; min-height: 40px; flex: none; }
+.filter-bar .filter-field > input { line-height: 1.4; }
