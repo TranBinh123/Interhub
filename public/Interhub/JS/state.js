@@ -11,8 +11,8 @@ export const state = {
   userProfile: null,
   tickets: [],
   assignDept: "PNS", // bộ phận đang phân công của Phòng Nhân sự (mặc định = HR_DEPT)
-  interns: { q: "" },
-  timesheet: { periodId: "", q: "" },
+  interns: { q: "", school: "", startFrom: "", startTo: "", endFrom: "", endTo: "", status: "", limit: 10 },
+  timesheet: { periodId: "", q: "", code: "", limit: 5 },
   reports: { periodId: "", dept: "" }
 };
 
@@ -50,6 +50,13 @@ export const HR_COLOR = {
 };
 
 export const hrState = { periodId: "", dept: "", status: "", evaluator: "", q: "", limits: {} };
+
+// Số SVTT hiển thị trước trong mỗi nhóm trạng thái, và số thêm mỗi lần bấm "Xem thêm"
+export const GROUP_PREVIEW = 3;
+export const GROUP_MORE_STEP = 10;
+
+// Bộ lọc danh sách phiếu cho Người hướng dẫn / Trưởng bộ phận
+export const evState = { periodId: "", q: "", status: "", evaluator: "", limits: {} };
 
 // Phiếu đã chọn để in hàng loạt (Phòng Nhân sự)
 export const hrPrintSel = new Set();
