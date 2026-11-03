@@ -227,13 +227,17 @@ function read() {
   return fresh;
 }
 
+// Trả về false nếu trình duyệt không lưu được (bộ nhớ đầy, chế độ riêng tư hoặc đang chặn lưu trữ)
 function write(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
   } catch (error) {
-    // Storage bị chặn: thao tác vẫn trả về kết quả nhưng không lưu được
+    return false;
   }
 }
+
+const STORAGE_FAIL = "Không lưu được dữ liệu trên trình duyệt này (bộ nhớ đầy hoặc đang chặn lưu trữ), nên thao tác chưa được ghi nhận. Hãy mở lại bằng cửa sổ trình duyệt thông thường rồi thử lại.";
 
 function now() {
   return new Date().toISOString();
@@ -949,7 +953,7 @@ export const HR_DEPARTMENT = "PNS";
 function rolePermissions(ticket, actor) {
   const none = {
     scores: false, committeeScores: false, strengths: false, improvements: false,
-    submit: false, returnTicket: false, finalize: false, reopen: false,
+    submit: false, finalize: false, reopen: false,
     assign: false, committeeAssign: false, approve: false, supReturn: false, print: false
   };
   if (!ticket || !actor) return none;
@@ -1232,7 +1236,7 @@ export function saveDraft(id, actor, { scores, committeeScore, notes = {} }) {
     ticket[field] = String(value ?? "");
   }
 
-  write(all);
+  if (!write(all)) return fail(STORAGE_FAIL);
   return ok({ ticket: { ...ticket } });
 }
 
@@ -1257,7 +1261,7 @@ export function submit(id, actor) {
   ticket.sendCount += viaMentor ? 0 : 1;
   ticket.returnReason = "";
   addHistory(ticket, actor, viaMentor ? "Gửi Trưởng bộ phận duyệt" : "Gửi Tổ Công tác sinh viên");
-  write(all);
+  if (!write(all)) return fail(STORAGE_FAIL);
   return ok({ ticket: { ...ticket } });
 }
 
@@ -1271,7 +1275,7 @@ export function approveTicket(id, actor) {
   ticket.status = STATUS.COMMITTEE;
   ticket.sendCount += 1;
   addHistory(ticket, actor, "Trưởng bộ phận duyệt", "Đã gửi Tổ Công tác sinh viên");
-  write(all);
+  if (!write(all)) return fail(STORAGE_FAIL);
   return ok({ ticket: { ...ticket } });
 }
 
@@ -1287,22 +1291,7 @@ export function supervisorReturn(id, actor, reason) {
   ticket.status = STATUS.RETURNED;
   ticket.returnReason = text;
   addHistory(ticket, actor, "Trưởng bộ phận trả về", text);
-  write(all);
-  return ok({ ticket: { ...ticket } });
-}
-
-export function returnTicket(id, actor, reason) {
-  const all = read();
-  const ticket = all.tickets[id];
-  if (!ticket) return fail("Phiếu không tồn tại.");
-  if (!permissionsFor(ticket, actor).returnTicket) return fail("Bạn không có quyền trả phiếu này.");
-  const text = String(reason || "").trim();
-  if (!text) return fail("Phải nhập lý do khi trả phiếu.");
-
-  ticket.status = STATUS.RETURNED;
-  ticket.returnReason = text;
-  addHistory(ticket, actor, "Trả về", text);
-  write(all);
+  if (!write(all)) return fail(STORAGE_FAIL);
   return ok({ ticket: { ...ticket } });
 }
 
@@ -1318,7 +1307,7 @@ export function reopen(id, actor, reason) {
   ticket.status = STATUS.RETURNED;
   ticket.returnReason = `Mở lại sau khi chốt: ${text}`;
   addHistory(ticket, actor, "Mở lại phiếu", text);
-  write(all);
+  if (!write(all)) return fail(STORAGE_FAIL);
   return ok({ ticket: { ...ticket } });
 }
 
@@ -1338,7 +1327,7 @@ export function finalize(id, actor, committeeScore) {
   ticket.committeeScore = v;
   ticket.status = STATUS.FINALIZED;
   addHistory(ticket, actor, "Xác nhận chốt", `Điểm Tổ CTSV: ${v}`);
-  write(all);
+  if (!write(all)) return fail(STORAGE_FAIL);
   return ok({ ticket: { ...ticket } });
 }
 
@@ -1560,7 +1549,6 @@ export const DemoStore = {
   listCommitteeSchools,
   saveDraft,
   submit,
-  returnTicket,
   finalize,
   reopen,
   stats,
