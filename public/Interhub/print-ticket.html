@@ -228,7 +228,8 @@
     function sheetHtml(t) {
       const period = DemoStore.listPeriods().find(p => p.id === t.periodId);
       const intern = DemoStore.listInterns().find(i => i.internId === t.internId);
-      const finalizedAt = [...(t.history || [])].reverse().find(h => h.action === "Chốt phiếu")?.at;
+      // Ngày chốt = thời điểm Tổ CTSV xác nhận chốt (ghi trong lịch sử phiếu)
+      const finalizedAt = [...(t.history || [])].reverse().find(h => h.action === "Xác nhận chốt" || h.action === "Chốt phiếu")?.at;
 
       const summary = scoreSummary(t);
       const deptParts = summary.parts;
