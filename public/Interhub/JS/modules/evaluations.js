@@ -129,14 +129,7 @@ export function renderHrTicketRows() {
   }
 
   const schools = hrSchoolMap();
-  const printable = list.filter(t => t.status === STATUS.FINALIZED);
-  const bar = printable.length ? `
-    <div class="hr-bulkbar">
-      <span>${printable.length} phiếu đã chốt trong danh sách · đã chọn ${printable.filter(t => hrPrintSel.has(t.id)).length}</span>
-      <button type="button" class="hr-btn-sm" data-hr-print-all>Chọn tất cả (${printable.length})</button>
-      <button type="button" class="hr-btn-sm" data-hr-print-clear>Bỏ chọn</button>
-      <button type="button" class="hr-btn-sm" data-hr-print-batch>In hàng loạt</button>
-    </div>` : "";
+  const bar = printBarHtml(list.filter(t => t.status === STATUS.FINALIZED));
 
   // Phòng Nhân sự theo dõi nhóm "Chờ Tổ Công tác sinh viên" và "Đã chốt" (nơi chọn phiếu để in)
   box.innerHTML = bar + HR_GROUPS.filter(g => g.key === "waiting_committee" || g.key === "finalized").map(g => {
@@ -162,6 +155,7 @@ export function renderHrTicketRows() {
                 <th>Người đánh giá</th>
                 <th>Trạng thái</th>
                 <th></th>
+                <th class="print-cell" aria-label="Chọn in"></th>
               </tr>
             </thead>
             <tbody>
@@ -176,8 +170,9 @@ export function renderHrTicketRows() {
                   <td data-label="Trạng thái"><span class="hr-badge hr-badge--${t.status}">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</span></td>
                   <td data-label="Thao tác">
                     <a class="hr-btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a>
-                    ${t.status === STATUS.FINALIZED ? `<label class="hr-print-check"><input type="checkbox" data-hr-print-select="${escapeHtml(t.id)}" ${hrPrintSel.has(t.id) ? "checked" : ""}> Chọn in</label><a class="hr-btn-sm" href="./print-ticket.html?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">In phiếu</a>` : ""}
+                    ${t.status === STATUS.FINALIZED ? `<a class="hr-btn-sm" href="./print-ticket.html?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">In phiếu</a>` : ""}
                   </td>
+                  <td class="print-cell" data-label="Chọn in">${printCheckHtml(t)}</td>
                 </tr>`).join("")}
             </tbody>
           </table>
@@ -271,7 +266,7 @@ export function renderEvGroups() {
         <span class="stat-chip"><i style="background:${HR_COLOR[k]}"></i>${escapeHtml(STATUS_LABEL[k])}: <b>${counts[k]}</b></span>`).join("")}
     </div>`;
 
-  const list = evState.status ? base.filter(t => t.status === evState.status) : base;
+  const list = evDisplayed();
   if (!base.length) {
     box.innerHTML = `${chips}<div class="hr-empty-box"><strong>Chưa có phiếu nào</strong>Thử đổi kỳ hoặc bỏ bớt bộ lọc.</div>`;
     return;
@@ -281,6 +276,7 @@ export function renderEvGroups() {
     return;
   }
 
+  const bar = printBarHtml(list.filter(t => t.status === STATUS.FINALIZED));
   const groups = HR_ORDER.map(k => {
     const items = list.filter(t => t.status === k)
       .sort((a, b) => a.internId.localeCompare(b.internId, "vi", { numeric: true }));
@@ -305,6 +301,7 @@ export function renderEvGroups() {
                 <th>Người đánh giá</th>
                 <th>Ngày tạo</th>
                 <th>Hành động</th>
+                <th class="print-cell" aria-label="Chọn in"></th>
               </tr>
             </thead>
             <tbody>
@@ -316,7 +313,8 @@ export function renderEvGroups() {
                   <td data-label="Kỳ đánh giá">${escapeHtml(periodNameOf(t.periodId))}</td>
                   <td data-label="Người đánh giá">${escapeHtml(hrEvaluatorLabel(t))}</td>
                   <td data-label="Ngày tạo">${formatDateTime(t.createdAt)}</td>
-                  <td data-label="Hành động"><a class="btn btn-secondary btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
+                  <td data-label="Hành động"><a class="btn btn-secondary btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a>${t.status === STATUS.FINALIZED ? ` <a class="btn btn-secondary btn-sm" href="./print-ticket.html?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">In phiếu</a>` : ""}</td>
+                  <td class="print-cell" data-label="Chọn in">${printCheckHtml(t)}</td>
                 </tr>`).join("")}
             </tbody>
           </table>
@@ -325,7 +323,7 @@ export function renderEvGroups() {
       </section>`;
   }).join("");
 
-  box.innerHTML = chips + groups;
+  box.innerHTML = chips + bar + groups;
 }
 
 // Gọi khi tải lại dữ liệu cho Người hướng dẫn / Trưởng bộ phận
@@ -337,6 +335,7 @@ export function displayAllTickets() {
 
 export function handleEvClick(event) {
   if (isHR()) return;
+  if (handlePrintClick(event)) return;
   const more = event.target.closest("[data-ev-more]");
   if (more) {
     const key = more.dataset.evMore;
@@ -347,6 +346,7 @@ export function handleEvClick(event) {
 
 export function handleEvChange(event) {
   if (isHR()) return;
+  if (handlePrintChange(event)) return;
   const t = event.target;
   if (t.id === "evPeriod") {
     evState.periodId = t.value;
@@ -373,31 +373,77 @@ export function handleEvInput(event) {
   }
 }
 
+// ===== In phiếu: dùng chung cho PNS và Trưởng bộ phận / Người hướng dẫn =====
+// Danh sách đang hiển thị (đã lọc) và các phiếu đã chốt trong đó
+function evDisplayed() {
+  const base = evBase();
+  return evState.status ? base.filter(t => t.status === evState.status) : base;
+}
+
+function printScope() {
+  if (isHR()) return hrFiltered().filter(t => t.status === STATUS.FINALIZED);
+  return evDisplayed().filter(t => t.status === STATUS.FINALIZED);
+}
+
+function printBarHtml(printable) {
+  if (!printable.length) return "";
+  const selected = printable.filter(t => hrPrintSel.has(t.id)).length;
+  return `
+    <div class="print-bar">
+      <span class="print-bar__info"><strong>${printable.length}</strong> phiếu đã chốt · đã chọn <strong>${selected}</strong></span>
+      <div class="print-bar__actions">
+        <button type="button" class="print-btn print-btn--ghost" data-print-all>Chọn tất cả</button>
+        <button type="button" class="print-btn print-btn--ghost" data-print-clear>Bỏ chọn</button>
+        <button type="button" class="print-btn print-btn--primary" data-print-batch>In hàng loạt</button>
+      </div>
+    </div>`;
+}
+
+function printCheckHtml(t) {
+  if (t.status !== STATUS.FINALIZED) return "";
+  return `<input type="checkbox" class="print-check" data-print-select="${escapeHtml(t.id)}" aria-label="Chọn in phiếu ${escapeHtml(t.internName)}" ${hrPrintSel.has(t.id) ? "checked" : ""}>`;
+}
+
+function rerenderPrintLists() {
+  if (isHR()) renderHrTicketRows();
+  else renderEvGroups();
+}
+
+export function handlePrintClick(event) {
+  if (event.target.closest("[data-print-all]")) {
+    printScope().forEach(t => hrPrintSel.add(t.id));
+    rerenderPrintLists();
+    return true;
+  }
+  if (event.target.closest("[data-print-clear]")) {
+    hrPrintSel.clear();
+    rerenderPrintLists();
+    return true;
+  }
+  if (event.target.closest("[data-print-batch]")) {
+    // In các phiếu đã chọn; nếu chưa chọn thì in toàn bộ phiếu đã chốt đang hiển thị
+    const printable = printScope();
+    const chosen = printable.filter(t => hrPrintSel.has(t.id));
+    const ids = (chosen.length ? chosen : printable).map(t => t.id);
+    if (ids.length) window.open(`./print-ticket.html?ids=${ids.map(id => encodeURIComponent(id)).join(",")}`, "_blank", "noopener");
+    return true;
+  }
+  return false;
+}
+
+export function handlePrintChange(event) {
+  const t = event.target;
+  if (!t.matches("[data-print-select]")) return false;
+  if (t.checked) hrPrintSel.add(t.dataset.printSelect);
+  else hrPrintSel.delete(t.dataset.printSelect);
+  rerenderPrintLists();
+  return true;
+}
+
 export function handleHrClick(event) {
   if (!isHR()) return;
 
-  const printAll = event.target.closest("[data-hr-print-all]");
-  if (printAll) {
-    hrFiltered().filter(t => t.status === STATUS.FINALIZED).forEach(t => hrPrintSel.add(t.id));
-    renderHrTicketRows();
-    return;
-  }
-  if (event.target.closest("[data-hr-print-clear]")) {
-    hrPrintSel.clear();
-    renderHrTicketRows();
-    return;
-  }
-
-  const batch = event.target.closest("[data-hr-print-batch]");
-  if (batch) {
-    // In các phiếu đã chọn; nếu chưa chọn thì in toàn bộ phiếu đã chốt đang lọc
-    const printable = hrFiltered().filter(t => t.status === STATUS.FINALIZED);
-    const chosen = printable.filter(t => hrPrintSel.has(t.id));
-    const ids = (chosen.length ? chosen : printable).map(t => t.id);
-    if (!ids.length) return;
-    window.open(`./print-ticket.html?ids=${ids.map(id => encodeURIComponent(id)).join(",")}`, "_blank", "noopener");
-    return;
-  }
+  if (handlePrintClick(event)) return;
 
   if (event.target.closest("[data-hr-go-committee]")) {
     switchView("assignments");
@@ -441,12 +487,7 @@ export function handleHrChange(event) {
   if (!isHR()) return;
   const t = event.target;
 
-  if (t.matches("[data-hr-print-select]")) {
-    if (t.checked) hrPrintSel.add(t.dataset.hrPrintSelect);
-    else hrPrintSel.delete(t.dataset.hrPrintSelect);
-    renderHrTicketRows();
-    return;
-  }
+  if (handlePrintChange(event)) return;
 
   if (t.matches("[data-hr-dept-filter]") || t.id === "hrDept") {
     hrState.dept = t.value;
