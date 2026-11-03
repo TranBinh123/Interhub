@@ -77,7 +77,7 @@ export function setupUI() {
 
   document.getElementById("assignments").addEventListener("click", handleAssignClick);
   document.getElementById("assignments").addEventListener("change", handleAssignChange);
-  document.getElementById("assignSearch").addEventListener("input", () => { renderAssignments(); });
+  document.getElementById("assignSearch").addEventListener("input", () => { state.assignLimit = 5; renderAssignments(); });
   ["dashboard", "evaluations"].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener("click", event => { handleHrClick(event); handleEvClick(event); });
