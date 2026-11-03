@@ -94,6 +94,7 @@ export function renderHrTicketFilters() {
         <select id="hrStatus" class="hr-select">
           <option value="">Tất cả trạng thái</option>
           <option value="${STATUS.COMMITTEE}" ${hrState.status === STATUS.COMMITTEE ? "selected" : ""}>${escapeHtml(STATUS_LABEL[STATUS.COMMITTEE])}</option>
+          <option value="${STATUS.FINALIZED}" ${hrState.status === STATUS.FINALIZED ? "selected" : ""}>${escapeHtml(STATUS_LABEL[STATUS.FINALIZED])}</option>
         </select>
       </div>
       <div class="filter-field">
@@ -132,11 +133,13 @@ export function renderHrTicketRows() {
   const bar = printable.length ? `
     <div class="hr-bulkbar">
       <span>${printable.length} phiếu đã chốt trong danh sách · đã chọn ${printable.filter(t => hrPrintSel.has(t.id)).length}</span>
+      <button type="button" class="hr-btn-sm" data-hr-print-all>Chọn tất cả (${printable.length})</button>
+      <button type="button" class="hr-btn-sm" data-hr-print-clear>Bỏ chọn</button>
       <button type="button" class="hr-btn-sm" data-hr-print-batch>In hàng loạt</button>
     </div>` : "";
 
-  // Phòng Nhân sự chỉ theo dõi nhóm "Chờ Tổ Công tác sinh viên"
-  box.innerHTML = bar + HR_GROUPS.filter(g => g.key === "waiting_committee").map(g => {
+  // Phòng Nhân sự theo dõi nhóm "Chờ Tổ Công tác sinh viên" và "Đã chốt" (nơi chọn phiếu để in)
+  box.innerHTML = bar + HR_GROUPS.filter(g => g.key === "waiting_committee" || g.key === "finalized").map(g => {
     const items = list.filter(t => hrGroupOf(t) === g.key);
     if (!items.length) return "";
     const limit = hrState.limits[g.key] || GROUP_PREVIEW;
@@ -372,6 +375,18 @@ export function handleEvInput(event) {
 
 export function handleHrClick(event) {
   if (!isHR()) return;
+
+  const printAll = event.target.closest("[data-hr-print-all]");
+  if (printAll) {
+    hrFiltered().filter(t => t.status === STATUS.FINALIZED).forEach(t => hrPrintSel.add(t.id));
+    renderHrTicketRows();
+    return;
+  }
+  if (event.target.closest("[data-hr-print-clear]")) {
+    hrPrintSel.clear();
+    renderHrTicketRows();
+    return;
+  }
 
   const batch = event.target.closest("[data-hr-print-batch]");
   if (batch) {
