@@ -12,7 +12,7 @@ import { COLLECTIONS } from "./firebase-config.js";
 import { collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 import { handleAssignChange, handleAssignClick, renderAssignments } from "./modules/assignments.js";
 import { followBanner, loadDashboardData, renderOverview, renderUsers } from "./modules/dashboard.js";
-import { handleHrChange, handleHrClick, handleHrInput, renderHrAll } from "./modules/evaluations.js";
+import { handleEvChange, handleEvClick, handleEvInput, handleHrChange, handleHrClick, handleHrInput, renderHrAll } from "./modules/evaluations.js";
 import { handleDemoAction, handleFileChange, renderDepartments, renderFollowUp, renderInterns, renderInternsView } from "./modules/interns.js";
 import { renderAdminPeriods, renderPeriods } from "./modules/periods.js";
 import { renderReportsView } from "./modules/reports.js";
@@ -80,9 +80,9 @@ export function setupUI() {
   document.getElementById("assignSearch").addEventListener("input", () => { renderAssignments(); });
   ["dashboard", "evaluations"].forEach(id => {
     const el = document.getElementById(id);
-    el.addEventListener("click", handleHrClick);
-    el.addEventListener("change", handleHrChange);
-    el.addEventListener("input", handleHrInput);
+    el.addEventListener("click", event => { handleHrClick(event); handleEvClick(event); });
+    el.addEventListener("change", event => { handleHrChange(event); handleEvChange(event); });
+    el.addEventListener("input", event => { handleHrInput(event); handleEvInput(event); });
   });
 
   // Quay lại từ trang phiếu (nút Quay lại / bfcache) hoặc đổi tab: nạp lại dữ liệu mới nhất
