@@ -11,9 +11,10 @@ export const state = {
   userProfile: null,
   tickets: [],
   assignDept: "PNS", // bộ phận đang phân công của Phòng Nhân sự (mặc định = HR_DEPT)
-  interns: { q: "", school: "", startFrom: "", startTo: "", endFrom: "", endTo: "", status: "", limit: 10 },
-  timesheet: { periodId: "", q: "", code: "", limit: 5 },
-  reports: { periodId: "", dept: "" }
+  interns: { q: "", school: "", status: "", limit: 5 },
+  assignLimit: 5,
+  timesheet: { periodId: "", q: "", dept: "", limit: 5 },
+  reports: { periodId: "", dept: "", limit: 5 }
 };
 
 // Trạng thái trang quản trị (admin.html)
