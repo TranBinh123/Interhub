@@ -768,11 +768,15 @@
         : "<li>Chưa có lịch sử thao tác.</li>";
 
       const reviewing = p.approve || p.supReturn;
+      // Chỉ Trưởng bộ phận được trả về người hướng dẫn; Phòng Nhân sự nhập lý do khi mở lại phiếu đã chốt.
+      // Tổ Công tác sinh viên không trả về: nhập điểm và xác nhận chốt.
+      const needsReason = p.reopen || p.supReturn;
       const actionsHtml = p.finalize || p.reopen || reviewing ? `
+        ${needsReason ? `
         <div class="form-group">
-          <label>${p.reopen ? "Lý do mở lại (bắt buộc, ít nhất 10 ký tự)" : reviewing ? "Lý do trả về người hướng dẫn (bắt buộc khi trả phiếu)" : "Lý do trả về (bắt buộc khi trả phiếu)"}</label>
+          <label>${p.reopen ? "Lý do mở lại (bắt buộc, ít nhất 10 ký tự)" : "Lý do trả về người hướng dẫn (bắt buộc khi trả phiếu)"}</label>
           <textarea id="returnReason" placeholder="${p.reopen ? "Nêu lý do mở lại phiếu đã chốt..." : "Nêu rõ nội dung cần bổ sung..."}"></textarea>
-        </div>
+        </div>` : ""}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           ${p.approve ? `<button type="button" class="btn btn-primary" id="approveBtn">Duyệt và gửi Tổ Công tác sinh viên</button>` : ""}
           ${p.supReturn ? `<button type="button" class="btn btn-secondary" id="supReturnBtn">Trả về người hướng dẫn</button>` : ""}
@@ -819,17 +823,22 @@
       });
 
       $("finalizeBtn")?.addEventListener("click", () => {
-        // Điểm trong ô chưa lưu vẫn được dùng: lưu luôn khi xác nhận chốt
-        if (currentCommittee === null || currentCommittee === undefined) {
-          showMessage("error", "❌ Hãy nhập Điểm Tổ CTSV trước khi xác nhận chốt.");
+        // Đọc trực tiếp ô điểm tại thời điểm bấm, không phụ thuộc sự kiện change đã kịp chạy hay chưa
+        const raw = $("committeeScore").value.trim();
+        const score = raw === "" ? null : Number(raw);
+        const valid = score !== null && !Number.isNaN(score) && score >= SCORE_MIN && score <= SCORE_MAX && Math.round(score * 2) === score * 2;
+        if (!valid) {
+          showMessage("error", `❌ Hãy nhập Điểm Tổ CTSV từ ${SCORE_MIN} đến ${SCORE_MAX} (bước 0.5) trước khi xác nhận chốt.`);
           window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
-        if (!confirm(`Xác nhận chốt phiếu với Điểm Tổ CTSV ${currentCommittee}? Sau khi chốt, chỉ Phòng Nhân sự mới mở lại được.`)) return;
-        const result = DemoStore.finalize(ticketId, actor, currentCommittee);
+        currentCommittee = score;
+        if (!confirm(`Xác nhận chốt phiếu với Điểm Tổ CTSV ${score}? Sau khi chốt, chỉ Phòng Nhân sự mới mở lại được.`)) return;
+        const result = DemoStore.finalize(ticketId, actor, score);
+        // Thông báo hiển thị ở đầu trang, nên luôn cuộn lên để người dùng thấy kết quả
+        window.scrollTo({ top: 0, behavior: "smooth" });
         if (!result.ok) {
           showMessage("error", "❌ " + result.error);
-          window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
         currentTicket = result.ticket;
