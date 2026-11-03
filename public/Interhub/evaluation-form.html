@@ -768,7 +768,7 @@
         : "<li>Chưa có lịch sử thao tác.</li>";
 
       const reviewing = p.approve || p.supReturn;
-      const actionsHtml = p.finalize || p.returnTicket || p.reopen || reviewing ? `
+      const actionsHtml = p.finalize || p.reopen || reviewing ? `
         <div class="form-group">
           <label>${p.reopen ? "Lý do mở lại (bắt buộc, ít nhất 10 ký tự)" : reviewing ? "Lý do trả về người hướng dẫn (bắt buộc khi trả phiếu)" : "Lý do trả về (bắt buộc khi trả phiếu)"}</label>
           <textarea id="returnReason" placeholder="${p.reopen ? "Nêu lý do mở lại phiếu đã chốt..." : "Nêu rõ nội dung cần bổ sung..."}"></textarea>
@@ -776,7 +776,6 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           ${p.approve ? `<button type="button" class="btn btn-primary" id="approveBtn">Duyệt và gửi Tổ Công tác sinh viên</button>` : ""}
           ${p.supReturn ? `<button type="button" class="btn btn-secondary" id="supReturnBtn">Trả về người hướng dẫn</button>` : ""}
-          ${p.returnTicket ? `<button type="button" class="btn btn-secondary" id="returnBtn">Trả về bổ sung</button>` : ""}
           ${p.finalize ? `<button type="button" class="btn btn-primary" id="finalizeBtn">Xác nhận chốt</button>` : ""}
           ${p.reopen ? `<button type="button" class="btn btn-secondary" id="reopenBtn">Mở lại phiếu</button>` : ""}
         </div>` : "";
@@ -810,14 +809,6 @@
         showMessage("success", "✓ Đã trả phiếu về người hướng dẫn (dữ liệu mô phỏng)");
       });
 
-      $("returnBtn")?.addEventListener("click", () => {
-        const result = DemoStore.returnTicket(ticketId, actor, $("returnReason").value);
-        if (!result.ok) return showMessage("error", "❌ " + result.error);
-        currentTicket = result.ticket;
-        refresh();
-        showMessage("success", "✓ Đã trả phiếu về người đánh giá (dữ liệu mô phỏng)");
-      });
-
       $("reopenBtn")?.addEventListener("click", () => {
         if (!confirm("Mở lại phiếu đã chốt để chỉnh sửa?")) return;
         const result = DemoStore.reopen(ticketId, actor, $("returnReason").value);
@@ -828,9 +819,19 @@
       });
 
       $("finalizeBtn")?.addEventListener("click", () => {
-        if (!confirm("Xác nhận chốt phiếu này?")) return;
-        const result = DemoStore.finalize(ticketId, actor);
-        if (!result.ok) return showMessage("error", "❌ " + result.error);
+        // Điểm trong ô chưa lưu vẫn được dùng: lưu luôn khi xác nhận chốt
+        if (currentCommittee === null || currentCommittee === undefined) {
+          showMessage("error", "❌ Hãy nhập Điểm Tổ CTSV trước khi xác nhận chốt.");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+        if (!confirm(`Xác nhận chốt phiếu với Điểm Tổ CTSV ${currentCommittee}? Sau khi chốt, chỉ Phòng Nhân sự mới mở lại được.`)) return;
+        const result = DemoStore.finalize(ticketId, actor, currentCommittee);
+        if (!result.ok) {
+          showMessage("error", "❌ " + result.error);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         currentTicket = result.ticket;
         refresh();
         showMessage("success", "✓ Đã chốt phiếu (dữ liệu mô phỏng)");
