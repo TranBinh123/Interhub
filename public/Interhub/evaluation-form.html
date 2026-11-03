@@ -325,11 +325,6 @@
         padding: 8px;
       }
     }
-    .att-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
-    .att-day { border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px; background: #fff; display: flex; flex-direction: column; gap: 6px; }
-    .att-day--sun { background: #f5f7fa; }
-    .att-day small { color: #64748b; }
-    .att-summary { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0 14px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -372,14 +367,6 @@
             <input type="text" id="department" readonly>
           </div>
         </div>
-      </div>
-
-      <!-- Section 1b: Chấm công -->
-      <div class="card" id="attendanceCard">
-        <h2>Chấm công thực tập</h2>
-        <p style="color: var(--text-muted); margin: 0 0 8px;">Ký hiệu: <b>o</b> đi làm · <b>v</b> vắng · <b>Off</b> nghỉ trong tuần. Chưa ghi thì để trống.</p>
-        <div id="attendanceSummary" class="att-summary"></div>
-        <div id="attendanceGrid" class="att-grid"></div>
       </div>
 
       <!-- Section 2: Evaluation Scores -->
@@ -850,47 +837,9 @@
       });
     }
 
-    const WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-
-    // Chấm công: ô theo từng ngày từ ngày vào đến ngày về (trong kỳ). Người hướng dẫn được phân công chỉnh.
-    function renderAttendance() {
-      const days = DemoStore.attendanceDays(ticketId);
-      const p = DemoStore.permissionsFor(currentTicket, actor);
-      const counts = { o: 0, v: 0, Off: 0 };
-      days.forEach(d => { if (counts[d.code] !== undefined) counts[d.code] += 1; });
-      $("attendanceSummary").innerHTML = `
-        <span>Đi làm <b>${counts.o}</b></span>
-        <span>Vắng <b>${counts.v}</b></span>
-        <span>Off <b>${counts.Off}</b></span>
-        <span>Tổng ngày <b>${days.length}</b></span>`;
-      $("attendanceGrid").innerHTML = days.length ? days.map(d => {
-        const [, mm, dd] = d.date.split("-");
-        return `
-          <div class="att-day${d.weekday === 0 ? " att-day--sun" : ""}">
-            <small>${WEEKDAYS[d.weekday]} · ${dd}/${mm}</small>
-            <select data-att-date="${esc(d.date)}" aria-label="Chấm công ngày ${dd}/${mm}" ${p.attendance ? "" : "disabled"}>
-              <option value="" ${d.code === "" ? "selected" : ""}>—</option>
-              <option value="o" ${d.code === "o" ? "selected" : ""}>o · đi làm</option>
-              <option value="v" ${d.code === "v" ? "selected" : ""}>v · vắng</option>
-              <option value="Off" ${d.code === "Off" ? "selected" : ""}>Off · nghỉ</option>
-            </select>
-          </div>`;
-      }).join("") : `<p>Không có ngày thực tập nào trong kỳ này.</p>`;
-    }
-
-    $("attendanceGrid").addEventListener("change", event => {
-      const sel = event.target;
-      if (!sel.matches("[data-att-date]")) return;
-      const result = DemoStore.setAttendance(ticketId, actor, sel.dataset.attDate, sel.value);
-      if (!result.ok) showMessage("error", "❌ " + result.error);
-      else currentTicket = result.ticket;
-      renderAttendance();
-    });
-
     function refresh() {
       renderHeader();
       renderRoleNotes();
-      renderAttendance();
       $("committeeScore").value = currentCommittee ?? "";
       applyPermissions();
       updateResults();
