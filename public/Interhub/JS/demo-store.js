@@ -1001,7 +1001,15 @@ function rolePermissions(ticket, actor) {
 // Chấm công do Người hướng dẫn được phân công thực hiện (cùng quyền với điểm)
 export function permissionsFor(ticket, actor) {
   const p = rolePermissions(ticket, actor);
-  return { ...p, attendance: p.scores };
+  return { ...p, attendance: p.scores || isSelfAssignedSupervisor(ticket, actor) };
+}
+
+// Trưởng bộ phận được phân công tự đánh giá SVTT: được chấm công đến khi Tổ CTSV nhận phiếu
+function isSelfAssignedSupervisor(ticket, actor) {
+  return actor?.role === "supervisor"
+    && actor.department === ticket.department
+    && !!ticket.evaluatorAssigned && !ticket.evaluatorUid
+    && [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.RETURNED, STATUS.SUP_REVIEW].includes(ticket.status);
 }
 
 // Phòng Nhân sự chỉ tự đánh giá SVTT của chính Phòng Nhân sự
