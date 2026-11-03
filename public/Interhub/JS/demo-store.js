@@ -971,7 +971,8 @@ function rolePermissions(ticket, actor) {
   if (actor.role === "committee") {
     if (ticket.committeeUid !== actor.uid) return none;
     const scoring = ticket.status === STATUS.COMMITTEE;
-    return { ...none, committeeScores: scoring, returnTicket: scoring, finalize: scoring, print: finalized };
+    // Tổ CTSV không trả về: nhập điểm và xác nhận chốt là một bước
+    return { ...none, committeeScores: scoring, finalize: scoring, print: finalized };
   }
 
   if (!canView(ticket, actor)) return none;
@@ -1321,15 +1322,22 @@ export function reopen(id, actor, reason) {
   return ok({ ticket: { ...ticket } });
 }
 
-export function finalize(id, actor) {
+// Tổ Công tác sinh viên: nhập điểm và xác nhận chốt trong cùng một bước
+export function finalize(id, actor, committeeScore) {
   const all = read();
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).finalize) return fail("Chỉ Tổ Công tác sinh viên được chốt phiếu đang chờ chấm điểm.");
-  if (typeof ticket.committeeScore !== "number") return fail("Tổ Công tác sinh viên chưa chấm điểm phiếu này.");
 
+  const v = committeeScore === undefined ? ticket.committeeScore : committeeScore;
+  if (typeof v !== "number") return fail("Hãy nhập Điểm Tổ CTSV trước khi xác nhận chốt.");
+  if (v < SCORE_MIN || v > SCORE_MAX || Math.round(v * 2) !== v * 2) {
+    return fail(`Điểm Tổ Công tác sinh viên phải từ ${SCORE_MIN} đến ${SCORE_MAX}, bước 0.5.`);
+  }
+
+  ticket.committeeScore = v;
   ticket.status = STATUS.FINALIZED;
-  addHistory(ticket, actor, "Chốt phiếu");
+  addHistory(ticket, actor, "Xác nhận chốt", `Điểm Tổ CTSV: ${v}`);
   write(all);
   return ok({ ticket: { ...ticket } });
 }
