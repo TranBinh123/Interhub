@@ -4,7 +4,7 @@
 // ============================================
 
 import { DemoStore, STATUS, STATUS_LABEL } from "../db.js";
-import { state } from "../state.js";
+import { HR_COLOR, state } from "../state.js";
 import { actorInfo, average, departmentOptions, downloadCsv, escapeHtml, formatScore, periodOptions, resolvePeriodId } from "../utils.js";
 
 // ===== Mục "Báo cáo": số liệu theo kỳ, theo bộ phận và bảng kết quả (xuất CSV) =====
@@ -46,9 +46,9 @@ export function reportDepartmentRows(list) {
   if (!rows.length) return `<tr class="empty-state"><td colspan="6">Chưa có dữ liệu</td></tr>`;
   return rows.map(r => `
     <tr>
-      <td>${escapeHtml(r.department)}<br><small>${escapeHtml(DemoStore.departmentName(r.department))}</small></td>
-      <td class="r">${r.total}</td><td class="r">${r.finalized}</td>
-      <td class="r">${formatScore(r.dept)}</td><td class="r">${formatScore(r.committee)}</td><td class="r">${formatScore(r.final)}</td>
+      <td data-label="Bộ phận">${escapeHtml(r.department)}<br><small>${escapeHtml(DemoStore.departmentName(r.department))}</small></td>
+      <td class="r" data-label="Tổng phiếu">${r.total}</td><td class="r" data-label="Đã chốt">${r.finalized}</td>
+      <td class="r" data-label="Điểm bộ phận">${formatScore(r.dept)}</td><td class="r" data-label="Điểm Tổ CTSV">${formatScore(r.committee)}</td><td class="r" data-label="Điểm cuối">${formatScore(r.final)}</td>
     </tr>`).join("");
 }
 
@@ -56,16 +56,128 @@ export function reportResultRows(results) {
   if (!results.length) return `<tr class="empty-state"><td colspan="6">Chưa có phiếu nào được chốt</td></tr>`;
   return results.map(({ ticket: t, summary: s }) => `
     <tr>
-      <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
-      <td>${escapeHtml(t.school || "—")}</td><td>${escapeHtml(t.department)}</td>
-      <td class="r">${formatScore(s.dept)}</td><td class="r">${formatScore(s.committee)}</td><td class="r"><b>${formatScore(s.final)}</b></td>
+      <td data-label="Sinh viên">${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
+      <td data-label="Trường">${escapeHtml(t.school || "—")}</td><td data-label="Bộ phận">${escapeHtml(t.department)}</td>
+      <td class="r" data-label="Điểm bộ phận">${formatScore(s.dept)}</td><td class="r" data-label="Điểm Tổ CTSV">${formatScore(s.committee)}</td><td class="r" data-label="Điểm cuối"><b>${formatScore(s.final)}</b></td>
     </tr>`).join("");
+}
+
+// ===== Biểu đồ tròn theo trạng thái =====
+let rpTipData = {};
+
+function statusColor(code) {
+  return HR_COLOR[code] || "#94a3b8";
+}
+
+function donutSegments(items, total) {
+  const r = 90;
+  const C = 2 * Math.PI * r;
+  let acc = 0;
+  return items.map(it => {
+    const len = total ? (it.count / total) * C : 0;
+    const seg = `<circle data-rp-seg="${it.code}" cx="110" cy="110" r="${r}" stroke="${statusColor(it.code)}"
+      stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-acc}"></circle>`;
+    acc += len;
+    return seg;
+  }).join("");
+}
+
+export function reportStatusDonut(list) {
+  const items = Object.keys(STATUS_LABEL)
+    .map(code => ({ code, count: list.filter(t => t.status === code).length }))
+    .filter(it => it.count > 0);
+  const total = list.length;
+
+  // Dữ liệu chi tiết cho ô hiển thị khi rê chuột
+  rpTipData = Object.fromEntries(Object.keys(STATUS_LABEL).map(code => {
+    const members = list.filter(t => t.status === code)
+      .sort((a, b) => a.internId.localeCompare(b.internId, "vi", { numeric: true }));
+    const names = members.slice(0, 6).map(t => `${escapeHtml(t.internId)} · ${escapeHtml(t.internName)}`);
+    const more = members.length > 6 ? `<br>… và ${members.length - 6} SVTT khác` : "";
+    const pct = total ? Math.round((members.length / total) * 100) : 0;
+    return [code, `<strong>${escapeHtml(STATUS_LABEL[code])}</strong><br>${members.length} SVTT · ${pct}%${members.length ? `<br>${names.join("<br>")}${more}` : ""}`];
+  }));
+
+  if (!total) {
+    return `<div class="hr-empty-box"><strong>Chưa có phiếu</strong>Không có dữ liệu cho bộ lọc đang chọn.</div>`;
+  }
+
+  return `
+    <div class="rp-donut-wrap">
+      <div class="rp-donut" aria-label="Biểu đồ tròn theo trạng thái">
+        <svg viewBox="0 0 220 220" role="img">
+          <circle cx="110" cy="110" r="90" stroke="#edf2f7" style="stroke-width:34" fill="none"></circle>
+          ${donutSegments(items, total)}
+        </svg>
+        <div class="rp-donut__center"><strong>${total}</strong><span>phiếu</span></div>
+      </div>
+      <ul class="rp-legend">
+        ${items.map(it => `
+          <li data-rp-leg="${it.code}">
+            <i style="background:${statusColor(it.code)}"></i>
+            <span>${escapeHtml(STATUS_LABEL[it.code])}</span>
+            <b>${it.count}</b>
+            <small>${Math.round((it.count / total) * 100)}%</small>
+          </li>`).join("")}
+      </ul>
+    </div>`;
+}
+
+function rpTip() {
+  let el = document.getElementById("rpTip");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "rpTip";
+    el.className = "rp-tip";
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function rpHighlight(code) {
+  const root = document.getElementById("reportsRoot");
+  if (!root) return;
+  root.querySelectorAll("[data-rp-seg]").forEach(c => {
+    c.classList.toggle("is-dim", !!code && c.dataset.rpSeg !== code);
+    c.classList.toggle("is-hover", !!code && c.dataset.rpSeg === code);
+  });
+  root.querySelectorAll("[data-rp-leg]").forEach(li => li.classList.toggle("is-hover", li.dataset.rpLeg === code));
+}
+
+function bindReportTooltip(root) {
+  if (root.dataset.tip) return;
+  root.dataset.tip = "1";
+  root.addEventListener("mouseover", event => {
+    const el = event.target.closest("[data-rp-seg], [data-rp-leg]");
+    if (!el) return;
+    const code = el.dataset.rpSeg || el.dataset.rpLeg;
+    const tip = rpTip();
+    tip.innerHTML = rpTipData[code] || "";
+    tip.classList.add("show");
+    rpHighlight(code);
+  });
+  root.addEventListener("mousemove", event => {
+    const tip = document.getElementById("rpTip");
+    if (!tip || !tip.classList.contains("show")) return;
+    const x = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    const y = Math.min(event.clientY + 14, window.innerHeight - tip.offsetHeight - 8);
+    tip.style.left = `${Math.max(8, x)}px`;
+    tip.style.top = `${Math.max(8, y)}px`;
+  });
+  root.addEventListener("mouseout", event => {
+    const el = event.target.closest("[data-rp-seg], [data-rp-leg]");
+    if (!el) return;
+    const tip = document.getElementById("rpTip");
+    if (tip) tip.classList.remove("show");
+    rpHighlight("");
+  });
 }
 
 export function renderReportsView() {
   const root = document.getElementById("reportsRoot");
   if (!root) return;
   state.reports.periodId = resolvePeriodId(state.reports.periodId);
+  bindReportTooltip(root);
   if (!root.dataset.bound) {
     root.dataset.bound = "1";
     root.addEventListener("change", event => {
@@ -84,7 +196,6 @@ export function renderReportsView() {
   const pct = list.length ? Math.round((finalized / list.length) * 100) : 0;
   const results = reportResults(list);
   const avgFinal = average(results.map(r => r.summary.final));
-  const byStatus = Object.keys(STATUS_LABEL).map(code => ({ code, count: list.filter(t => t.status === code).length }));
 
   root.innerHTML = `
     <h2 style="display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;gap:12px;flex-wrap:wrap;">
@@ -101,22 +212,17 @@ export function renderReportsView() {
       <div class="stat-card"><div class="stat-label">Điểm cuối trung bình</div><div class="stat-value">${formatScore(avgFinal)}</div></div>
     </div>
     <h3>Theo trạng thái</h3>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Trạng thái</th><th class="r">Số phiếu</th></tr></thead>
-        <tbody>${byStatus.map(s => `<tr><td>${escapeHtml(STATUS_LABEL[s.code])}</td><td class="r">${s.count}</td></tr>`).join("")}</tbody>
-      </table>
-    </div>
+    <div class="card" style="padding:16px;">${reportStatusDonut(list)}</div>
     <h3>Theo bộ phận</h3>
     <div class="table-wrap">
-      <table>
+      <table class="table-cards">
         <thead><tr><th>Bộ phận</th><th class="r">Tổng phiếu</th><th class="r">Đã chốt</th><th class="r">Điểm bộ phận</th><th class="r">Điểm Tổ CTSV</th><th class="r">Điểm cuối</th></tr></thead>
         <tbody>${reportDepartmentRows(list)}</tbody>
       </table>
     </div>
     <h3>Kết quả phiếu đã chốt</h3>
     <div class="table-wrap">
-      <table>
+      <table class="table-cards">
         <thead><tr><th>Sinh viên</th><th>Trường</th><th>Bộ phận</th><th class="r">Điểm bộ phận</th><th class="r">Điểm Tổ CTSV</th><th class="r">Điểm cuối</th></tr></thead>
         <tbody>${reportResultRows(results)}</tbody>
       </table>

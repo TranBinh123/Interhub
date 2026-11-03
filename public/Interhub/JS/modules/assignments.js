@@ -23,17 +23,17 @@ export function renderCommitteeSchools() {
     `<tr class="empty-state"><td colspan="6">Chưa có tài khoản Tổ Công tác sinh viên. Admin cần duyệt tài khoản với vai trò "Tổ Công tác sinh viên".</td></tr>`;
   document.getElementById("committeeSchoolTable").innerHTML = notice + (rows.length ? rows.map(g => `
     <tr>
-      <td>${escapeHtml(g.school || "Chưa có trường")}</td>
-      <td class="r">${g.total}</td>
-      <td class="r">${g.toCommittee}</td>
-      <td class="r">${g.scored}</td>
-      <td>
+      <td data-label="Trường">${escapeHtml(g.school || "Chưa có trường")}</td>
+      <td class="r" data-label="SVTT">${g.total}</td>
+      <td class="r" data-label="Chờ Tổ CTSV">${g.toCommittee}</td>
+      <td class="r" data-label="Đã có điểm Tổ CTSV">${g.scored}</td>
+      <td data-label="Tổ CTSV phụ trách">
         <select data-school-committee aria-label="Tổ CTSV phụ trách ${escapeHtml(g.school || "chưa có trường")}">
           <option value="">— Chưa phân công —</option>
           ${members.map(m => `<option value="${escapeHtml(m.uid)}" ${g.committeeUid === m.uid ? "selected" : ""}>${escapeHtml(m.fullName)}</option>`).join("")}
         </select>
       </td>
-      <td><button type="button" class="btn btn-secondary btn-sm" data-action="save-school-committee"
+      <td data-label="Thao tác"><button type="button" class="btn btn-secondary btn-sm" data-action="save-school-committee"
             data-school="${escapeHtml(g.school)}">Lưu</button></td>
     </tr>`).join("") : `<tr class="empty-state"><td colspan="6">Chưa có SVTT nào trong kỳ này.</td></tr>`);
 }
@@ -126,13 +126,13 @@ export function renderAssignments() {
     const checked = assignSelected.has(t.id) ? "checked" : "";
     return `
       <tr>
-        <td><input type="checkbox" data-select-ticket="${escapeHtml(t.id)}" ${checked} ${disabled}></td>
-        <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
-        <td>${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
-        <td>${t.evaluatorAssigned ? escapeHtml(t.evaluatorName || "—") : "<em>Đang đợi giao</em>"}</td>
-        <td><select data-assign-for="${escapeHtml(t.id)}" ${disabled}>${options}</select></td>
-        <td>${committeeCell}</td>
-        <td><button type="button" class="btn btn-secondary btn-sm" data-action="assign"
+        <td data-label="Chọn"><input type="checkbox" data-select-ticket="${escapeHtml(t.id)}" ${checked} ${disabled}></td>
+        <td data-label="Sinh viên">${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
+        <td data-label="Trạng thái">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
+        <td data-label="Người đánh giá hiện tại">${t.evaluatorAssigned ? escapeHtml(t.evaluatorName || "—") : "<em>Đang đợi giao</em>"}</td>
+        <td data-label="Giao cho"><select data-assign-for="${escapeHtml(t.id)}" ${disabled}>${options}</select></td>
+        <td data-label="Tổ CTSV">${committeeCell}</td>
+        <td data-label="Thao tác"><button type="button" class="btn btn-secondary btn-sm" data-action="assign"
               data-ticket-id="${escapeHtml(t.id)}" ${disabled}>Lưu</button></td>
       </tr>`;
   }).join("");

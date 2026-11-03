@@ -7,7 +7,7 @@ import { applyHrLayout } from "../components/sidebar.js";
 import { DemoStore, MEMBER_ROLES, STATUS, STATUS_LABEL } from "../db.js";
 import { USER_STATUS } from "../firebase-config.js";
 import { switchView } from "../layout.js";
-import { displayAllTickets, fillTable, hrAllTickets, hrEnsurePeriod, renderHrAll, ticketRow } from "./evaluations.js";
+import { displayAllTickets, hrAllTickets, hrEnsurePeriod, renderHrAll } from "./evaluations.js";
 import { renderPeriods } from "./periods.js";
 import { ASSIGNABLE_ROLES, HR_COLOR, HR_ORDER, NO_DEPT_ROLES, ROLE_LABELS, STATUS_LABELS, admin, hrState, state } from "../state.js";
 import { actorInfo, dateText, departmentLabel, escapeHtml, html, isHR } from "../utils.js";
@@ -215,7 +215,6 @@ export function loadDashboardData() {
   renderFollow(actor);
   renderMentorProgress(actor, period);
   renderTodo(period, actor);
-  displayRecentTickets();
   displayAllTickets();
   renderPeriods();
 }
@@ -277,8 +276,8 @@ export function renderMentorProgress(actor, period) {
   const rows = DemoStore.mentorProgress(actor, period.id);
   box.classList.remove("hidden");
   const groups = [
-    { label: "Cần nhắc", key: "todo", color: "#e05a4a" },
-    { label: "Chờ bạn duyệt", key: "review", color: "#8b5cf6" },
+    { label: "Chưa đánh giá", key: "todo", color: "#e05a4a" },
+    { label: "Cần TBP duyệt", key: "review", color: "#8b5cf6" },
     { label: "Chờ Tổ CTSV", key: "committee", color: "#e0a526" },
     { label: "Đã chốt", key: "finalized", color: "#2d8c7f" }
   ];
@@ -292,28 +291,28 @@ export function renderMentorProgress(actor, period) {
   };
   const body = rows.map(r => `
     <tr>
-      <td>${escapeHtml(r.name)}</td>
-      <td class="r">${r.total}</td>
-      <td class="r"><span class="mentor-flag${r.todo ? "" : " mentor-flag--ok"}">${r.todo}</span></td>
-      <td class="r">${r.review}</td>
-      <td class="r">${r.committee}</td>
-      <td class="r">${r.finalized}</td>
-      <td>${bar(r)}</td>
+      <td data-label="Người đánh giá">${escapeHtml(r.name)}</td>
+      <td class="r" data-label="Tổng">${r.total}</td>
+      <td class="r" data-label="Chưa đánh giá"><span class="mentor-flag${r.todo ? "" : " mentor-flag--ok"}">${r.todo}</span></td>
+      <td class="r" data-label="Cần TBP duyệt">${r.review}</td>
+      <td class="r" data-label="Chờ Tổ CTSV">${r.committee}</td>
+      <td class="r" data-label="Đã chốt">${r.finalized}</td>
+      <td data-label="Tiến độ">${bar(r)}</td>
     </tr>`).join("");
 
   box.innerHTML = `
     <h2>Tiến độ đánh giá theo người hướng dẫn</h2>
-    <p>Bộ phận <strong>${escapeHtml(actor.department || "—")}</strong> · ${sum("total")} phiếu. Cần nhắc là phiếu chưa gửi, đang thực hiện hoặc bị trả về.</p>
+    <p>Bộ phận <strong>${escapeHtml(actor.department || "—")}</strong> · ${sum("total")} phiếu. Chưa đánh giá là phiếu chưa gửi, đang thực hiện hoặc bị trả về.</p>
     <div class="mentor-chips">${chips}</div>
     ${rows.length ? `
     <div class="table-wrap">
-      <table class="mentor-table">
+      <table class="mentor-table table-cards">
         <thead>
           <tr>
             <th>Người đánh giá</th>
             <th class="r">Tổng</th>
-            <th class="r">Cần nhắc</th>
-            <th class="r">Chờ duyệt</th>
+            <th class="r">Chưa đánh giá</th>
+            <th class="r">Cần TBP duyệt</th>
             <th class="r">Chờ Tổ CTSV</th>
             <th class="r">Đã chốt</th>
             <th>Tiến độ</th>
@@ -327,6 +326,10 @@ export function renderMentorProgress(actor, period) {
 }
 
 // Việc cần làm theo vai trò (README mục 6, 7.2)
+// Trạng thái mở rộng danh sách "Việc cần làm" (giữ qua các lần vẽ lại)
+let todoExpanded = false;
+const TODO_PREVIEW = 4;
+
 export function renderTodo(period, actor) {
   const box = document.getElementById("todoBox");
   if (!box) return;
@@ -347,11 +350,12 @@ export function renderTodo(period, actor) {
 
   const todo = DemoStore.todoFor(actor, period.id);
   const hint = todoHint(actor, period, todo);
-  const rows = todo.slice(0, 10).map(t => `
+  const shown = todoExpanded ? todo : todo.slice(0, TODO_PREVIEW);
+  const rows = shown.map(t => `
     <tr>
-      <td>${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small>${t.evaluationNote ? `<br><small style="color:#9a3412;">${escapeHtml(t.evaluationNote)}</small>` : ""}</td>
-      <td>${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
-      <td><a class="btn btn-secondary btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
+      <td data-label="Sinh viên">${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small>${t.evaluationNote ? `<br><small style="color:#9a3412;">${escapeHtml(t.evaluationNote)}</small>` : ""}</td>
+      <td data-label="Trạng thái">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
+      <td data-label="Hành động"><a class="btn btn-secondary btn-sm" href="./evaluation-form.html?id=${encodeURIComponent(t.id)}">Mở phiếu</a></td>
     </tr>`).join("");
 
   box.innerHTML = `
@@ -366,14 +370,27 @@ export function renderTodo(period, actor) {
     <p><strong>${todo.length}</strong> phiếu cần xử lý.</p>
     ${todo.length ? `
     <div class="table-wrap">
-      <table>
+      <table class="table-cards">
         <thead><tr><th>Sinh viên</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    ${todo.length > 10 ? `<p>Hiển thị 10 phiếu đầu tiên trên tổng ${todo.length}.</p>` : ""}` : ""}`;
+    ${todo.length > TODO_PREVIEW ? `
+    <div class="more-row">
+      <button type="button" class="btn btn-secondary btn-sm" data-todo-toggle>
+        ${todoExpanded ? "Thu gọn" : `Xem thêm (${todo.length - TODO_PREVIEW})`}
+      </button>
+    </div>` : ""}` : ""}`;
 
   box.querySelector("[data-go-assign]")?.addEventListener("click", () => switchView("assignments"));
+  if (!box.dataset.bound) {
+    box.dataset.bound = "1";
+    box.addEventListener("click", event => {
+      if (!event.target.closest("[data-todo-toggle]")) return;
+      todoExpanded = !todoExpanded;
+      renderTodo(DemoStore.activePeriod(), actorInfo());
+    });
+  }
 }
 
 export function updateDashboardStats() {
@@ -381,11 +398,6 @@ export function updateDashboardStats() {
   document.getElementById("statPending").textContent = s.pending;
   document.getElementById("statFinalized").textContent = s.finalized;
   document.getElementById("statTotal").textContent = s.total;
-}
-
-export function displayRecentTickets() {
-  const rows = state.tickets.slice(0, 8).map(t => ticketRow(t, "updatedAt"));
-  fillTable("recentTicketsTable", rows, "Chưa có phiếu nào");
 }
 
 export function statCard(title, count, caption) {

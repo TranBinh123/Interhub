@@ -5,7 +5,7 @@
 // ============================================
 
 import { showMessage } from "../components/messages.js";
-import { DemoStore } from "../db.js";
+import { DemoStore, STATUS_LABEL } from "../db.js";
 import { state } from "../state.js";
 import {
   actorInfo,
@@ -304,6 +304,7 @@ function renderTimesheetDetail(ticket) {
   panel.hidden = false;
 
   panel.innerHTML = `
+    <div class="ts-detail-box" role="dialog" aria-modal="true" aria-label="Chi tiết chấm công">
     <div class="ts-detail-header">
       <div>
         <span class="ts-detail-eyebrow">CHI TIẾT CHẤM CÔNG</span>
@@ -372,6 +373,7 @@ function renderTimesheetDetail(ticket) {
         `
         : ""
     }
+    </div>
   `;
 }
 
@@ -384,34 +386,39 @@ export function fillTimesheetRows() {
   if (!body) return;
 
   const q = state.timesheet.q.trim().toLowerCase();
-
-  const rows = timesheetRows(actorInfo(), state.timesheet.periodId)
+  const all = timesheetRows(actorInfo(), state.timesheet.periodId)
     .filter(row =>
       !q ||
       `${row.ticket.internId} ${row.ticket.internName}`
         .toLowerCase()
         .includes(q)
-    );
+    )
+    // Lọc theo ký hiệu chấm công: chỉ giữ SVTT có ít nhất một ngày mang ký hiệu đã chọn
+    .filter(row => !state.timesheet.code || row.counts[state.timesheet.code] > 0);
+
+  const limit = state.timesheet.limit || 5;
+  const rows = all.slice(0, limit);
 
   body.innerHTML = rows.length
     ? rows.map(row => `
         <tr>
-          <td>
+          <td data-label="Sinh viên">
             ${escapeHtml(row.ticket.internName)}
             <br>
             <small>${escapeHtml(row.ticket.internId)}</small>
           </td>
 
-          <td>${escapeHtml(row.ticket.department)}</td>
+          <td data-label="Bộ phận">${escapeHtml(row.ticket.department)}</td>
+          <td data-label="Trạng thái">${escapeHtml(STATUS_LABEL[row.ticket.status] || row.ticket.status)}</td>
 
-          <td class="r">${row.counts.o}</td>
-          <td class="r">${row.counts.v}</td>
-          <td class="r">${row.counts.Off}</td>
-          <td class="r">${row.recorded}/${row.total}</td>
+          <td class="r" data-label="Đi làm">${row.counts.o}</td>
+          <td class="r" data-label="Vắng">${row.counts.v}</td>
+          <td class="r" data-label="Off">${row.counts.Off}</td>
+          <td class="r" data-label="Đã ghi">${row.recorded}/${row.total}</td>
 
-          <td>${timesheetTodayCell(row)}</td>
+          <td data-label="Hôm nay">${timesheetTodayCell(row)}</td>
 
-          <td>
+          <td data-label="Thao tác">
             <button
               type="button"
               class="btn btn-secondary btn-sm"
@@ -424,11 +431,19 @@ export function fillTimesheetRows() {
       `).join("")
     : `
       <tr class="empty-state">
-        <td colspan="8">Chưa có phiếu nào trong kỳ này</td>
+        <td colspan="9">Chưa có phiếu nào khớp bộ lọc</td>
       </tr>
     `;
 
-  const expandedRow = rows.find(
+  const more = document.getElementById("timesheetMore");
+  if (more) {
+    const left = all.length - rows.length;
+    more.innerHTML = left > 0
+      ? `<button type="button" class="btn btn-secondary btn-sm" data-ts-more>Xem thêm ${Math.min(left, 5)} (còn ${left})</button>`
+      : (all.length > 5 ? `<button type="button" class="btn btn-secondary btn-sm" data-ts-less>Thu gọn</button>` : "");
+  }
+
+  const expandedRow = all.find(
     row => row.ticket.id === expandedTicketId
   );
 
@@ -458,8 +473,16 @@ function bindTimesheetEvents(root) {
   root.addEventListener("change", event => {
     const target = event.target;
 
+    if (target.matches("[data-ts-code]")) {
+      state.timesheet.code = target.value;
+      state.timesheet.limit = 5;
+      fillTimesheetRows();
+      return;
+    }
+
     if (target.matches("[data-ts-period]")) {
       state.timesheet.periodId = target.value;
+      state.timesheet.limit = 5;
 
       expandedTicketId = null;
       selectedAttendanceDate = "";
@@ -533,11 +556,31 @@ function bindTimesheetEvents(root) {
       return;
     }
 
-    if (target.closest("[data-ts-close-detail]")) {
+    if (target.closest("[data-ts-close-detail]") || target.id === "timesheetDetail") {
       expandedTicketId = null;
       selectedAttendanceDate = "";
       fillTimesheetRows();
+      return;
     }
+
+    if (target.closest("[data-ts-more]")) {
+      state.timesheet.limit = (state.timesheet.limit || 5) + 5;
+      fillTimesheetRows();
+      return;
+    }
+
+    if (target.closest("[data-ts-less]")) {
+      state.timesheet.limit = 5;
+      fillTimesheetRows();
+    }
+  });
+
+  // Esc đóng cửa sổ chi tiết
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || !expandedTicketId) return;
+    expandedTicketId = null;
+    selectedAttendanceDate = "";
+    fillTimesheetRows();
   });
 }
 
@@ -607,6 +650,16 @@ export function renderTimesheetView() {
         ${periodOptions(state.timesheet.periodId)}
       </select>
 
+      <select
+        data-ts-code
+        aria-label="Lọc theo ký hiệu chấm công"
+      >
+        <option value="" ${!state.timesheet.code ? "selected" : ""}>Tất cả ký hiệu</option>
+        <option value="o" ${state.timesheet.code === "o" ? "selected" : ""}>Có ngày đi làm (o)</option>
+        <option value="v" ${state.timesheet.code === "v" ? "selected" : ""}>Có ngày vắng (v)</option>
+        <option value="Off" ${state.timesheet.code === "Off" ? "selected" : ""}>Có ngày Off</option>
+      </select>
+
       <input
         type="search"
         class="search-input"
@@ -617,11 +670,12 @@ export function renderTimesheetView() {
     </div>
 
     <div class="table-wrap">
-      <table class="assign-table">
+      <table class="assign-table table-cards">
         <thead>
           <tr>
             <th>Sinh viên</th>
             <th>Bộ phận</th>
+            <th>Trạng thái</th>
             <th class="r">Đi làm</th>
             <th class="r">Vắng</th>
             <th class="r">Off</th>
@@ -634,6 +688,8 @@ export function renderTimesheetView() {
         <tbody id="timesheetBody"></tbody>
       </table>
     </div>
+
+    <div class="more-row" id="timesheetMore"></div>
 
     <section
       id="timesheetDetail"
