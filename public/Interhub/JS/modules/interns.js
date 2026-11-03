@@ -30,27 +30,98 @@ export function internStatusBadge(intern, today) {
   return `<span class="mentor-flag mentor-flag--ok">Đang thực tập</span>`;
 }
 
+// Phân loại tình trạng SVTT: chưa bắt đầu / đang thực tập / gần về (trong FOLLOW_UP_DAYS trước ngày kết thúc) / đã kết thúc
+export function internState(intern, today) {
+  const start = (intern.startDate || "").slice(0, 10);
+  if (start && start > today) return "chua_bat_dau";
+  if (!intern.endDate) return "dang_thuc_tap";
+  const left = daysUntil(intern.endDate, today);
+  if (left < 0) return "da_ket_thuc";
+  if (left <= DemoStore.FOLLOW_UP_DAYS) return "gan_ve";
+  return "dang_thuc_tap";
+}
+
+const INTERN_STATE_LABEL = {
+  chua_bat_dau: "Chưa bắt đầu",
+  dang_thuc_tap: "Đang thực tập",
+  gan_ve: "Gần về",
+  da_ket_thuc: "Đã kết thúc"
+};
+const INTERN_STATE_COLOR = {
+  chua_bat_dau: "#cbd5e1",
+  dang_thuc_tap: "#3b82f6",
+  gan_ve: "#e05a4a",
+  da_ket_thuc: "#2d8c7f"
+};
+const INTERN_PREVIEW = 10;
+const INTERN_MORE_STEP = 10;
+
+function internScope() {
+  return visibleInterns(actorInfo());
+}
+
+function internFiltered(today) {
+  const f = state.interns;
+  const q = (f.q || "").trim().toLowerCase();
+  return internScope()
+    .filter(i => !q || `${i.internId} ${i.fullName} ${i.school || ""}`.toLowerCase().includes(q))
+    .filter(i => !f.school || (i.school || "") === f.school)
+    .filter(i => {
+      const s = (i.startDate || "").slice(0, 10);
+      return (!f.startFrom || s >= f.startFrom) && (!f.startTo || s <= f.startTo);
+    })
+    .filter(i => {
+      const e = (i.endDate || "").slice(0, 10);
+      return (!f.endFrom || e >= f.endFrom) && (!f.endTo || e <= f.endTo);
+    })
+    .filter(i => !f.status || internState(i, today) === f.status);
+}
+
+function internStatsHtml(today) {
+  const scope = internScope();
+  const count = key => scope.filter(i => internState(i, today) === key).length;
+  return `
+    <div class="stat-chips">
+      <span class="stat-chip"><b>${scope.length}</b> SVTT</span>
+      <span class="stat-chip stat-chip--alert"><i style="background:${INTERN_STATE_COLOR.gan_ve}"></i>Gần về (≤ ${DemoStore.FOLLOW_UP_DAYS} ngày): <b>${count("gan_ve")}</b></span>
+      <span class="stat-chip"><i style="background:${INTERN_STATE_COLOR.dang_thuc_tap}"></i>Đang thực tập: <b>${count("dang_thuc_tap")}</b></span>
+      <span class="stat-chip"><i style="background:${INTERN_STATE_COLOR.chua_bat_dau}"></i>Chưa bắt đầu: <b>${count("chua_bat_dau")}</b></span>
+      <span class="stat-chip"><i style="background:${INTERN_STATE_COLOR.da_ket_thuc}"></i>Đã kết thúc: <b>${count("da_ket_thuc")}</b></span>
+    </div>`;
+}
+
 export function fillInternsRows() {
   const body = document.getElementById("internsBody");
   const count = document.getElementById("internsCount");
+  const more = document.getElementById("internsMore");
   if (!body) return;
   const today = DemoStore.todayIso();
-  const q = state.interns.q.trim().toLowerCase();
-  const list = visibleInterns(actorInfo()).filter(i =>
-    !q || `${i.internId} ${i.fullName} ${i.school || ""}`.toLowerCase().includes(q));
+  const list = internFiltered(today);
+  const shown = list.slice(0, state.interns.limit || INTERN_PREVIEW);
   if (count) count.textContent = `${list.length} SVTT`;
-  body.innerHTML = list.length
-    ? list.map(i => `
-      <tr>
-        <td>${escapeHtml(i.internId)}</td>
-        <td>${escapeHtml(i.fullName)}</td>
-        <td>${escapeHtml(i.school || "—")}</td>
-        <td>${escapeHtml(i.department)}<br><small>${escapeHtml(DemoStore.departmentName(i.department))}</small></td>
-        <td>${formatDate(i.startDate)}</td>
-        <td>${formatDate(i.endDate)}</td>
-        <td>${internStatusBadge(i, today)}</td>
-      </tr>`).join("")
-    : `<tr class="empty-state"><td colspan="7">Chưa có thực tập sinh nào trong phạm vi của bạn</td></tr>`;
+  if (more) {
+    const left = list.length - shown.length;
+    more.innerHTML = left > 0
+      ? `<button type="button" class="btn btn-secondary btn-sm" data-interns-more>Xem thêm ${Math.min(left, INTERN_MORE_STEP)} (còn ${left})</button>`
+      : (list.length > INTERN_PREVIEW ? `<button type="button" class="btn btn-secondary btn-sm" data-interns-less>Thu gọn</button>` : "");
+  }
+  const stats = document.getElementById("internsStats");
+  if (stats) stats.innerHTML = internStatsHtml(today);
+  body.innerHTML = shown.length
+    ? shown.map(i => {
+      const st = internState(i, today);
+      return `
+      <tr class="${st === "gan_ve" ? "row-soon" : ""}">
+        <td data-label="Mã SV">${escapeHtml(i.internId)}</td>
+        <td data-label="Họ tên">${escapeHtml(i.fullName)}</td>
+        <td data-label="Trường">${escapeHtml(i.school || "—")}</td>
+        <td data-label="Bộ phận">${escapeHtml(i.department)}<br><small>${escapeHtml(DemoStore.departmentName(i.department))}</small></td>
+        <td data-label="Bắt đầu">${formatDate(i.startDate)}</td>
+        <td data-label="Kết thúc">${formatDate(i.endDate)}</td>
+        <td data-label="Tình trạng"><span class="stat-chip"><i style="background:${INTERN_STATE_COLOR[st]}"></i>${INTERN_STATE_LABEL[st]}</span>${st === "gan_ve" ? ` <small style="color:#b42318;">còn ${daysUntil(i.endDate, today)} ngày</small>` : ""}</td>
+      </tr>`;
+    }).join("")
+    : `<tr class="empty-state"><td colspan="7">Không có thực tập sinh nào khớp bộ lọc</td></tr>`;
 }
 
 export function renderInternsView() {
@@ -61,27 +132,75 @@ export function renderInternsView() {
     root.addEventListener("input", event => {
       if (!event.target.matches("[data-interns-q]")) return;
       state.interns.q = event.target.value;
+      state.interns.limit = INTERN_PREVIEW;
       fillInternsRows();
+    });
+    root.addEventListener("change", event => {
+      const t = event.target;
+      if (t.matches("[data-interns-filter]")) {
+        state.interns[t.dataset.internsFilter] = t.value;
+        state.interns.limit = INTERN_PREVIEW;
+        fillInternsRows();
+      }
+    });
+    root.addEventListener("click", event => {
+      if (event.target.closest("[data-interns-more]")) {
+        state.interns.limit = (state.interns.limit || INTERN_PREVIEW) + INTERN_MORE_STEP;
+        fillInternsRows();
+      } else if (event.target.closest("[data-interns-less]")) {
+        state.interns.limit = INTERN_PREVIEW;
+        fillInternsRows();
+      }
     });
   }
   const scope = isHR() ? "Tất cả thực tập sinh." : "Thực tập sinh thuộc bộ phận của bạn.";
+  const f = state.interns;
+  const schools = [...new Set(internScope().map(i => i.school || "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+  const dateField = (key, label) => `
+    <div class="filter-field">
+      <label for="in-${key}">${label}</label>
+      <input id="in-${key}" type="date" data-interns-filter="${key}" value="${escapeHtml(f[key] || "")}">
+    </div>`;
   root.innerHTML = `
     <h2 style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;">
       <span>Thực tập sinh</span>
       <span class="count-badge" id="internsCount"></span>
     </h2>
-    <p style="margin:0 0 16px;color:var(--text-muted);font-size:13px;">${scope} Cảnh báo hiện khi SVTT còn dưới ${DemoStore.FOLLOW_UP_DAYS} ngày là kết thúc thực tập.</p>
-    <div class="assign-toolbar">
-      <input type="search" class="search-input" data-interns-q placeholder="Tìm theo tên, mã SV hoặc trường" value="${escapeHtml(state.interns.q)}">
+    <p style="margin:0 0 14px;color:var(--text-muted);font-size:13px;">${scope} Các SVTT còn dưới ${DemoStore.FOLLOW_UP_DAYS} ngày là kết thúc thực tập được tô đỏ nhạt.</p>
+    <div id="internsStats"></div>
+    <div class="filter-bar">
+      <div class="filter-field filter-grow">
+        <label for="in-q">Tìm theo tên, mã SV hoặc trường</label>
+        <input id="in-q" class="search-input" type="search" data-interns-q placeholder="Ví dụ: SV001 hoặc Linh" value="${escapeHtml(f.q)}">
+      </div>
+      <div class="filter-field">
+        <label for="in-school">Trường</label>
+        <select id="in-school" data-interns-filter="school">
+          <option value="">Tất cả trường</option>
+          ${schools.map(s => `<option value="${escapeHtml(s)}" ${f.school === s ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="in-status">Tình trạng</label>
+        <select id="in-status" data-interns-filter="status">
+          <option value="">Tất cả tình trạng</option>
+          ${Object.entries(INTERN_STATE_LABEL).map(([k, v]) => `<option value="${k}" ${f.status === k ? "selected" : ""}>${v}</option>`).join("")}
+        </select>
+      </div>
+      ${dateField("startFrom", "Bắt đầu từ")}
+      ${dateField("startTo", "Bắt đầu đến")}
+      ${dateField("endFrom", "Kết thúc từ")}
+      ${dateField("endTo", "Kết thúc đến")}
     </div>
     <div class="table-wrap">
-      <table>
+      <table class="table-cards">
         <thead>
           <tr><th>Mã SV</th><th>Họ tên</th><th>Trường</th><th>Bộ phận</th><th>Bắt đầu</th><th>Kết thúc</th><th>Tình trạng</th></tr>
         </thead>
         <tbody id="internsBody"></tbody>
       </table>
-    </div>`;
+    </div>
+    <div class="more-row" id="internsMore"></div>`;
   fillInternsRows();
 }
 
