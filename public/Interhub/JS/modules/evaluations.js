@@ -204,8 +204,14 @@ function evEvaluators(list) {
 function evBase() {
   const q = evState.q.trim().toLowerCase();
   return evTickets()
+    .filter(t => !isCommitteeView() || t.status === STATUS.COMMITTEE)
     .filter(t => !evState.evaluator || hrEvaluatorLabel(t) === evState.evaluator)
     .filter(t => !q || `${t.internName} ${t.internId}`.toLowerCase().includes(q));
+}
+
+// Tổ Công tác sinh viên chỉ xem phiếu đang chờ mình chấm điểm
+function isCommitteeView() {
+  return state.userProfile?.role === "committee";
 }
 
 export function renderEvFilters() {
@@ -230,13 +236,14 @@ export function renderEvFilters() {
           ${periods.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === evState.periodId ? "selected" : ""}>${escapeHtml(p.name || p.id)}</option>`).join("")}
         </select>
       </div>
+      ${isCommitteeView() ? "" : `
       <div class="filter-field">
         <label for="evStatus">Trạng thái</label>
         <select id="evStatus">
           <option value="">Tất cả trạng thái</option>
           ${HR_ORDER.map(k => `<option value="${k}" ${evState.status === k ? "selected" : ""}>${escapeHtml(STATUS_LABEL[k])}</option>`).join("")}
         </select>
-      </div>
+      </div>`}
       ${isSup ? `
       <div class="filter-field">
         <label for="evEval">Người đánh giá</label>

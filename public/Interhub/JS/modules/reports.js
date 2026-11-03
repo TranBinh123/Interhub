@@ -209,8 +209,8 @@ export function renderReportsView() {
       <button type="button" class="btn btn-primary btn-sm" data-rp-export ${finalized ? "" : "disabled"}>Xuất CSV kết quả</button>
     </h2>`;
 
-  // Phòng Nhân sự: chỉ cần số SVTT đã được Tổ Công tác sinh viên chốt
-  if (isHR()) {
+  // Phòng Nhân sự và Tổ Công tác sinh viên: chỉ cần số SVTT đã được Tổ Công tác sinh viên chốt
+  if (isHR() || state.userProfile?.role === "committee") {
     root.innerHTML = `
       ${head}
       ${toolbar}

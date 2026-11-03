@@ -93,7 +93,7 @@ export function renderAssignments() {
   for (const id of [...assignSelected]) {
     if (!all.some(t => t.id === id)) assignSelected.delete(id);
   }
-  const shown = list.slice(0, state.assignLimit || 5);
+  const shown = list.slice(0, state.assignLimit || 6);
   updateAssignBulkBar(shown);
 
   if (!DemoStore.departmentKnown(dept)) {
@@ -145,8 +145,8 @@ function renderAssignMore(total, shown) {
   if (!box) return;
   const left = total - shown;
   box.innerHTML = left > 0
-    ? `<button type="button" class="btn btn-secondary btn-sm" data-action="assign-more">Xem thêm ${Math.min(left, 5)} (còn ${left})</button>`
-    : (total > 5 ? `<button type="button" class="btn btn-secondary btn-sm" data-action="assign-less">Thu gọn</button>` : "");
+    ? `<button type="button" class="btn btn-secondary btn-sm" data-action="assign-more">Xem thêm ${Math.min(left, 6)} (còn ${left})</button>`
+    : (total > 6 ? `<button type="button" class="btn btn-secondary btn-sm" data-action="assign-less">Thu gọn</button>` : "");
 }
 
 // Cập nhật thanh gán hàng loạt theo danh sách đang hiển thị
@@ -164,14 +164,14 @@ export function handleAssignChange(event) {
   const target = event.target;
 
   if (target.id === "assignStatusFilter") {
-    state.assignLimit = 5;
+    state.assignLimit = 6;
     renderAssignments();
     return;
   }
 
   if (target.id === "assignDeptFilter") {
     state.assignDept = target.value;
-    state.assignLimit = 5;
+    state.assignLimit = 6;
     assignSelected.clear();
     renderAssignments();
     return;
@@ -202,13 +202,13 @@ export function handleAssignClick(event) {
   const actor = actorInfo();
 
   if (action === "assign-more") {
-    state.assignLimit = (state.assignLimit || 5) + 5;
+    state.assignLimit = (state.assignLimit || 6) + 6;
     renderAssignments();
     return;
   }
 
   if (action === "assign-less") {
-    state.assignLimit = 5;
+    state.assignLimit = 6;
     renderAssignments();
     return;
   }

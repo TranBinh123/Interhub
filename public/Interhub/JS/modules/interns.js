@@ -53,8 +53,8 @@ const INTERN_STATE_COLOR = {
   gan_ve: "#e05a4a",
   da_ket_thuc: "#2d8c7f"
 };
-const INTERN_PREVIEW = 5;
-const INTERN_MORE_STEP = 5;
+const INTERN_PREVIEW = 6;
+const INTERN_MORE_STEP = 6;
 
 function internScope() {
   return visibleInterns(actorInfo());
