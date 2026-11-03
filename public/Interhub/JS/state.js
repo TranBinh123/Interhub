@@ -14,7 +14,7 @@ export const state = {
   interns: { q: "", school: "", status: "", limit: 6 },
   assignLimit: 6,
   timesheet: { periodId: "", q: "", dept: "", limit: 5 },
-  reports: { periodId: "", dept: "", limit: 5 }
+  reports: { periodId: "", dept: "", school: "", limit: 5, schoolLimit: 5 }
 };
 
 // Trạng thái trang quản trị (admin.html)

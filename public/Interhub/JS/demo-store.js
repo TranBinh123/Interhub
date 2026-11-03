@@ -183,6 +183,10 @@ function read() {
         if (typeof t.strengths !== "string") t.strengths = t.textPart4 || "";
         if (typeof t.improvements !== "string") t.improvements = "";
       }
+      // Tên kỳ cũ có kèm khoảng ngày "(26/09 – 25/10)": chỉ giữ "Kỳ MM/YYYY"
+      for (const p of Object.values(state.periods)) {
+        if (typeof p.name === "string") p.name = p.name.replace(/\s*\(\d{2}\/\d{2} – \d{2}\/\d{2}\)/, "");
+      }
       // Dữ liệu cũ chưa có cờ evaluatorAssigned: suy ra từ thông tin đã có, không làm mất phân công cũ.
       for (const t of Object.values(state.tickets)) {
         if (typeof t.evaluatorAssigned === "boolean") continue;
@@ -386,12 +390,10 @@ export function createPeriod({ month, name }) {
 //  - Về đúng ngày cuối tháng hoặc thực tập tiếp sang tháng sau → phiếu thường.
 //  - Bắt đầu giữa tháng: vẫn tính vào tháng đó, được đánh dấu để tham khảo.
 
-// Tên mặc định của kỳ, ví dụ "Kỳ 10/2026 (26/09 – 25/10)"
+// Tên mặc định của kỳ, ví dụ "Kỳ 10/2026"
 export function periodLabel(month) {
   const [y, m] = month.split("-").map(Number);
-  const b = monthBounds(month);
-  const fmt = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7);
-  return `Kỳ ${String(m).padStart(2, "0")}/${y} (${fmt(b.start)} – ${fmt(b.end)})`;
+  return `Kỳ ${String(m).padStart(2, "0")}/${y}`;
 }
 
 // Kỳ "tháng M": từ ngày 26 tháng M-1 đến ngày 25 tháng M
@@ -1407,7 +1409,7 @@ export function loadSampleData() {
   const state = emptyState();
   for (const d of departments) state.departments[d.code] = d;
 
-  const period = { id: "EV-2026-10", month: "2026-10", name: "Tháng 10/2026 (dữ liệu mẫu)", status: "dang_mo", createdAt: now() };
+  const period = { id: "EV-2026-10", month: "2026-10", name: "Kỳ 10/2026 (dữ liệu mẫu)", status: "dang_mo", createdAt: now() };
   state.periods[period.id] = period;
 
   for (let i = 1; i <= 520; i++) {
