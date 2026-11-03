@@ -127,28 +127,6 @@
             </div>
           </div>
 
-          <div class="card" id="recentCard">
-            <h2>Phiếu gần đây</h2>
-            <div class="table-wrap">
-              <table id="recentTicketsTable">
-                <thead>
-                  <tr>
-                    <th>Mã phiếu</th>
-                    <th>Sinh viên</th>
-                    <th>Bộ phận</th>
-                    <th>Trạng thái</th>
-                    <th>Cập nhật</th>
-                    <th>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr class="empty-state">
-                    <td colspan="6">Chưa có phiếu nào</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
         <!-- Assignments view (Trưởng bộ phận) -->
@@ -157,7 +135,7 @@
             <h2>Phân công Tổ Công tác sinh viên theo Trường</h2>
             <p>Mỗi Trường giao cho một thành viên Tổ Công tác sinh viên. Mọi phiếu chưa chốt của SVTT thuộc Trường đó được giao theo, kể cả phiếu tạo sau này.</p>
             <div class="table-wrap">
-              <table class="assign-table">
+              <table class="assign-table table-cards">
                 <thead>
                   <tr>
                     <th>Trường</th>
@@ -175,7 +153,6 @@
 
           <div class="card">
             <h2>Phân công đánh giá</h2>
-            <p>Giao từng phiếu của bộ phận cho một người hướng dẫn (hoặc tự đánh giá). Phòng Nhân sự còn phân công Tổ Công tác sinh viên chấm điểm cho từng phiếu. Chỉ sửa được phân công khi phiếu chưa chốt.</p>
             <p id="assignSummary" class="assign-summary"></p>
 
             <div class="assign-toolbar">
@@ -199,7 +176,7 @@
             </div>
 
             <div class="table-wrap">
-              <table class="assign-table">
+              <table class="assign-table table-cards">
                 <thead>
                   <tr>
                     <th style="width:44px;"></th>
@@ -226,24 +203,9 @@
             </h2>
             <div id="hrTicketFilters" class="hidden"></div>
             <div id="hrTicketRows" class="hidden"></div>
-            <div class="table-wrap" id="ticketsTableWrap">
-              <table id="ticketsTable">
-                <thead>
-                  <tr>
-                    <th>Mã phiếu</th>
-                    <th>Sinh viên</th>
-                    <th>Bộ phận</th>
-                    <th>Trạng thái</th>
-                    <th>Ngày tạo</th>
-                    <th>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr class="empty-state">
-                    <td colspan="6">Chưa có phiếu nào</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div id="ticketsTableWrap">
+              <div id="evFilters"></div>
+              <div id="evGroups"></div>
             </div>
           </div>
         </div>
