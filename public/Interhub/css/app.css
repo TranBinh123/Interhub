@@ -1923,3 +1923,37 @@ tbody tr:hover { background: #f3f9fa; }
 .filter-bar > input,
 .filter-bar > select { height: auto; min-height: 40px; flex: none; }
 .filter-bar .filter-field > input { line-height: 1.4; }
+
+/* ===== In phiếu hàng loạt: thanh nút và ô chọn ===== */
+.print-bar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 12px; margin: 0 0 14px; padding: 10px 14px;
+  background: var(--surface, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 12px;
+  font-size: 13px; color: var(--text-muted, #64748b);
+}
+.print-bar__info strong { color: var(--text, #0f172a); }
+.print-bar__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; justify-content: flex-end; }
+.print-btn {
+  display: inline-flex; align-items: center; height: 36px; padding: 0 16px;
+  border-radius: 999px; font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
+}
+.print-btn:active { transform: translateY(1px); }
+.print-btn:focus-visible { outline: 2px solid #0a6a73; outline-offset: 2px; }
+.print-btn--ghost { background: #fff; color: #0a6a73; border-color: #bcdcdd; }
+.print-btn--ghost:hover { background: #eef7f7; border-color: #0a6a73; }
+.print-btn--primary {
+  background: linear-gradient(135deg, #0a6a73, #087c78); color: #fff;
+  box-shadow: 0 2px 8px rgba(10, 106, 115, 0.28);
+}
+.print-btn--primary:hover { box-shadow: 0 4px 14px rgba(10, 106, 115, 0.38); }
+.print-cell { width: 44px; text-align: center; }
+.print-check {
+  width: 17px; height: 17px; margin: 0; cursor: pointer; vertical-align: middle;
+  accent-color: #0a6a73;
+}
+@media (max-width: 600px) {
+  .print-bar__actions { width: 100%; margin-left: 0; justify-content: stretch; }
+  .print-bar__actions .print-btn { flex: 1; justify-content: center; }
+}
