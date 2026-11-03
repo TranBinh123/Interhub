@@ -352,7 +352,7 @@ export function renderTodo(period, actor) {
     supervisor: "Duyệt các phiếu người hướng dẫn gửi lên (gửi Tổ Công tác sinh viên) hoặc trả về người hướng dẫn. Phiếu chưa giao người hướng dẫn: giao ở mục Phân công đánh giá, hoặc tự đánh giá.",
     mentor: "Các phiếu được Trưởng bộ phận giao cho bạn: nhập 15 hạng mục, lưu nháp, rồi gửi phiếu. Phiếu bị trả về cần được bổ sung và gửi lại.",
     hr: "Phân công người hướng dẫn và Tổ Công tác sinh viên cho các phiếu. Theo dõi các phiếu đang chờ Tổ Công tác sinh viên chấm điểm.",
-    committee: "Chấm điểm 15 hạng mục (điểm Tổ CTSV) cho các phiếu Phòng Nhân sự đã giao, rồi xác nhận chốt. Phiếu chưa đủ điểm sẽ không chốt được."
+    committee: ""
   }[actor.role] || "Tài khoản này chưa có việc cần làm trong kỳ này.";
 
   const todo = DemoStore.todoFor(actor, period.id);
@@ -367,7 +367,7 @@ export function renderTodo(period, actor) {
 
   box.innerHTML = `
     <h2>Việc cần làm · ${escapeHtml(period.name)}</h2>
-    <p>${escapeHtml(roleText)}</p>
+    ${roleText ? `<p>${escapeHtml(roleText)}</p>` : ""}
     ${hint ? `<div class="message show" style="background:#fff7ed;color:#9a3412;">${escapeHtml(hint)}</div>` : ""}
     ${actor.role === "supervisor" ? `
     <p>Bộ phận <strong>${escapeHtml(actor.department || "—")}</strong>:

@@ -11,6 +11,7 @@ import {
   actorInfo,
   byInternId,
   escapeHtml,
+  isHR,
   periodOptions,
   resolvePeriodId
 } from "../utils.js";
@@ -358,7 +359,7 @@ function renderTimesheetDetail(ticket) {
       ${renderAttendanceCalendar(days)}
     </div>
 
-    ${renderAttendanceEditor(days, canEdit)}
+    ${isHR() ? "" : renderAttendanceEditor(days, canEdit)}
 
     ${
       selectedDay
@@ -636,10 +637,11 @@ export function renderTimesheetView() {
   root.innerHTML = `
     <h2 class="ts-page-title">Chấm công</h2>
 
+    ${isHR() ? "" : `
     <p class="ts-page-description">
       Theo dõi và quản lý tình trạng chấm công của sinh viên thực tập
       theo từng kỳ. Ký hiệu: o = đi làm, v = vắng, Off = nghỉ.
-    </p>
+    </p>`}
 
     <div class="assign-toolbar">
       <select

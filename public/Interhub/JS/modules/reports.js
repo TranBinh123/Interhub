@@ -180,13 +180,21 @@ export function renderReportsView() {
     root.addEventListener("change", event => {
       if (event.target.matches("[data-rp-period]")) state.reports.periodId = event.target.value;
       else if (event.target.matches("[data-rp-dept]")) state.reports.dept = event.target.value;
+      else if (event.target.matches("[data-rp-school]")) state.reports.school = event.target.value;
       else return;
       state.reports.limit = 5;
+      state.reports.schoolLimit = 5;
       renderReportsView();
     });
     root.addEventListener("click", event => {
       if (event.target.closest("[data-rp-export]")) exportReportCsv();
-      else if (event.target.closest("[data-rp-more]")) {
+      else if (event.target.closest("[data-rp-school-more]")) {
+        state.reports.schoolLimit = (state.reports.schoolLimit || 5) + 5;
+        renderReportsView();
+      } else if (event.target.closest("[data-rp-school-less]")) {
+        state.reports.schoolLimit = 5;
+        renderReportsView();
+      } else if (event.target.closest("[data-rp-more]")) {
         state.reports.limit = (state.reports.limit || 5) + 5;
         renderReportsView();
       } else if (event.target.closest("[data-rp-less]")) {
@@ -196,8 +204,33 @@ export function renderReportsView() {
     });
   }
 
-  const list = reportTickets();
+  const role = state.userProfile?.role;
+  const isCom = role === "committee";
+  let list = reportTickets();
   const finalized = list.filter(t => t.status === STATUS.FINALIZED).length;
+
+  // Tổ Công tác sinh viên: số SVTT đã chốt, lọc theo Trường (Tổ được phân công theo Trường)
+  if (isCom) {
+    const schools = [...new Set(list.map(t => t.school || "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+    if (state.reports.school && !schools.includes(state.reports.school)) state.reports.school = "";
+    const scoped = state.reports.school ? list.filter(t => (t.school || "") === state.reports.school) : list;
+    const done = scoped.filter(t => t.status === STATUS.FINALIZED).length;
+    root.innerHTML = `
+      <h2 style="margin:0 0 16px;"><span>Báo cáo đánh giá</span></h2>
+      <div class="assign-toolbar">
+        <select data-rp-period aria-label="Kỳ đánh giá">${periodOptions(state.reports.periodId)}</select>
+        <select data-rp-school aria-label="Trường">
+          <option value="">Tất cả trường</option>
+          ${schools.map(sc => `<option value="${escapeHtml(sc)}" ${state.reports.school === sc ? "selected" : ""}>${escapeHtml(sc)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="stats-grid" style="margin:16px 0;">
+        <div class="stat-card"><div class="stat-label">SVTT đã được Tổ CTSV chốt</div><div class="stat-value">${done}</div></div>
+      </div>
+      <p style="color:var(--text-muted);font-size:13px;margin:0;">Trên tổng ${scoped.length} SVTT ${state.reports.school ? `của ${escapeHtml(state.reports.school)}` : "được phân công"} trong kỳ đã chọn.</p>`;
+    return;
+  }
+
   const toolbar = `
     <div class="assign-toolbar">
       <select data-rp-period aria-label="Kỳ đánh giá">${periodOptions(state.reports.periodId)}</select>
@@ -209,15 +242,44 @@ export function renderReportsView() {
       <button type="button" class="btn btn-primary btn-sm" data-rp-export ${finalized ? "" : "disabled"}>Xuất CSV kết quả</button>
     </h2>`;
 
-  // Phòng Nhân sự và Tổ Công tác sinh viên: chỉ cần số SVTT đã được Tổ Công tác sinh viên chốt
-  if (isHR() || state.userProfile?.role === "committee") {
+  // Phòng Nhân sự: số SVTT đã chốt, chia theo Trường (Tổ CTSV phụ trách theo Trường)
+  if (isHR()) {
+    const bySchool = new Map();
+    list.forEach(t => {
+      const key = t.school || "Chưa có trường";
+      if (!bySchool.has(key)) bySchool.set(key, { school: key, total: 0, done: 0, waiting: 0 });
+      const g = bySchool.get(key);
+      g.total += 1;
+      if (t.status === STATUS.FINALIZED) g.done += 1;
+      if (t.status === STATUS.COMMITTEE) g.waiting += 1;
+    });
+    const rows = [...bySchool.values()].sort((a, b) => b.done - a.done || a.school.localeCompare(b.school, "vi"));
+    const limit = state.reports.schoolLimit || 5;
+    const shown = rows.slice(0, limit);
+    const left = rows.length - shown.length;
+    const moreHtml = left > 0
+      ? `<div class="more-row"><button type="button" class="btn btn-secondary btn-sm" data-rp-school-more>Xem thêm ${Math.min(left, 5)} (còn ${left})</button></div>`
+      : (rows.length > 5 ? `<div class="more-row"><button type="button" class="btn btn-secondary btn-sm" data-rp-school-less>Thu gọn</button></div>` : "");
     root.innerHTML = `
       ${head}
       ${toolbar}
       <div class="stats-grid" style="margin:16px 0;">
         <div class="stat-card"><div class="stat-label">SVTT đã được Tổ CTSV chốt</div><div class="stat-value">${finalized}</div></div>
       </div>
-      <p style="color:var(--text-muted);font-size:13px;margin:0;">Trên tổng ${list.length} SVTT trong kỳ đã chọn.</p>`;
+      <h3>Theo trường</h3>
+      <div class="table-wrap">
+        <table class="table-cards">
+          <thead><tr><th>Trường</th><th class="r">SVTT</th><th class="r">Đã được Tổ CTSV chốt</th><th class="r">Đang chờ Tổ CTSV</th></tr></thead>
+          <tbody>${shown.length ? shown.map(g => `
+            <tr>
+              <td data-label="Trường">${escapeHtml(g.school)}</td>
+              <td class="r" data-label="SVTT">${g.total}</td>
+              <td class="r" data-label="Đã chốt">${g.done}</td>
+              <td class="r" data-label="Chờ Tổ CTSV">${g.waiting}</td>
+            </tr>`).join("") : `<tr class="empty-state"><td colspan="4">Chưa có dữ liệu</td></tr>`}</tbody>
+        </table>
+      </div>
+      ${moreHtml}`;
     return;
   }
 
