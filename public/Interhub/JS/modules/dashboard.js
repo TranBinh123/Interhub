@@ -57,6 +57,9 @@ export function hrDeptOptions(selected) {
   ].join("");
 }
 
+// Trạng thái còn thuộc bước đánh giá của bộ phận (chưa gửi Tổ CTSV)
+const PENDING_EVAL = [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.RETURNED, STATUS.SUP_REVIEW];
+
 export function renderHrDashboard() {
   const box = document.getElementById("hrDashboard");
   if (!box) return;
@@ -111,7 +114,9 @@ export function renderHrDashboard() {
     .filter(d => !hrState.dept || d.code === hrState.dept)
     .map(d => {
       const dl = all.filter(t => t.department === d.code);
-      return { d, dc: hrCounts(dl), n: dl.length };
+      // Chưa đánh giá: đợi gán người đánh giá, đang đợi đánh giá, hoặc đợi Trưởng bộ phận duyệt
+      const pending = dl.filter(t => !t.evaluatorAssigned || PENDING_EVAL.includes(t.status)).length;
+      return { d, dc: hrCounts(dl), n: dl.length, pending };
     })
     .filter(r => r.n)
     .sort((a, b) => (a.dc.da_chot / a.n) - (b.dc.da_chot / b.n));
@@ -178,6 +183,7 @@ export function renderHrDashboard() {
                 <th>Bộ phận</th>
                 <th>Tiến độ</th>
                 <th class="r">Tổng</th>
+                <th class="r" title="Đợi gán người đánh giá, đang đợi đánh giá hoặc đợi Trưởng bộ phận duyệt">Chưa đánh giá</th>
                 <th class="r">Chờ Tổ CTSV</th>
                 <th class="r">Đã chốt</th>
                 <th></th>
@@ -191,6 +197,7 @@ export function renderHrDashboard() {
                   <td>${escapeHtml(r.d.name)}</td>
                   <td class="hr-w">${hrDeptBar(dp)}</td>
                   <td class="r">${r.n}</td>
+                  <td class="r"><b>${r.pending}</b></td>
                   <td class="r">${r.dc.cho_to_cong_tac}</td>
                   <td class="r">${r.dc.da_chot}</td>
                   <td class="hr-chev">›</td>

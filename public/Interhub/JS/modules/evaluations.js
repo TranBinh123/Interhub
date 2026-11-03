@@ -93,7 +93,7 @@ export function renderHrTicketFilters() {
         <label for="hrStatus">Trạng thái</label>
         <select id="hrStatus" class="hr-select">
           <option value="">Tất cả trạng thái</option>
-          ${HR_ORDER.map(k => `<option value="${k}" ${hrState.status === k ? "selected" : ""}>${escapeHtml(STATUS_LABEL[k])}</option>`).join("")}
+          <option value="${STATUS.COMMITTEE}" ${hrState.status === STATUS.COMMITTEE ? "selected" : ""}>${escapeHtml(STATUS_LABEL[STATUS.COMMITTEE])}</option>
         </select>
       </div>
       <div class="filter-field">
@@ -135,7 +135,8 @@ export function renderHrTicketRows() {
       <button type="button" class="hr-btn-sm" data-hr-print-batch>In hàng loạt</button>
     </div>` : "";
 
-  box.innerHTML = bar + HR_GROUPS.map(g => {
+  // Phòng Nhân sự chỉ theo dõi nhóm "Chờ Tổ Công tác sinh viên"
+  box.innerHTML = bar + HR_GROUPS.filter(g => g.key === "waiting_committee").map(g => {
     const items = list.filter(t => hrGroupOf(t) === g.key);
     if (!items.length) return "";
     const limit = hrState.limits[g.key] || GROUP_PREVIEW;

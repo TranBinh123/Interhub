@@ -393,8 +393,7 @@ export function fillTimesheetRows() {
         .toLowerCase()
         .includes(q)
     )
-    // Lọc theo ký hiệu chấm công: chỉ giữ SVTT có ít nhất một ngày mang ký hiệu đã chọn
-    .filter(row => !state.timesheet.code || row.counts[state.timesheet.code] > 0);
+    .filter(row => !state.timesheet.dept || row.ticket.department === state.timesheet.dept);
 
   const limit = state.timesheet.limit || 5;
   const rows = all.slice(0, limit);
@@ -473,8 +472,8 @@ function bindTimesheetEvents(root) {
   root.addEventListener("change", event => {
     const target = event.target;
 
-    if (target.matches("[data-ts-code]")) {
-      state.timesheet.code = target.value;
+    if (target.matches("[data-ts-dept]")) {
+      state.timesheet.dept = target.value;
       state.timesheet.limit = 5;
       fillTimesheetRows();
       return;
@@ -651,13 +650,11 @@ export function renderTimesheetView() {
       </select>
 
       <select
-        data-ts-code
-        aria-label="Lọc theo ký hiệu chấm công"
+        data-ts-dept
+        aria-label="Lọc theo bộ phận"
       >
-        <option value="" ${!state.timesheet.code ? "selected" : ""}>Tất cả ký hiệu</option>
-        <option value="o" ${state.timesheet.code === "o" ? "selected" : ""}>Có ngày đi làm (o)</option>
-        <option value="v" ${state.timesheet.code === "v" ? "selected" : ""}>Có ngày vắng (v)</option>
-        <option value="Off" ${state.timesheet.code === "Off" ? "selected" : ""}>Có ngày Off</option>
+        <option value="">Tất cả bộ phận</option>
+        ${DemoStore.listDepartments().map(d => `<option value="${escapeHtml(d.code)}" ${state.timesheet.dept === d.code ? "selected" : ""}>${escapeHtml(d.code)} — ${escapeHtml(d.name)}</option>`).join("")}
       </select>
 
       <input

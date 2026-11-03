@@ -53,8 +53,8 @@ const INTERN_STATE_COLOR = {
   gan_ve: "#e05a4a",
   da_ket_thuc: "#2d8c7f"
 };
-const INTERN_PREVIEW = 10;
-const INTERN_MORE_STEP = 10;
+const INTERN_PREVIEW = 5;
+const INTERN_MORE_STEP = 5;
 
 function internScope() {
   return visibleInterns(actorInfo());
@@ -66,14 +66,6 @@ function internFiltered(today) {
   return internScope()
     .filter(i => !q || `${i.internId} ${i.fullName} ${i.school || ""}`.toLowerCase().includes(q))
     .filter(i => !f.school || (i.school || "") === f.school)
-    .filter(i => {
-      const s = (i.startDate || "").slice(0, 10);
-      return (!f.startFrom || s >= f.startFrom) && (!f.startTo || s <= f.startTo);
-    })
-    .filter(i => {
-      const e = (i.endDate || "").slice(0, 10);
-      return (!f.endFrom || e >= f.endFrom) && (!f.endTo || e <= f.endTo);
-    })
     .filter(i => !f.status || internState(i, today) === f.status);
 }
 
@@ -156,11 +148,6 @@ export function renderInternsView() {
   const scope = isHR() ? "Tất cả thực tập sinh." : "Thực tập sinh thuộc bộ phận của bạn.";
   const f = state.interns;
   const schools = [...new Set(internScope().map(i => i.school || "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
-  const dateField = (key, label) => `
-    <div class="filter-field">
-      <label for="in-${key}">${label}</label>
-      <input id="in-${key}" type="date" data-interns-filter="${key}" value="${escapeHtml(f[key] || "")}">
-    </div>`;
   root.innerHTML = `
     <h2 style="display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;">
       <span>Thực tập sinh</span>
@@ -187,10 +174,6 @@ export function renderInternsView() {
           ${Object.entries(INTERN_STATE_LABEL).map(([k, v]) => `<option value="${k}" ${f.status === k ? "selected" : ""}>${v}</option>`).join("")}
         </select>
       </div>
-      ${dateField("startFrom", "Bắt đầu từ")}
-      ${dateField("startTo", "Bắt đầu đến")}
-      ${dateField("endFrom", "Kết thúc từ")}
-      ${dateField("endTo", "Kết thúc đến")}
     </div>
     <div class="table-wrap">
       <table class="table-cards">

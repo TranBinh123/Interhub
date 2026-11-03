@@ -93,7 +93,8 @@ export function renderAssignments() {
   for (const id of [...assignSelected]) {
     if (!all.some(t => t.id === id)) assignSelected.delete(id);
   }
-  updateAssignBulkBar(list);
+  const shown = list.slice(0, state.assignLimit || 5);
+  updateAssignBulkBar(shown);
 
   if (!DemoStore.departmentKnown(dept)) {
     box.innerHTML = `<tr class="empty-state"><td colspan="7">Bộ phận của bạn (${escapeHtml(dept || "chưa có")}) chưa có trong danh mục. Liên hệ Admin.</td></tr>`;
@@ -114,7 +115,7 @@ export function renderAssignments() {
   }
   const mentorNotice = notices.map(text => `<tr><td colspan="7" class="empty-state">${escapeHtml(text)}</td></tr>`).join("");
 
-  box.innerHTML = mentorNotice + list.map(t => {
+  box.innerHTML = mentorNotice + shown.map(t => {
     const p = DemoStore.permissionsFor(t, actor);
     const disabled = p.assign ? "" : "disabled";
     const options = [
@@ -136,6 +137,16 @@ export function renderAssignments() {
               data-ticket-id="${escapeHtml(t.id)}" ${disabled}>Lưu</button></td>
       </tr>`;
   }).join("");
+  renderAssignMore(list.length, shown.length);
+}
+
+function renderAssignMore(total, shown) {
+  const box = document.getElementById("assignMore");
+  if (!box) return;
+  const left = total - shown;
+  box.innerHTML = left > 0
+    ? `<button type="button" class="btn btn-secondary btn-sm" data-action="assign-more">Xem thêm ${Math.min(left, 5)} (còn ${left})</button>`
+    : (total > 5 ? `<button type="button" class="btn btn-secondary btn-sm" data-action="assign-less">Thu gọn</button>` : "");
 }
 
 // Cập nhật thanh gán hàng loạt theo danh sách đang hiển thị
@@ -153,12 +164,14 @@ export function handleAssignChange(event) {
   const target = event.target;
 
   if (target.id === "assignStatusFilter") {
+    state.assignLimit = 5;
     renderAssignments();
     return;
   }
 
   if (target.id === "assignDeptFilter") {
     state.assignDept = target.value;
+    state.assignLimit = 5;
     assignSelected.clear();
     renderAssignments();
     return;
@@ -187,6 +200,18 @@ export function handleAssignClick(event) {
 
   const action = button.dataset.action;
   const actor = actorInfo();
+
+  if (action === "assign-more") {
+    state.assignLimit = (state.assignLimit || 5) + 5;
+    renderAssignments();
+    return;
+  }
+
+  if (action === "assign-less") {
+    state.assignLimit = 5;
+    renderAssignments();
+    return;
+  }
 
   if (action === "assign-clear") {
     assignSelected.clear();

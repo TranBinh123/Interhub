@@ -5,7 +5,7 @@
 
 import { DemoStore, STATUS, STATUS_LABEL } from "../db.js";
 import { HR_COLOR, state } from "../state.js";
-import { actorInfo, average, departmentOptions, downloadCsv, escapeHtml, formatScore, periodOptions, resolvePeriodId } from "../utils.js";
+import { actorInfo, average, departmentOptions, downloadCsv, escapeHtml, formatScore, isHR, periodOptions, resolvePeriodId } from "../utils.js";
 
 // ===== Mục "Báo cáo": số liệu theo kỳ, theo bộ phận và bảng kết quả (xuất CSV) =====
 export function reportTickets() {
@@ -90,12 +90,9 @@ export function reportStatusDonut(list) {
 
   // Dữ liệu chi tiết cho ô hiển thị khi rê chuột
   rpTipData = Object.fromEntries(Object.keys(STATUS_LABEL).map(code => {
-    const members = list.filter(t => t.status === code)
-      .sort((a, b) => a.internId.localeCompare(b.internId, "vi", { numeric: true }));
-    const names = members.slice(0, 6).map(t => `${escapeHtml(t.internId)} · ${escapeHtml(t.internName)}`);
-    const more = members.length > 6 ? `<br>… và ${members.length - 6} SVTT khác` : "";
-    const pct = total ? Math.round((members.length / total) * 100) : 0;
-    return [code, `<strong>${escapeHtml(STATUS_LABEL[code])}</strong><br>${members.length} SVTT · ${pct}%${members.length ? `<br>${names.join("<br>")}${more}` : ""}`];
+    const count = list.filter(t => t.status === code).length;
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    return [code, `<strong>${escapeHtml(STATUS_LABEL[code])}</strong><br>${count} SVTT · ${pct}% tổng phiếu`];
   }));
 
   if (!total) {
@@ -184,28 +181,59 @@ export function renderReportsView() {
       if (event.target.matches("[data-rp-period]")) state.reports.periodId = event.target.value;
       else if (event.target.matches("[data-rp-dept]")) state.reports.dept = event.target.value;
       else return;
+      state.reports.limit = 5;
       renderReportsView();
     });
     root.addEventListener("click", event => {
       if (event.target.closest("[data-rp-export]")) exportReportCsv();
+      else if (event.target.closest("[data-rp-more]")) {
+        state.reports.limit = (state.reports.limit || 5) + 5;
+        renderReportsView();
+      } else if (event.target.closest("[data-rp-less]")) {
+        state.reports.limit = 5;
+        renderReportsView();
+      }
     });
   }
 
   const list = reportTickets();
   const finalized = list.filter(t => t.status === STATUS.FINALIZED).length;
-  const pct = list.length ? Math.round((finalized / list.length) * 100) : 0;
-  const results = reportResults(list);
-  const avgFinal = average(results.map(r => r.summary.final));
-
-  root.innerHTML = `
-    <h2 style="display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;gap:12px;flex-wrap:wrap;">
-      <span>Báo cáo đánh giá</span>
-      <button type="button" class="btn btn-primary btn-sm" data-rp-export ${results.length ? "" : "disabled"}>Xuất CSV kết quả</button>
-    </h2>
+  const toolbar = `
     <div class="assign-toolbar">
       <select data-rp-period aria-label="Kỳ đánh giá">${periodOptions(state.reports.periodId)}</select>
       <select data-rp-dept aria-label="Bộ phận">${departmentOptions(state.reports.dept)}</select>
-    </div>
+    </div>`;
+  const head = `
+    <h2 style="display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;gap:12px;flex-wrap:wrap;">
+      <span>Báo cáo đánh giá</span>
+      <button type="button" class="btn btn-primary btn-sm" data-rp-export ${finalized ? "" : "disabled"}>Xuất CSV kết quả</button>
+    </h2>`;
+
+  // Phòng Nhân sự: chỉ cần số SVTT đã được Tổ Công tác sinh viên chốt
+  if (isHR()) {
+    root.innerHTML = `
+      ${head}
+      ${toolbar}
+      <div class="stats-grid" style="margin:16px 0;">
+        <div class="stat-card"><div class="stat-label">SVTT đã được Tổ CTSV chốt</div><div class="stat-value">${finalized}</div></div>
+      </div>
+      <p style="color:var(--text-muted);font-size:13px;margin:0;">Trên tổng ${list.length} SVTT trong kỳ đã chọn.</p>`;
+    return;
+  }
+
+  const results = reportResults(list);
+  const avgFinal = average(results.map(r => r.summary.final));
+  const pct = list.length ? Math.round((finalized / list.length) * 100) : 0;
+  const limit = state.reports.limit || 5;
+  const shownResults = results.slice(0, limit);
+  const left = results.length - shownResults.length;
+  const moreHtml = left > 0
+    ? `<div class="more-row"><button type="button" class="btn btn-secondary btn-sm" data-rp-more>Xem thêm ${Math.min(left, 5)} (còn ${left})</button></div>`
+    : (results.length > 5 ? `<div class="more-row"><button type="button" class="btn btn-secondary btn-sm" data-rp-less>Thu gọn</button></div>` : "");
+
+  root.innerHTML = `
+    ${head}
+    ${toolbar}
     <div class="stats-grid" style="margin:16px 0;">
       <div class="stat-card"><div class="stat-label">Tổng phiếu</div><div class="stat-value">${list.length}</div></div>
       <div class="stat-card"><div class="stat-label">Đã chốt</div><div class="stat-value">${finalized} <small>(${pct}%)</small></div></div>
@@ -224,9 +252,10 @@ export function renderReportsView() {
     <div class="table-wrap">
       <table class="table-cards">
         <thead><tr><th>Sinh viên</th><th>Trường</th><th>Bộ phận</th><th class="r">Điểm bộ phận</th><th class="r">Điểm Tổ CTSV</th><th class="r">Điểm cuối</th></tr></thead>
-        <tbody>${reportResultRows(results)}</tbody>
+        <tbody>${reportResultRows(shownResults)}</tbody>
       </table>
-    </div>`;
+    </div>
+    ${moreHtml}`;
 }
 
 export function exportReportCsv() {
