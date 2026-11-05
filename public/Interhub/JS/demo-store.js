@@ -978,7 +978,7 @@ function rolePermissions(ticket, actor) {
     if (ticket.committeeUid !== actor.uid) return none;
     const scoring = ticket.status === STATUS.COMMITTEE;
     // Tổ CTSV không trả về: nhập điểm và xác nhận chốt là một bước
-    return { ...none, committeeScores: scoring, finalize: scoring, print: finalized };
+    return { ...none, committeeScores: scoring, finalize: scoring };
   }
 
   if (!canView(ticket, actor)) return none;
@@ -1001,15 +1001,28 @@ function rolePermissions(ticket, actor) {
 // Chấm công do Người hướng dẫn được phân công thực hiện (cùng quyền với điểm)
 export function permissionsFor(ticket, actor) {
   const p = rolePermissions(ticket, actor);
-  return { ...p, attendance: p.scores || isSelfAssignedSupervisor(ticket, actor) };
+  // In phiếu: chỉ PNS, Trưởng bộ phận và Người hướng dẫn được in phiếu đã chốt mình xem được
+  const print = ticket?.status === STATUS.FINALIZED
+    && ["hr", "supervisor", "mentor"].includes(actor?.role)
+    && canView(ticket, actor);
+  return { ...p, print, attendance: attendanceAllowed(ticket, actor) };
 }
 
-// Trưởng bộ phận được phân công tự đánh giá SVTT: được chấm công đến khi Tổ CTSV nhận phiếu
+// Chấm công là công việc hằng ngày, không phụ thuộc bước chấm điểm. Chỉ việc chốt phiếu
+// khóa chấm công các ngày trong kỳ của phiếu đó; các ngày thuộc kỳ sau nằm trong phiếu kỳ sau.
+function attendanceAllowed(ticket, actor) {
+  if (!ticket || !actor) return false;
+  if (ticket.status === STATUS.FINALIZED) return false;
+  if (isSelfAssignedSupervisor(ticket, actor)) return true;
+  // Xét quyền chấm điểm như thể phiếu đang mở, để chấm công không bị khóa theo trạng thái
+  return rolePermissions({ ...ticket, status: STATUS.IN_PROGRESS }, actor).scores;
+}
+
+// Trưởng bộ phận được phân công tự đánh giá SVTT thì được chấm công
 function isSelfAssignedSupervisor(ticket, actor) {
   return actor?.role === "supervisor"
     && actor.department === ticket.department
-    && !!ticket.evaluatorAssigned && !ticket.evaluatorUid
-    && [STATUS.NOT_STARTED, STATUS.IN_PROGRESS, STATUS.RETURNED, STATUS.SUP_REVIEW].includes(ticket.status);
+    && !!ticket.evaluatorAssigned && !ticket.evaluatorUid;
 }
 
 // Phòng Nhân sự chỉ tự đánh giá SVTT của chính Phòng Nhân sự
@@ -1379,7 +1392,11 @@ export function setAttendance(ticketId, actor, date, code) {
   const state = read();
   const ticket = state.tickets[ticketId];
   if (!ticket) return fail("Phiếu không tồn tại.");
-  if (!permissionsFor(ticket, actor).attendance) return fail("Bạn không có quyền chấm công phiếu này.");
+  if (!permissionsFor(ticket, actor).attendance) {
+    return fail(ticket.status === STATUS.FINALIZED
+      ? "Kỳ đánh giá này đã chốt nên không sửa được chấm công các ngày trong kỳ. Chấm công các ngày thuộc kỳ sau vẫn mở."
+      : "Bạn không có quyền chấm công phiếu này.");
+  }
   if (code && !ATTENDANCE_CODES.includes(code)) return fail("Ký hiệu chấm công: o (đi làm), v (vắng), Off (nghỉ).");
   const span = ticketSpan(state, ticket);
   if (!span || date < span.start || date > span.end) return fail("Ngày không thuộc thời gian thực tập của SVTT trong kỳ này.");
