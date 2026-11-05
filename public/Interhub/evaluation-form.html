@@ -391,7 +391,7 @@
       <!-- Section 2b: Tổ Công tác sinh viên chấm một điểm chung -->
       <div class="card" id="committeeCard">
         <h2>Điểm Tổ Công tác sinh viên (1-10)</h2>
-        <p style="color: var(--text-muted); margin: 0 0 12px;">Tổ Công tác sinh viên chấm một điểm chung cho SVTT (bước 0.5). Điểm cuối = (điểm trung bình Phần I–III của bộ phận + điểm này) / 2.</p>
+        <p style="color: var(--text-muted); margin: 0 0 12px;">Tổ Công tác sinh viên chấm một điểm chung cho SVTT (bước 0.5). Điểm đánh giá trung bình = (điểm trung bình Phần I–III của bộ phận + điểm này) / 2.</p>
         <div class="form-group" style="max-width: 240px;">
           <label for="committeeScore">Điểm Tổ CTSV</label>
           <input type="number" id="committeeScore" min="1" max="10" step="0.5">
@@ -431,7 +431,7 @@
             <div class="result-value" id="resultCommittee">—</div>
           </div>
           <div class="result-card">
-            <div class="result-label">Điểm cuối</div>
+            <div class="result-label">Điểm đánh giá trung bình</div>
             <div class="result-value" id="resultFinal">—</div>
           </div>
           <div class="result-card">
@@ -659,7 +659,7 @@
     });
 
     // Điểm bộ phận = trung bình ba phần (README mục 2.4)
-    // Điểm cuối = (điểm trung bình Phần I–III + điểm Tổ CTSV) / 2
+    // Điểm đánh giá trung bình = (điểm trung bình Phần I–III + điểm Tổ CTSV) / 2
     function updateResults() {
       const fmt = v => (v === null || v === undefined ? "—" : v.toFixed(2));
       const summary = scoreSummary({ scores: currentScores, committeeScore: currentCommittee });
