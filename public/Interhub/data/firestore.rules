@@ -19,11 +19,13 @@ service cloud.firestore {
     // Tài khoản Admin kỹ thuật (khớp ADMIN_EMAIL trong JS/auth.js) không nhất thiết
     // có document users/{uid} với role 'admin', nên được nhận diện theo email đã xác thực.
     // Vẫn hỗ trợ role 'admin' trong users nếu có.
+    // Quản trị đầy đủ: Admin kỹ thuật, hoặc hồ sơ có cờ adminGranted (Phòng Nhân sự được Admin duyệt lần đầu)
     function isAdmin(uid) {
       return (request.auth.token.email == 'dptbinh193@gmail.com'
           && request.auth.token.email_verified == true)
         || (exists(/databases/$(database)/documents/users/$(uid))
-          && get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin');
+          && (get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin'
+              || get(/databases/$(database)/documents/users/$(uid)).data.get('adminGranted', false) == true));
     }
 
     function isHR(uid) {
@@ -40,11 +42,6 @@ service cloud.firestore {
 
     function userDepartment(uid) {
       return get(/databases/$(database)/documents/users/$(uid)).data.department;
-    }
-
-    // Tổ Công tác sinh viên (role 'committee'): chấm điểm tổ theo trường được HR phân công
-    function isCommittee(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'committee';
     }
 
     // ============================================
@@ -68,11 +65,14 @@ service cloud.firestore {
       // Only admin can update users (approve/reject/assign roles)
       allow update, delete: if isSignedIn() && isAdmin(request.auth.uid);
 
-      // Users can update limited fields in their own document
+      // Users can update limited fields in their own document.
+      // Không được tự đổi vai trò hoặc quyền quản trị.
       allow update: if isSignedIn() &&
         request.auth.uid == userId &&
         request.resource.data.uid == resource.data.uid &&
         request.resource.data.email == resource.data.email &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.get('adminGranted', false) == resource.data.get('adminGranted', false) &&
         resource.data.status == 'approved';
     }
 
@@ -96,25 +96,6 @@ service cloud.firestore {
       // Evaluator can read their own tickets
       allow read: if isSignedIn() &&
         resource.data.evaluatorId == request.auth.uid;
-
-      // Committee can read tickets assigned to it (by school) and that are still open
-      allow read: if isSignedIn() &&
-        isCommittee(request.auth.uid) &&
-        isApproved(request.auth.uid) &&
-        resource.data.committeeUid == request.auth.uid;
-
-      // Committee can only enter its single school-level score and pass the ticket
-      // to the Trưởng bộ phận (status 'cho_truong_bo_phan'). Nothing else changes.
-      allow update: if isSignedIn() &&
-        isCommittee(request.auth.uid) &&
-        isApproved(request.auth.uid) &&
-        resource.data.committeeUid == request.auth.uid &&
-        resource.data.status == 'cho_to_cong_tac' &&
-        request.resource.data.status == 'cho_truong_bo_phan' &&
-        request.resource.data.committeeScore is number &&
-        request.resource.data.committeeScore >= 1 &&
-        request.resource.data.committeeScore <= 10 &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['committeeScore', 'status', 'updatedAt']);
 
       // Admin can create/update all tickets
       allow create, update: if isSignedIn() &&
