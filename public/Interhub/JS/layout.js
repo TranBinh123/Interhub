@@ -138,9 +138,7 @@ export function ensureBusiness() {
 }
 
 export function ensureAdmin() {
-  const email = normalizeEmail(Auth.getCurrentEmail?.());
-
-  if (email !== ADMIN_EMAIL) {
+  if (!Auth.hasAdminAccess()) {
     throw new Error(
       "Bạn không có quyền truy cập bảng quản trị. Vui lòng đăng nhập bằng tài khoản Admin."
     );
@@ -438,7 +436,7 @@ export async function initAdminPanel(target = "adminPanelRoot", options = {}) {
   const user = await Auth.waitForUser();
   admin.currentRole = options.role === "hr" ? "hr" : "admin";
 
-  if (!user || (admin.currentRole === "admin" && normalizeEmail(user.email) !== ADMIN_EMAIL)) {
+  if (!user || (admin.currentRole === "admin" && !Auth.hasAdminAccess())) {
     throw new Error(
       "Không có quyền truy cập. Vui lòng đăng nhập bằng tài khoản Admin hoặc Phòng Nhân sự."
     );

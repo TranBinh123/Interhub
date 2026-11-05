@@ -63,6 +63,14 @@ function isAdminEmail(user) {
   return normalizeEmail(user?.email) === ADMIN_EMAIL;
 }
 
+// Quyền quản trị đầy đủ: Admin kỹ thuật (theo email) hoặc tài khoản được cờ adminGranted
+// (cấp khi Admin duyệt lần đầu với vai trò Phòng Nhân sự).
+let grantedAdmin = false;
+
+export function hasAdminAccess() {
+  return isAdminEmail(currentUser) || grantedAdmin;
+}
+
 // Chỉ trang đăng nhập (index.html hoặc thư mục gốc) mới được tự chuyển hướng
 // theo trạng thái tài khoản. Các trang khác (app.html, admin.html, ...) chỉ
 // dùng user hiện tại; nếu chuyển hướng ở đó sẽ tạo vòng lặp reload.
@@ -143,9 +151,14 @@ async function getUserProfile(uid) {
 
   if (!snapshot.exists()) return null;
 
+  const data = snapshot.data();
+  if (currentUser && uid === currentUser.uid) {
+    grantedAdmin = data.adminGranted === true && data.status === "approved" && data.isActive === true;
+  }
+
   return {
     id: snapshot.id,
-    ...snapshot.data()
+    ...data
   };
 }
 
@@ -450,10 +463,12 @@ export async function handleAdminLogin() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     currentUser = result.user;
+    await getUserProfile(currentUser.uid).catch(() => null);
 
-    if (!isAdminEmail(currentUser)) {
+    if (!hasAdminAccess()) {
       await signOut(auth);
       currentUser = null;
+      grantedAdmin = false;
 
       showMessage(
         "adminError",
@@ -478,7 +493,7 @@ export async function handleAdminLogin() {
 }
 
 export async function approveUser(userId, role) {
-  if (!isAdminEmail(currentUser)) {
+  if (!hasAdminAccess()) {
     showMessage("adminError", "Bạn không có quyền duyệt tài khoản.");
     return false;
   }
@@ -489,13 +504,21 @@ export async function approveUser(userId, role) {
   }
 
   try {
-    await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+    const ref = doc(db, COLLECTIONS.USERS, userId);
+    const current = await getDoc(ref);
+    const data = {
       role,
       status: USER_STATUS.APPROVED,
       isActive: true,
       approvedAt: serverTimestamp(),
       approvedBy: currentUser.uid
-    });
+    };
+    // Lần đầu duyệt với vai trò Phòng Nhân sự: cấp quyền quản trị đầy đủ (giữ nguyên về sau)
+    if (role === ROLES.HR && current.exists() && current.data().adminGranted !== true) {
+      data.adminGranted = true;
+      data.adminGrantedAt = serverTimestamp();
+    }
+    await updateDoc(ref, data);
 
     return true;
   } catch (error) {
@@ -505,7 +528,7 @@ export async function approveUser(userId, role) {
 }
 
 export async function rejectUser(userId, reason) {
-  if (!isAdminEmail(currentUser)) {
+  if (!hasAdminAccess()) {
     showMessage("adminError", "Bạn không có quyền từ chối tài khoản.");
     return false;
   }
@@ -528,7 +551,7 @@ export async function rejectUser(userId, reason) {
 
 // Xóa hồ sơ người dùng trên Firestore (Firebase Auth account vẫn còn; cần Firebase Console để vô hiệu hóa hẳn)
 export async function deleteUserProfile(userId) {
-  if (!isAdminEmail(currentUser)) {
+  if (!hasAdminAccess()) {
     showMessage("adminError", "Bạn không có quyền xóa tài khoản.");
     return false;
   }
@@ -561,6 +584,7 @@ export const Auth = {
   resetPassword: handlePasswordReset,
   userSubmit: handleUserSubmit,
   adminLogin: handleAdminLogin,
+  hasAdminAccess,
   approveUser,
   rejectUser,
   deleteUserProfile,
