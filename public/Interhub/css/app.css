@@ -1491,6 +1491,11 @@ tbody tr:hover { background: #f3f9fa; }
   color: #a66b0b;
 }
 
+.ts-status-half {
+  background: #eef2ff;
+  color: #3f51b5;
+}
+
 .ts-status-empty {
   background: #edf2f7;
   color: #8a9aab;
@@ -1506,6 +1511,10 @@ tbody tr:hover { background: #f3f9fa; }
 
 .ts-calendar-day.ts-status-off {
   border-color: #f2e4c4;
+}
+
+.ts-calendar-day.ts-status-half {
+  border-color: #d6dcf7;
 }
 
 .ts-calendar-day.ts-status-empty {
