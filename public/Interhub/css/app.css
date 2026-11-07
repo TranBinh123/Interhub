@@ -1404,6 +1404,7 @@ tbody tr:hover { background: #f3f9fa; }
 }
 
 .ts-calendar-day {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1435,37 +1436,80 @@ tbody tr:hover { background: #f3f9fa; }
   cursor: pointer;
 }
 
-.ts-code-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 3px;
-  margin-top: 2px;
-}
-
-.ts-code-chip {
-  min-width: 22px;
+.ts-menu-toggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
   height: 20px;
-  padding: 0 4px;
-  border: 1px solid #d5e0ea;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
-  background: #fff;
-  color: #4a6078;
+  background: transparent;
+  color: #8294a8;
   font: inherit;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
   cursor: pointer;
-  transition: background .15s, border-color .15s, color .15s;
 }
 
-.ts-code-chip:hover { border-color: #087c78; color: #087c78; }
-.ts-code-chip.is-on { background: #087c78; border-color: #087c78; color: #fff; }
-.ts-code-chip.ts-code-clear { color: #8a9aab; }
-.ts-code-chip.ts-code-clear:hover { border-color: #c34436; color: #c34436; }
+.ts-menu-toggle:hover {
+  background: #e6f2f1;
+  color: #087c78;
+}
 
-@media (max-width: 768px) {
-  .ts-code-chip { min-width: 18px; height: 18px; padding: 0 2px; font-size: 9px; }
-  .ts-code-row { gap: 2px; }
+/* Ô đang mở bảng phải nổi lên trên các ô kế bên (hover dùng transform nên tạo stacking context) */
+.ts-calendar-day:has(.ts-code-menu) {
+  z-index: 30;
+}
+
+.ts-code-menu {
+  position: absolute;
+  top: 28px;
+  right: 4px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 170px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #d5e0ea;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(16, 32, 46, .14);
+}
+
+.ts-code-option {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #294765;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ts-code-option:hover {
+  background: #f1f9f8;
+}
+
+.ts-code-option.is-on {
+  color: #087c78;
+  font-weight: 700;
+}
+
+.ts-code-option.ts-code-clear {
+  margin-top: 2px;
+  border-top: 1px solid #e6edf3;
+  border-radius: 0 0 6px 6px;
+  color: #8a9aab;
+}
+
+.ts-code-option.ts-code-clear:hover {
+  color: #c34436;
 }
 
 .ts-calendar-day:hover {
