@@ -139,32 +139,39 @@ export function timesheetTodayCell(row) {
 // LỊCH CHẤM CÔNG THEO NGÀY
 // ============================================
 
-// Hàng nút chọn ký hiệu ngay trong ô ngày (X, X/2, O, V và nút xóa)
-function renderQuickCodeRow(day, ticketId) {
-  const codes = ATTENDANCE_CODES.filter(item => item.value);
-  const chips = codes.map(item => `
+// Nút "⋯" ở góc ô ngày; bấm vào mở bảng thả xuống chọn ký hiệu
+let openQuickMenu = ""; // dạng "mãPhiếu|ngày" của bảng đang mở
+
+function renderQuickMenu(day, ticketId) {
+  const key = `${ticketId}|${day.date}`;
+  const isOpen = openQuickMenu === key;
+  const options = ATTENDANCE_CODES.filter(item => item.value).map(item => `
     <button
       type="button"
-      class="ts-code-chip ${attendanceCodeClass(item.value)} ${day.code === item.value ? "is-on" : ""}"
+      class="ts-code-option ${day.code === item.value ? "is-on" : ""}"
       data-ts-quick-code="${escapeHtml(item.value)}"
       data-ticket="${escapeHtml(ticketId)}"
       data-date="${escapeHtml(day.date)}"
-      title="${escapeHtml(item.label)}"
-      aria-label="${escapeHtml(item.label)}"
-    >${escapeHtml(item.value)}</button>`).join("");
+    >${escapeHtml(item.label)}</button>`).join("");
   return `
-    <div class="ts-code-row" role="group" aria-label="Chọn ký hiệu chấm công">
-      ${chips}
-      <button
-        type="button"
-        class="ts-code-chip ts-code-clear"
-        data-ts-quick-code=""
-        data-ticket="${escapeHtml(ticketId)}"
-        data-date="${escapeHtml(day.date)}"
-        title="Xóa ký hiệu"
-        aria-label="Xóa ký hiệu"
-      >×</button>
-    </div>`;
+    <button
+      type="button"
+      class="ts-menu-toggle"
+      data-ts-menu-toggle="${escapeHtml(key)}"
+      aria-label="Chọn ký hiệu cho ngày ${escapeHtml(formatShortDate(day.date))}"
+      aria-expanded="${isOpen}"
+    >⋯</button>
+    ${isOpen ? `
+      <div class="ts-code-menu" role="menu">
+        ${options}
+        <button
+          type="button"
+          class="ts-code-option ts-code-clear"
+          data-ts-quick-code=""
+          data-ticket="${escapeHtml(ticketId)}"
+          data-date="${escapeHtml(day.date)}"
+        >Xóa ký hiệu</button>
+      </div>` : ""}`;
 }
 
 function renderAttendanceCalendar(days, ticketId = "", canEdit = false) {
@@ -208,7 +215,7 @@ function renderAttendanceCalendar(days, ticketId = "", canEdit = false) {
             ${day.code ? escapeHtml(day.code) : "—"}
           </span>
         </button>
-        ${canEdit && ticketId ? renderQuickCodeRow(day, ticketId) : ""}
+        ${canEdit && ticketId ? renderQuickMenu(day, ticketId) : ""}
       </div>
     `;
   }).join("");
@@ -224,89 +231,6 @@ function renderAttendanceCalendar(days, ticketId = "", canEdit = false) {
 // ============================================
 // HÀNG CHỈNH SỬA CHẤM CÔNG
 // ============================================
-
-function renderAttendanceEditor(days, canEdit) {
-  if (!days.length) return "";
-
-  let selectedDay = getSelectedDay(days);
-
-  if (!selectedDay) {
-    selectedAttendanceDate = days[0].date;
-    selectedDay = days[0];
-  }
-
-  const dateOptions = days.map(day => `
-    <option
-      value="${escapeHtml(day.date)}"
-      ${day.date === selectedAttendanceDate ? "selected" : ""}
-    >
-      ${formatShortDate(day.date)}
-    </option>
-  `).join("");
-
-  const statusOptions = ATTENDANCE_CODES.map(item => `
-    <option
-      value="${escapeHtml(item.value)}"
-      ${selectedDay.code === item.value ? "selected" : ""}
-    >
-      ${escapeHtml(item.label)}
-    </option>
-  `).join("");
-
-  return `
-    <div class="ts-editor">
-      <div class="ts-editor-title">
-        <strong>Chỉnh sửa chấm công</strong>
-        <small>Chọn ngày và cập nhật trạng thái tương ứng.</small>
-      </div>
-
-      <div class="ts-editor-row">
-        <div class="ts-editor-field">
-          <label>Ngày chấm công</label>
-          <select data-ts-editor-date aria-label="Chọn ngày chấm công">
-            ${dateOptions}
-          </select>
-        </div>
-
-        <div class="ts-editor-field">
-          <label>Thứ</label>
-          <input
-            type="text"
-            value="${WEEKDAYS[selectedDay.weekday]}"
-            readonly
-            aria-label="Thứ trong tuần"
-          >
-        </div>
-
-        <div class="ts-editor-field ts-editor-status">
-          <label>Trạng thái</label>
-          ${
-            canEdit
-              ? `
-                <select
-                  data-ts-editor-code
-                  aria-label="Trạng thái chấm công"
-                >
-                  ${statusOptions}
-                </select>
-              `
-              : `
-                <div class="ts-readonly-status ${attendanceCodeClass(selectedDay.code)}">
-                  ${escapeHtml(attendanceCodeLabel(selectedDay.code))}
-                </div>
-              `
-          }
-        </div>
-      </div>
-
-      ${
-        canEdit
-          ? `<p class="ts-editor-note">Thay đổi trạng thái sẽ được lưu trực tiếp vào dữ liệu chấm công.</p>`
-          : `<p class="ts-editor-note">Bạn chỉ có quyền xem chấm công của sinh viên này.</p>`
-      }
-    </div>
-  `;
-}
 
 // ============================================
 // KHU VỰC CHI TIẾT CHẤM CÔNG
@@ -406,7 +330,6 @@ function renderTimesheetDetail(ticket) {
       ${renderAttendanceCalendar(days, ticket.id, canEdit)}
     </div>
 
-    ${isHR() ? "" : renderAttendanceEditor(days, canEdit)}
 
     ${
       selectedDay
@@ -547,25 +470,6 @@ function bindTimesheetEvents(root) {
       return;
     }
 
-    if (target.matches("[data-ts-editor-date]")) {
-      selectedAttendanceDate = target.value;
-
-      const ticket = getExpandedTicket();
-
-      if (ticket) {
-        renderTimesheetDetail(ticket);
-      }
-
-      return;
-    }
-
-    if (target.matches("[data-ts-editor-code]")) {
-      saveAttendance(
-        expandedTicketId,
-        selectedAttendanceDate,
-        target.value
-      );
-    }
   });
 
   // Click chi tiết, chọn ngày hoặc đóng chi tiết
@@ -590,12 +494,26 @@ function bindTimesheetEvents(root) {
       return;
     }
 
-    // Chọn nhanh ký hiệu ngay trong ô ngày
+    // Bảng chọn ký hiệu: mở/đóng bằng nút ⋯, chọn ký hiệu thì lưu ngay
+    const menuToggle = target.closest("[data-ts-menu-toggle]");
+    if (menuToggle) {
+      const key = menuToggle.dataset.tsMenuToggle;
+      openQuickMenu = openQuickMenu === key ? "" : key;
+      renderTimesheetDetail(getExpandedTicket());
+      return;
+    }
+
     const quick = target.closest("[data-ts-quick-code]");
     if (quick) {
+      openQuickMenu = "";
       selectedAttendanceDate = quick.dataset.date;
       saveAttendance(quick.dataset.ticket, quick.dataset.date, quick.dataset.tsQuickCode);
       return;
+    }
+
+    if (openQuickMenu && !target.closest(".ts-code-menu")) {
+      openQuickMenu = "";
+      renderTimesheetDetail(getExpandedTicket());
     }
 
     const dateButton = target.closest("[data-ts-select-date]");
