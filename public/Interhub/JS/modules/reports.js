@@ -6,7 +6,7 @@
 import { DemoStore, STATUS, STATUS_LABEL } from "../db.js";
 import { HR_COLOR, state } from "../state.js";
 import { showMessage } from "../components/messages.js";
-import { actorInfo, average, departmentOptions, downloadCsv, escapeHtml, formatDate, formatScore, isHR, periodOptions, resolvePeriodId } from "../utils.js";
+import { actorInfo, average, departmentOptions, escapeHtml, formatDate, formatScore, isHR, periodOptions, resolvePeriodId } from "../utils.js";
 import { exportAttendanceXlsx, periodBounds } from "./attendance-export.js";
 
 // ===== Mục "Báo cáo": số liệu theo kỳ, theo bộ phận và bảng kết quả (xuất CSV) =====
@@ -93,9 +93,19 @@ async function exportAttendance() {
     showMessage("error", "❌ " + (error.message || "Không xuất được báo cáo."));
   }
 }
+// HR: tất cả SVTT (lọc theo bộ phận nếu chọn). Trưởng bộ phận/Người hướng dẫn: chỉ bộ phận của mình.
+// Tổ Công tác sinh viên giữ phạm vi theo phân công (canView).
 export function reportTickets() {
   const { periodId, dept } = state.reports;
-  return DemoStore.listTickets(actorInfo(), periodId).filter(t => !dept || t.department === dept);
+  if (state.userProfile?.role === "committee") {
+    return DemoStore.listTickets(actorInfo(), periodId).filter(t => !dept || t.department === dept);
+  }
+  if (isHR()) {
+    return DemoStore.listAllTickets(periodId).filter(t => !dept || t.department === dept);
+  }
+  const own = state.userProfile?.department || "";
+  if (!own) return [];
+  return DemoStore.listAllTickets(periodId).filter(t => t.department === own);
 }
 
 export function reportByDepartment(list) {
@@ -288,8 +298,7 @@ export function renderReportsView() {
       } else if (event.target.closest("[data-att-clear]")) {
         attOff = new Set(attListIds);
         renderReportsView();
-      } else if (event.target.closest("[data-rp-export]")) exportReportCsv();
-      else if (event.target.closest("[data-rp-school-more]")) {
+      } else if (event.target.closest("[data-rp-school-more]")) {
         state.reports.schoolLimit = (state.reports.schoolLimit || 5) + 5;
         renderReportsView();
       } else if (event.target.closest("[data-rp-school-less]")) {
@@ -332,16 +341,16 @@ export function renderReportsView() {
     return;
   }
 
+  const ownDept = state.userProfile?.department || "";
+  const deptControl = isHR()
+    ? `<select data-rp-dept aria-label="Bộ phận">${departmentOptions(state.reports.dept)}</select>`
+    : `<span class="rp-dept-label"><strong>Bộ phận:</strong> ${escapeHtml(ownDept || "—")}</span>`;
   const toolbar = `
     <div class="assign-toolbar">
       <select data-rp-period aria-label="Kỳ đánh giá">${periodOptions(state.reports.periodId)}</select>
-      <select data-rp-dept aria-label="Bộ phận">${departmentOptions(state.reports.dept)}</select>
+      ${deptControl}
     </div>`;
-  const head = `
-    <h2 style="display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;gap:12px;flex-wrap:wrap;">
-      <span>Báo cáo đánh giá</span>
-      <button type="button" class="btn btn-primary btn-sm" data-rp-export ${finalized ? "" : "disabled"}>Xuất CSV kết quả</button>
-    </h2>`;
+  const head = `<h2 style="margin:0 0 16px;"><span>Báo cáo đánh giá</span></h2>`;
 
   // Phòng Nhân sự: số SVTT đã chốt, chia theo Trường (Tổ CTSV phụ trách theo Trường)
   if (isHR()) {
@@ -423,12 +432,3 @@ export function renderReportsView() {
     ${attendanceExportHtml()}`;
 }
 
-export function exportReportCsv() {
-  const results = reportResults(reportTickets());
-  const header = ["Mã SV", "Họ tên", "Trường", "Bộ phận", "Điểm bộ phận", "Điểm Tổ CTSV", "Điểm cuối", "Trạng thái"];
-  const rows = results.map(({ ticket: t, summary: s }) => [
-    t.internId, t.internName, t.school || "", t.department,
-    formatScore(s.dept), formatScore(s.committee), formatScore(s.final), STATUS_LABEL[t.status]
-  ]);
-  downloadCsv(`bao-cao-${state.reports.periodId || "ky"}.csv`, [header, ...rows]);
-}
