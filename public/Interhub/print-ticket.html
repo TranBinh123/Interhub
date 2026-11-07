@@ -334,7 +334,7 @@
             <td>${fmt(summary.dept)}</td>
             <td>${fmt(summary.committee)}</td>
             <td><strong>${fmt(summary.final)}</strong></td>
-            <td>&nbsp;</td>
+            <td>${esc(DemoStore.ratingOf(summary.final))}</td>
           </tr>
         </table>
 

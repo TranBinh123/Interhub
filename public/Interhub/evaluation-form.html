@@ -391,11 +391,18 @@
       <!-- Section 2b: Tổ Công tác sinh viên chấm một điểm chung -->
       <div class="card" id="committeeCard">
         <h2>Điểm Tổ Công tác sinh viên (1-10)</h2>
-        <p style="color: var(--text-muted); margin: 0 0 12px;">Tổ Công tác sinh viên chấm một điểm chung cho SVTT (bước 0.5). Điểm đánh giá trung bình = (điểm trung bình Phần I–III của bộ phận + điểm này) / 2.</p>
-        <div class="form-group" style="max-width: 240px;">
-          <label for="committeeScore">Điểm Tổ CTSV</label>
-          <input type="number" id="committeeScore" min="1" max="10" step="0.5">
+        <p style="color: var(--text-muted); margin: 0 0 12px;">Tổ Công tác sinh viên chấm hai ô điểm (bước 0.5); tổng hai ô là Điểm Tổ CTSV. Điểm đánh giá trung bình = (điểm trung bình Phần I–III của bộ phận + Điểm Tổ CTSV) / 2.</p>
+        <div class="form-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;">
+          <div class="form-group">
+            <label for="committeeRules">Chấp hành nội quy, quy định (Tối đa 7 điểm)</label>
+            <input type="number" id="committeeRules" min="0" max="7" step="0.5">
+          </div>
+          <div class="form-group">
+            <label for="committeeSupport">Tích cực hỗ trợ CBQLSV, tham gia HĐ phong trào (Tối đa 3 điểm)</label>
+            <input type="number" id="committeeSupport" min="0" max="3" step="0.5">
+          </div>
         </div>
+        <p style="margin:8px 0 0;">Điểm Tổ CTSV: <strong id="committeeTotal">—</strong></p>
       </div>
 
       <!-- Section 3: Notes by Role -->
@@ -471,6 +478,7 @@
     let currentTicket = null;
     let currentScores = Array(ITEMS.length).fill(null);
     let currentCommittee = null;
+    let currentCommitteeParts = null;
 
     function esc(value) {
       return String(value ?? "")
@@ -547,6 +555,7 @@
       currentTicket = ticket;
       currentScores = [...ticket.scores];
       currentCommittee = ticket.committeeScore ?? null;
+      currentCommitteeParts = ticket.committeeParts ?? null;
 
       $("loadingState").classList.add("hidden");
       $("evaluationForm").classList.remove("hidden");
@@ -642,21 +651,41 @@
       updateResults();
     });
 
-    $("committeeScore").addEventListener("change", event => {
-      const input = event.target;
-      if (input.value === "") {
-        currentCommittee = null;
-      } else {
-        const value = Number(input.value);
-        if (Number.isNaN(value) || value < SCORE_MIN || value > SCORE_MAX || Math.round(value * 2) !== value * 2) {
-          showMessage("error", `Điểm Tổ CTSV phải từ ${SCORE_MIN} đến ${SCORE_MAX}, bước 0.5`);
-          input.value = currentCommittee ?? "";
-          return;
+    // Đọc hai ô điểm Tổ CTSV: trả về [điểm nội quy, điểm hỗ trợ] hoặc null nếu để trống, và thông báo lỗi nếu sai
+    function readCommitteeInputs() {
+      const values = DemoStore.COMMITTEE_PARTS.map(part => {
+        const raw = $(part.key === "rules" ? "committeeRules" : "committeeSupport").value.trim();
+        return { part, raw, value: raw === "" ? null : Number(raw) };
+      });
+      for (const { part, value } of values) {
+        if (value === null) continue;
+        if (Number.isNaN(value) || value < 0 || value > part.max || Math.round(value * 2) !== value * 2) {
+          return { error: `"${part.label}" phải từ 0 đến ${part.max} điểm, bước 0.5.` };
         }
-        currentCommittee = value;
       }
+      if (values.some(v => v.value === null)) return { parts: null };
+      return { parts: values.map(v => v.value) };
+    }
+
+    function writeCommitteeInputs() {
+      $("committeeRules").value = currentCommitteeParts ? currentCommitteeParts[0] : "";
+      $("committeeSupport").value = currentCommitteeParts ? currentCommitteeParts[1] : "";
+    }
+
+    function onCommitteeInput() {
+      const { parts, error } = readCommitteeInputs();
+      if (error) {
+        showMessage("error", error);
+        writeCommitteeInputs();
+        return;
+      }
+      currentCommitteeParts = parts;
+      currentCommittee = DemoStore.committeeTotal(parts);
       updateResults();
-    });
+    }
+
+    $("committeeRules").addEventListener("change", onCommitteeInput);
+    $("committeeSupport").addEventListener("change", onCommitteeInput);
 
     // Điểm bộ phận = trung bình ba phần (README mục 2.4)
     // Điểm đánh giá trung bình = (điểm trung bình Phần I–III + điểm Tổ CTSV) / 2
@@ -669,8 +698,9 @@
       $("resultC").textContent = fmt(summary.parts[2]);
       $("resultDept").textContent = fmt(summary.dept);
       $("resultCommittee").textContent = fmt(summary.committee);
+      $("committeeTotal").textContent = summary.committee === null ? "—" : String(summary.committee);
       $("resultFinal").textContent = fmt(summary.final);
-      $("resultGrade").textContent = summary.final === null ? "—" : "Chờ xác nhận thang xếp loại";
+      $("resultGrade").textContent = DemoStore.ratingOf(summary.final);
     }
 
     // ============================================
@@ -682,7 +712,8 @@
       document.querySelectorAll(".score-input").forEach(input => {
         input.disabled = !p.scores;
       });
-      $("committeeScore").disabled = !p.committeeScores;
+      $("committeeRules").disabled = !p.committeeScores;
+      $("committeeSupport").disabled = !p.committeeScores;
       $("strengths") && ($("strengths").disabled = !p.strengths);
       $("improvements") && ($("improvements").disabled = !p.improvements);
 
@@ -708,7 +739,7 @@
       const p = DemoStore.permissionsFor(currentTicket, actor);
       const result = DemoStore.saveDraft(ticketId, actor, {
         scores: p.scores ? currentScores : null,
-        committeeScore: p.committeeScores ? currentCommittee : undefined,
+        committeeParts: p.committeeScores ? currentCommitteeParts : undefined,
         notes: collectNotes()
       });
       if (!result.ok) {
@@ -744,6 +775,7 @@
     $("resetBtn").addEventListener("click", () => {
       currentScores = [...currentTicket.scores];
       currentCommittee = currentTicket.committeeScore ?? null;
+      currentCommitteeParts = currentTicket.committeeParts ?? null;
       renderScoresTable();
       updateResults();
       applyPermissions();
@@ -823,18 +855,17 @@
       });
 
       $("finalizeBtn")?.addEventListener("click", () => {
-        // Đọc trực tiếp ô điểm tại thời điểm bấm, không phụ thuộc sự kiện change đã kịp chạy hay chưa
-        const raw = $("committeeScore").value.trim();
-        const score = raw === "" ? null : Number(raw);
-        const valid = score !== null && !Number.isNaN(score) && score >= SCORE_MIN && score <= SCORE_MAX && Math.round(score * 2) === score * 2;
-        if (!valid) {
-          showMessage("error", `❌ Hãy nhập Điểm Tổ CTSV từ ${SCORE_MIN} đến ${SCORE_MAX} (bước 0.5) trước khi xác nhận chốt.`);
+        // Đọc trực tiếp hai ô điểm tại thời điểm bấm, không phụ thuộc sự kiện change đã kịp chạy hay chưa
+        const { parts, error } = readCommitteeInputs();
+        if (error || !parts) {
+          showMessage("error", `❌ ${error || "Hãy nhập đủ hai ô điểm Tổ CTSV trước khi xác nhận chốt."}`);
           window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
-        currentCommittee = score;
-        if (!confirm(`Xác nhận chốt phiếu với Điểm Tổ CTSV ${score}? Sau khi chốt, chỉ Phòng Nhân sự mới mở lại được.`)) return;
-        const result = DemoStore.finalize(ticketId, actor, score);
+        currentCommitteeParts = parts;
+        currentCommittee = DemoStore.committeeTotal(parts);
+        if (!confirm(`Xác nhận chốt phiếu với Điểm Tổ CTSV ${currentCommittee}? Sau khi chốt, chỉ Phòng Nhân sự mới mở lại được.`)) return;
+        const result = DemoStore.finalize(ticketId, actor, parts);
         // Thông báo hiển thị ở đầu trang, nên luôn cuộn lên để người dùng thấy kết quả
         window.scrollTo({ top: 0, behavior: "smooth" });
         if (!result.ok) {
@@ -850,7 +881,7 @@
     function refresh() {
       renderHeader();
       renderRoleNotes();
-      $("committeeScore").value = currentCommittee ?? "";
+      writeCommitteeInputs();
       applyPermissions();
       updateResults();
       renderReviewPanel();
