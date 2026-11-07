@@ -5,9 +5,94 @@
 
 import { DemoStore, STATUS, STATUS_LABEL } from "../db.js";
 import { HR_COLOR, state } from "../state.js";
-import { actorInfo, average, departmentOptions, downloadCsv, escapeHtml, formatScore, isHR, periodOptions, resolvePeriodId } from "../utils.js";
+import { showMessage } from "../components/messages.js";
+import { actorInfo, average, departmentOptions, downloadCsv, escapeHtml, formatDate, formatScore, isHR, periodOptions, resolvePeriodId } from "../utils.js";
+import { exportAttendanceXlsx, periodBounds } from "./attendance-export.js";
 
 // ===== Mục "Báo cáo": số liệu theo kỳ, theo bộ phận và bảng kết quả (xuất CSV) =====
+let attOff = new Set(); // SVTT đang bỏ tick khi xuất ngày công (mặc định: tất cả được chọn)
+let attListIds = [];
+
+// ===== Báo cáo ngày công (BM 07): HR, Trưởng bộ phận, Người hướng dẫn (không có Tổ CTSV) =====
+function attendanceCandidates() {
+  const periodId = state.reports.periodId;
+  const period = DemoStore.listPeriods().find(p => p.id === periodId) || null;
+  if (!period) return { period: null, list: [], schools: [], interns: new Map() };
+  const bounds = periodBounds(period.month);
+  const interns = new Map(DemoStore.listInterns().map(i => [i.internId, i]));
+  const dept = isHR() ? state.reports.dept : (state.userProfile?.department || "");
+  const inDept = t => (isHR() ? !dept || t.department === dept : !!dept && t.department === dept);
+
+  // Bỏ SVTT đã về trước đầu kỳ (không còn đưa vào danh sách)
+  const base = DemoStore.listAllTickets(periodId).filter(t => {
+    const intern = interns.get(t.internId);
+    return inDept(t) && !(intern?.endDate && intern.endDate < bounds.start);
+  });
+  const schools = [...new Set(base.map(t => t.school || "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+  const school = schools.includes(state.reports.attSchool) ? state.reports.attSchool : "";
+  const list = base
+    .filter(t => !school || (t.school || "") === school)
+    .sort((a, b) => (a.school || "").localeCompare(b.school || "", "vi") || a.internName.localeCompare(b.internName, "vi"));
+  return { period, list, schools, interns };
+}
+
+function attendanceExportHtml() {
+  const { period, list, schools, interns } = attendanceCandidates();
+  const school = schools.includes(state.reports.attSchool) ? state.reports.attSchool : "";
+  attListIds = list.map(t => t.id);
+  const chosen = list.filter(t => !attOff.has(t.id)).length;
+  const rowsHtml = list.length ? list.map(t => {
+    const intern = interns.get(t.internId) || {};
+    return `
+      <tr>
+        <td class="print-cell" data-label="Chọn"><input type="checkbox" class="print-check" data-att-check="${escapeHtml(t.id)}" aria-label="Chọn ${escapeHtml(t.internName)}" ${attOff.has(t.id) ? "" : "checked"}></td>
+        <td data-label="Sinh viên">${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
+        <td data-label="Trường">${escapeHtml(t.school || "—")}</td>
+        <td data-label="Bộ phận">${escapeHtml(t.department)}</td>
+        <td data-label="Thời gian thực tập">${escapeHtml(formatDate(intern.startDate))} – ${escapeHtml(formatDate(intern.endDate))}</td>
+        <td data-label="Trạng thái">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
+      </tr>`;
+  }).join("") : `<tr class="empty-state"><td colspan="6">Không có SVTT nào trong bộ lọc đang chọn</td></tr>`;
+
+  return `
+    <h3>Báo cáo ngày công (BM 07)</h3>
+    <div class="assign-toolbar">
+      <select data-att-school aria-label="Trường (báo cáo ngày công)">
+        <option value="">Tất cả trường</option>
+        ${schools.map(sc => `<option value="${escapeHtml(sc)}" ${school === sc ? "selected" : ""}>${escapeHtml(sc)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="print-bar">
+      <span class="print-bar__info"><strong>${list.length}</strong> SVTT · đã chọn <strong>${chosen}</strong></span>
+      <div class="print-bar__actions">
+        <button type="button" class="print-btn print-btn--ghost" data-att-all ${list.length ? "" : "disabled"}>Chọn tất cả</button>
+        <button type="button" class="print-btn print-btn--ghost" data-att-clear ${list.length ? "" : "disabled"}>Bỏ chọn</button>
+        <button type="button" class="print-btn print-btn--primary" data-att-export ${period && chosen ? "" : "disabled"}>Xuất .xlsx</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table-cards">
+        <thead><tr><th class="print-cell">Chọn</th><th>Sinh viên</th><th>Trường</th><th>Bộ phận</th><th>Thời gian thực tập</th><th>Trạng thái</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+async function exportAttendance() {
+  const { period, list } = attendanceCandidates();
+  const chosen = list.filter(t => !attOff.has(t.id));
+  if (!period || !chosen.length) return;
+  try {
+    await exportAttendanceXlsx({
+      periodMonth: period.month,
+      rows: chosen.map(t => ({ name: t.internName, days: DemoStore.attendanceDays(t.id) })),
+      filename: `BM07-cham-cong-${period.month}.xlsx`
+    });
+    showMessage("success", `Đã xuất báo cáo ngày công cho ${chosen.length} SVTT.`);
+  } catch (error) {
+    showMessage("error", "❌ " + (error.message || "Không xuất được báo cáo."));
+  }
+}
 export function reportTickets() {
   const { periodId, dept } = state.reports;
   return DemoStore.listTickets(actorInfo(), periodId).filter(t => !dept || t.department === dept);
@@ -178,16 +263,32 @@ export function renderReportsView() {
   if (!root.dataset.bound) {
     root.dataset.bound = "1";
     root.addEventListener("change", event => {
+      if (event.target.matches("[data-att-check]")) {
+        const id = event.target.dataset.attCheck;
+        if (event.target.checked) attOff.delete(id);
+        else attOff.add(id);
+        renderReportsView();
+        return;
+      }
       if (event.target.matches("[data-rp-period]")) state.reports.periodId = event.target.value;
       else if (event.target.matches("[data-rp-dept]")) state.reports.dept = event.target.value;
       else if (event.target.matches("[data-rp-school]")) state.reports.school = event.target.value;
+      else if (event.target.matches("[data-att-school]")) state.reports.attSchool = event.target.value;
       else return;
+      attOff = new Set();
       state.reports.limit = 5;
       state.reports.schoolLimit = 5;
       renderReportsView();
     });
     root.addEventListener("click", event => {
-      if (event.target.closest("[data-rp-export]")) exportReportCsv();
+      if (event.target.closest("[data-att-export]")) exportAttendance();
+      else if (event.target.closest("[data-att-all]")) {
+        attOff = new Set();
+        renderReportsView();
+      } else if (event.target.closest("[data-att-clear]")) {
+        attOff = new Set(attListIds);
+        renderReportsView();
+      } else if (event.target.closest("[data-rp-export]")) exportReportCsv();
       else if (event.target.closest("[data-rp-school-more]")) {
         state.reports.schoolLimit = (state.reports.schoolLimit || 5) + 5;
         renderReportsView();
@@ -279,7 +380,8 @@ export function renderReportsView() {
             </tr>`).join("") : `<tr class="empty-state"><td colspan="4">Chưa có dữ liệu</td></tr>`}</tbody>
         </table>
       </div>
-      ${moreHtml}`;
+      ${moreHtml}
+      ${attendanceExportHtml()}`;
     return;
   }
 
@@ -317,7 +419,8 @@ export function renderReportsView() {
         <tbody>${reportResultRows(shownResults)}</tbody>
       </table>
     </div>
-    ${moreHtml}`;
+    ${moreHtml}
+    ${attendanceExportHtml()}`;
 }
 
 export function exportReportCsv() {
