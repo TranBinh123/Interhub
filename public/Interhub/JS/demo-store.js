@@ -121,6 +121,41 @@ export function partScore(scores, partIndex) {
 }
 
 // Điểm cuối = (điểm trung bình Phần I–III của bộ phận + điểm Tổ Công tác sinh viên) / 2
+// Tổ CTSV chấm hai ô điểm, tổng hai ô là Điểm Tổ CTSV
+export const COMMITTEE_PARTS = [
+  { key: "rules", label: "Chấp hành nội quy, quy định", max: 7 },
+  { key: "support", label: "Tích cực hỗ trợ CBQLSV, tham gia HĐ phong trào", max: 3 }
+];
+
+export function committeeTotal(parts) {
+  if (!Array.isArray(parts) || parts.some(v => typeof v !== "number")) return null;
+  return parts.reduce((a, b) => a + b, 0);
+}
+
+// Trả về thông báo lỗi nếu hai ô điểm không hợp lệ, null nếu hợp lệ
+function checkCommitteeParts(parts) {
+  if (!Array.isArray(parts) || parts.length !== COMMITTEE_PARTS.length) return "Thiếu điểm Tổ CTSV.";
+  for (let i = 0; i < COMMITTEE_PARTS.length; i++) {
+    const v = parts[i];
+    const p = COMMITTEE_PARTS[i];
+    if (typeof v !== "number" || v < 0 || v > p.max || Math.round(v * 2) !== v * 2) {
+      return `"${p.label}" phải từ 0 đến ${p.max} điểm, bước 0.5.`;
+    }
+  }
+  return null;
+}
+
+// Xếp loại theo điểm đánh giá trung bình
+export function ratingOf(score) {
+  if (typeof score !== "number") return "—";
+  if (score >= 9.5) return "Xuất sắc 1";
+  if (score >= 9) return "Xuất sắc 2";
+  if (score >= 8) return "Giỏi";
+  if (score >= 7) return "Khá";
+  if (score >= 5) return "Trung bình";
+  return "Kém";
+}
+
 export function scoreSummary(ticket) {
   const parts = PARTS.map((p, i) => partScore(ticket.scores || [], i));
   const dept = parts.every(v => v !== null) ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
@@ -178,6 +213,10 @@ function read() {
         }
         delete t.committeeScores;
         if (!t.attendance) t.attendance = {};
+        // Chuyển ký hiệu cũ (o, v, Off) sang ký hiệu mới (X, V, O)
+        for (const d of Object.keys(t.attendance)) {
+          if (LEGACY_ATTENDANCE[t.attendance[d]]) t.attendance[d] = LEGACY_ATTENDANCE[t.attendance[d]];
+        }
         if (t.committeeUid === undefined) t.committeeUid = null;
         if (typeof t.committeeName !== "string") t.committeeName = "";
         if (typeof t.strengths !== "string") t.strengths = t.textPart4 || "";
@@ -1224,7 +1263,7 @@ export function todoFor(actor, periodId = null) {
 // Thao tác (mô phỏng)
 // ============================================
 // Lưu nháp: điểm và nhận xét. Chỉ ghi phần người dùng được phép sửa.
-export function saveDraft(id, actor, { scores, committeeScore, notes = {} }) {
+export function saveDraft(id, actor, { scores, committeeScore, committeeParts, notes = {} }) {
   const all = read();
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
@@ -1243,7 +1282,16 @@ export function saveDraft(id, actor, { scores, committeeScore, notes = {} }) {
     addHistory(ticket, actor, "Lưu điểm");
   }
 
-  if (committeeScore !== undefined) {
+  if (committeeParts !== undefined) {
+    if (!p.committeeScores) return fail("Bạn không có quyền chấm điểm Tổ Công tác sinh viên cho phiếu này.");
+    if (committeeParts !== null) {
+      const err = checkCommitteeParts(committeeParts);
+      if (err) return fail(err);
+    }
+    ticket.committeeParts = committeeParts ? [...committeeParts] : null;
+    ticket.committeeScore = committeeTotal(committeeParts);
+    addHistory(ticket, actor, "Lưu điểm Tổ CTSV");
+  } else if (committeeScore !== undefined) {
     if (!p.committeeScores) return fail("Bạn không có quyền chấm điểm Tổ Công tác sinh viên cho phiếu này.");
     const v = committeeScore;
     if (v !== null && (typeof v !== "number" || v < SCORE_MIN || v > SCORE_MAX || Math.round(v * 2) !== v * 2)) {
@@ -1335,14 +1383,21 @@ export function reopen(id, actor, reason) {
 }
 
 // Tổ Công tác sinh viên: nhập điểm và xác nhận chốt trong cùng một bước
-export function finalize(id, actor, committeeScore) {
+export function finalize(id, actor, committeeParts) {
   const all = read();
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).finalize) return fail("Chỉ Tổ Công tác sinh viên được chốt phiếu đang chờ chấm điểm.");
 
-  const v = committeeScore === undefined ? ticket.committeeScore : committeeScore;
-  if (typeof v !== "number") return fail("Hãy nhập Điểm Tổ CTSV trước khi xác nhận chốt.");
+  if (Array.isArray(committeeParts)) {
+    const err = checkCommitteeParts(committeeParts);
+    if (err) return fail(err);
+    ticket.committeeParts = [...committeeParts];
+    ticket.committeeScore = committeeTotal(committeeParts);
+  }
+
+  const v = ticket.committeeScore;
+  if (typeof v !== "number") return fail("Hãy nhập đủ hai ô điểm Tổ CTSV trước khi xác nhận chốt.");
   if (v < SCORE_MIN || v > SCORE_MAX || Math.round(v * 2) !== v * 2) {
     return fail(`Điểm Tổ Công tác sinh viên phải từ ${SCORE_MIN} đến ${SCORE_MAX}, bước 0.5.`);
   }
@@ -1386,7 +1441,15 @@ export function attendanceDays(ticketId) {
   return days;
 }
 
-export const ATTENDANCE_CODES = ["o", "v", "Off"];
+// Ký hiệu chấm công: X = đi làm (1 công), X/2 = nửa buổi (0,5 công), O = ngày off, V = vắng
+export const ATTENDANCE_CODES = ["X", "X/2", "O", "V"];
+const LEGACY_ATTENDANCE = { o: "X", v: "V", Off: "O" };
+
+export function workDaysOf(code) {
+  if (code === "X") return 1;
+  if (code === "X/2") return 0.5;
+  return 0;
+}
 
 export function setAttendance(ticketId, actor, date, code) {
   const state = read();
@@ -1397,7 +1460,7 @@ export function setAttendance(ticketId, actor, date, code) {
       ? "Kỳ đánh giá này đã chốt nên không sửa được chấm công các ngày trong kỳ. Chấm công các ngày thuộc kỳ sau vẫn mở."
       : "Bạn không có quyền chấm công phiếu này.");
   }
-  if (code && !ATTENDANCE_CODES.includes(code)) return fail("Ký hiệu chấm công: o (đi làm), v (vắng), Off (nghỉ).");
+  if (code && !ATTENDANCE_CODES.includes(code)) return fail("Ký hiệu chấm công: X (đi làm), X/2 (nửa buổi), O (off), V (vắng).");
   const span = ticketSpan(state, ticket);
   if (!span || date < span.start || date > span.end) return fail("Ngày không thuộc thời gian thực tập của SVTT trong kỳ này.");
 
@@ -1463,7 +1526,8 @@ export function loadSampleData() {
       status === STATUS.NOT_STARTED ? 0 :
       status === STATUS.IN_PROGRESS ? Math.floor(rnd() * ITEMS.length) : ITEMS.length;
     for (let k = 0; k < filled; k++) scores[k] = Math.round((rnd() * 9 + 1) * 2) / 2;
-    const committeeScore = status === STATUS.FINALIZED ? Math.round((rnd() * 9 + 1) * 2) / 2 : null;
+    const committeeParts = status === STATUS.FINALIZED ? [Math.round(rnd() * 14) / 2, Math.round(rnd() * 6) / 2] : null;
+    const committeeScore = committeeParts ? committeeParts[0] + committeeParts[1] : null;
 
     const stamp = new Date(Date.UTC(2026, 9, 1, 8, 0, 0) + i * 600000).toISOString();
     const id = `${period.id}-${internId}`;
@@ -1483,6 +1547,7 @@ export function loadSampleData() {
       committeeUid: null,
       committeeName: "",
       committeeScore,
+      committeeParts,
       strengths: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu về ưu điểm (dữ liệu giả lập).",
       improvements: status === STATUS.NOT_STARTED ? "" : "Nhận xét mẫu về điểm cần cải thiện (dữ liệu giả lập).",
       sendCount: sent ? 1 : 0,
@@ -1583,5 +1648,9 @@ export const DemoStore = {
   attendanceDays,
   setAttendance,
   ATTENDANCE_CODES,
+  workDaysOf,
+  COMMITTEE_PARTS,
+  committeeTotal,
+  ratingOf,
   formatDateTime
 };
