@@ -221,6 +221,16 @@
     }
 
     /* Actions */
+    .submit-hint {
+      margin: 12px 0 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #fff7e6;
+      border: 1px solid #f2d9a6;
+      color: #8a5a00;
+      font-size: 13px;
+    }
+    .submit-hint ul { margin: 6px 0 0 18px; padding: 0; }
     .form-actions {
       display: flex;
       gap: 12px;
@@ -391,15 +401,14 @@
       <!-- Section 2b: Tổ Công tác sinh viên chấm một điểm chung -->
       <div class="card" id="committeeCard">
         <h2>Điểm Tổ Công tác sinh viên (1-10)</h2>
-        <p style="color: var(--text-muted); margin: 0 0 12px;">Tổ Công tác sinh viên chấm hai ô điểm (bước 0.5); tổng hai ô là Điểm Tổ CTSV. Điểm đánh giá trung bình = (điểm trung bình Phần I–III của bộ phận + Điểm Tổ CTSV) / 2.</p>
-        <div class="form-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;">
+        <div style="max-width:560px;">
           <div class="form-group">
-            <label for="committeeRules">Chấp hành nội quy, quy định (Tối đa 7 điểm)</label>
-            <input type="number" id="committeeRules" min="0" max="7" step="0.5">
+            <label for="committeeRules" style="white-space:nowrap;">Chấp hành nội quy, quy định</label>
+            <input type="number" id="committeeRules" min="0" max="7" step="0.5" placeholder="Tối đa 7 điểm">
           </div>
           <div class="form-group">
-            <label for="committeeSupport">Tích cực hỗ trợ CBQLSV, tham gia HĐ phong trào (Tối đa 3 điểm)</label>
-            <input type="number" id="committeeSupport" min="0" max="3" step="0.5">
+            <label for="committeeSupport" style="white-space:nowrap;">Tích cực hỗ trợ CBQLSV, tham gia HĐ phong trào</label>
+            <input type="number" id="committeeSupport" min="0" max="3" step="0.5" placeholder="Tối đa 3 điểm">
           </div>
         </div>
         <p style="margin:8px 0 0;">Điểm Tổ CTSV: <strong id="committeeTotal">—</strong></p>
@@ -449,6 +458,8 @@
       </div>
 
       <!-- Actions -->
+      <div class="submit-hint" id="submitHint" hidden></div>
+
       <div class="form-actions">
         <button type="submit" class="btn btn-primary" id="submitBtn">
           💾 Lưu nháp
@@ -687,9 +698,41 @@
     $("committeeRules").addEventListener("change", onCommitteeInput);
     $("committeeSupport").addEventListener("change", onCommitteeInput);
 
+    // Ô nhận xét được vẽ lại theo vai trò, nên lắng nghe ở phần tử cha
+    document.addEventListener("input", event => {
+      if (event.target.id === "strengths" || event.target.id === "improvements") updateSubmitState();
+    });
+
     // Điểm bộ phận = trung bình ba phần (README mục 2.4)
     // Điểm đánh giá trung bình = (điểm trung bình Phần I–III + điểm Tổ CTSV) / 2
+    // Nút "Gửi phê duyệt" chỉ bật khi đủ điều kiện; phần còn thiếu được liệt kê ngay dưới nút
+    function updateSubmitState() {
+      const p = DemoStore.permissionsFor(currentTicket, actor);
+      const blockers = DemoStore.submitBlockers({
+        scores: currentScores,
+        strengths: $("strengths") ? $("strengths").value : currentTicket.strengths,
+        improvements: $("improvements") ? $("improvements").value : currentTicket.improvements
+      });
+      const btn = $("submitForReviewBtn");
+      btn.disabled = !p.submit || blockers.length > 0;
+      const hint = $("submitHint");
+      hint.hidden = !p.submit || blockers.length === 0;
+      hint.replaceChildren();
+      if (!hint.hidden) {
+        const title = document.createElement("strong");
+        title.textContent = "Chưa thể gửi phê duyệt, còn thiếu:";
+        const list = document.createElement("ul");
+        blockers.forEach(text => {
+          const li = document.createElement("li");
+          li.textContent = text;
+          list.appendChild(li);
+        });
+        hint.append(title, list);
+      }
+    }
+
     function updateResults() {
+      updateSubmitState();
       const fmt = v => (v === null || v === undefined ? "—" : v.toFixed(2));
       const summary = scoreSummary({ scores: currentScores, committeeScore: currentCommittee });
 
@@ -720,9 +763,9 @@
       const canSave = p.scores || p.committeeScores;
       $("submitBtn").disabled = !canSave;
       $("resetBtn").disabled = !canSave;
-      $("submitForReviewBtn").disabled = !p.submit;
       // Đã gửi (hoặc không còn quyền gửi) thì ẩn nút gửi phê duyệt
       $("submitForReviewBtn").hidden = !p.submit;
+      updateSubmitState();
     }
 
     // ============================================
