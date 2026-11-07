@@ -39,9 +39,10 @@ const WEEKDAYS = [
 
 const ATTENDANCE_CODES = [
   { value: "", label: "Chưa chấm" },
-  { value: "o", label: "o · Đi làm" },
-  { value: "v", label: "v · Vắng" },
-  { value: "Off", label: "Off · Nghỉ" }
+  { value: "X", label: "X · Đi làm" },
+  { value: "X/2", label: "X/2 · Nửa buổi (0,5 công)" },
+  { value: "O", label: "O · Ngày off" },
+  { value: "V", label: "V · Vắng" }
 ];
 
 function attendanceCodeLabel(code) {
@@ -50,9 +51,10 @@ function attendanceCodeLabel(code) {
 }
 
 function attendanceCodeClass(code) {
-  if (code === "o") return "ts-status-work";
-  if (code === "v") return "ts-status-absent";
-  if (code === "Off") return "ts-status-off";
+  if (code === "X") return "ts-status-work";
+  if (code === "X/2") return "ts-status-half";
+  if (code === "V") return "ts-status-absent";
+  if (code === "O") return "ts-status-off";
   return "ts-status-empty";
 }
 
@@ -77,9 +79,10 @@ export function timesheetRows(actor, periodId) {
     const days = DemoStore.attendanceDays(ticket.id);
 
     const counts = {
-      o: 0,
-      v: 0,
-      Off: 0
+      X: 0,
+      "X/2": 0,
+      O: 0,
+      V: 0
     };
 
     days.forEach(day => {
@@ -91,6 +94,7 @@ export function timesheetRows(actor, periodId) {
     return {
       ticket,
       counts,
+      workDays: counts.X + counts["X/2"] * 0.5,
       total: days.length,
       recorded: days.filter(day => day.recorded).length,
       today: days.find(day => day.date === today) || null,
@@ -297,10 +301,12 @@ function renderTimesheetDetail(ticket) {
   const selectedDay = getSelectedDay(days);
 
   const counts = {
-    o: days.filter(day => day.code === "o").length,
-    v: days.filter(day => day.code === "v").length,
-    Off: days.filter(day => day.code === "Off").length
+    X: days.filter(day => day.code === "X").length,
+    "X/2": days.filter(day => day.code === "X/2").length,
+    O: days.filter(day => day.code === "O").length,
+    V: days.filter(day => day.code === "V").length
   };
+  const workDays = counts.X + counts["X/2"] * 0.5;
 
   panel.hidden = false;
 
@@ -328,18 +334,28 @@ function renderTimesheetDetail(ticket) {
 
     <div class="ts-detail-summary">
       <div class="ts-summary-item">
-        <span>Đi làm</span>
-        <strong>${counts.o}</strong>
+        <span>Ngày công</span>
+        <strong>${workDays}</strong>
       </div>
 
       <div class="ts-summary-item">
-        <span>Vắng</span>
-        <strong>${counts.v}</strong>
+        <span>X · Đi làm</span>
+        <strong>${counts.X}</strong>
       </div>
 
       <div class="ts-summary-item">
-        <span>Off</span>
-        <strong>${counts.Off}</strong>
+        <span>X/2 · Nửa buổi</span>
+        <strong>${counts["X/2"]}</strong>
+      </div>
+
+      <div class="ts-summary-item">
+        <span>V · Vắng</span>
+        <strong>${counts.V}</strong>
+      </div>
+
+      <div class="ts-summary-item">
+        <span>O · Off</span>
+        <strong>${counts.O}</strong>
       </div>
 
       <div class="ts-summary-item">
@@ -411,9 +427,9 @@ export function fillTimesheetRows() {
           <td data-label="Bộ phận">${escapeHtml(row.ticket.department)}</td>
           <td data-label="Trạng thái">${escapeHtml(STATUS_LABEL[row.ticket.status] || row.ticket.status)}</td>
 
-          <td class="r" data-label="Đi làm">${row.counts.o}</td>
-          <td class="r" data-label="Vắng">${row.counts.v}</td>
-          <td class="r" data-label="Off">${row.counts.Off}</td>
+          <td class="r" data-label="Ngày công">${row.workDays}</td>
+          <td class="r" data-label="V · Vắng">${row.counts.V}</td>
+          <td class="r" data-label="O · Off">${row.counts.O}</td>
           <td class="r" data-label="Đã ghi">${row.recorded}/${row.total}</td>
 
           <td data-label="Hôm nay">${timesheetTodayCell(row)}</td>
@@ -675,9 +691,9 @@ export function renderTimesheetView() {
             <th>Sinh viên</th>
             <th>Bộ phận</th>
             <th>Trạng thái</th>
-            <th class="r">Đi làm</th>
-            <th class="r">Vắng</th>
-            <th class="r">Off</th>
+            <th class="r">Ngày công</th>
+            <th class="r">V · Vắng</th>
+            <th class="r">O · Off</th>
             <th class="r">Đã ghi</th>
             <th>Hôm nay</th>
             <th></th>
