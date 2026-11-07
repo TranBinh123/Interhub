@@ -1311,20 +1311,28 @@ export function saveDraft(id, actor, { scores, committeeScore, committeeParts, n
   return ok({ ticket: { ...ticket } });
 }
 
+export const MIN_NOTE = 30;
+
+// Các điều kiện còn thiếu trước khi gửi phê duyệt (rỗng nếu đã đủ)
+export function submitBlockers({ scores = [], strengths = "", improvements = "" } = {}) {
+  const blockers = [];
+  const unscored = ITEMS.filter((item, i) => scores[i] === null || scores[i] === undefined).map(item => item.key);
+  if (unscored.length) blockers.push(`Chưa chấm ${unscored.length} hạng mục: ${unscored.join(", ")}`);
+  const lenStrengths = String(strengths || "").trim().length;
+  const lenImprovements = String(improvements || "").trim().length;
+  if (lenStrengths < MIN_NOTE) blockers.push(`Ô "Ưu điểm" còn thiếu ${MIN_NOTE - lenStrengths} ký tự (tối thiểu ${MIN_NOTE})`);
+  if (lenImprovements < MIN_NOTE) blockers.push(`Ô "Điểm hạn chế" còn thiếu ${MIN_NOTE - lenImprovements} ký tự (tối thiểu ${MIN_NOTE})`);
+  return blockers;
+}
+
 export function submit(id, actor) {
   const all = read();
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).submit) return fail("Phiếu này không ở trạng thái có thể gửi.");
 
-  const missing = ticket.scores.filter(v => v === null).length;
-  if (missing > 0) return fail(`Còn ${missing} hạng mục chưa chấm điểm. Hãy điền đủ 15 hạng mục trước khi gửi.`);
-  const minNote = 30;
-  const lenStrengths = String(ticket.strengths || "").trim().length;
-  const lenImprovements = String(ticket.improvements || "").trim().length;
-  if (lenStrengths < minNote || lenImprovements < minNote) {
-    return fail(`Nhận xét SVTT phải có tối thiểu ${minNote} ký tự ở cả hai ô Ưu điểm và Điểm hạn chế (hiện: ${lenStrengths} và ${lenImprovements}).`);
-  }
+  const blockers = submitBlockers({ scores: ticket.scores, strengths: ticket.strengths, improvements: ticket.improvements });
+  if (blockers.length) return fail("Chưa thể gửi: " + blockers.join("; ") + ".");
 
   // Người hướng dẫn gửi thì phải qua Trưởng bộ phận duyệt; Trưởng bộ phận tự chấm (hoặc tự gửi) thì gửi thẳng Tổ Công tác sinh viên
   const viaMentor = actor.role === "mentor" && !!ticket.evaluatorUid && ticket.evaluatorUid === actor.uid;
@@ -1652,5 +1660,7 @@ export const DemoStore = {
   COMMITTEE_PARTS,
   committeeTotal,
   ratingOf,
+  submitBlockers,
+  MIN_NOTE,
   formatDateTime
 };
