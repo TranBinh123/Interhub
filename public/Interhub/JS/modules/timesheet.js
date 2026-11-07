@@ -139,7 +139,35 @@ export function timesheetTodayCell(row) {
 // LỊCH CHẤM CÔNG THEO NGÀY
 // ============================================
 
-function renderAttendanceCalendar(days) {
+// Hàng nút chọn ký hiệu ngay trong ô ngày (X, X/2, O, V và nút xóa)
+function renderQuickCodeRow(day, ticketId) {
+  const codes = ATTENDANCE_CODES.filter(item => item.value);
+  const chips = codes.map(item => `
+    <button
+      type="button"
+      class="ts-code-chip ${attendanceCodeClass(item.value)} ${day.code === item.value ? "is-on" : ""}"
+      data-ts-quick-code="${escapeHtml(item.value)}"
+      data-ticket="${escapeHtml(ticketId)}"
+      data-date="${escapeHtml(day.date)}"
+      title="${escapeHtml(item.label)}"
+      aria-label="${escapeHtml(item.label)}"
+    >${escapeHtml(item.value)}</button>`).join("");
+  return `
+    <div class="ts-code-row" role="group" aria-label="Chọn ký hiệu chấm công">
+      ${chips}
+      <button
+        type="button"
+        class="ts-code-chip ts-code-clear"
+        data-ts-quick-code=""
+        data-ticket="${escapeHtml(ticketId)}"
+        data-date="${escapeHtml(day.date)}"
+        title="Xóa ký hiệu"
+        aria-label="Xóa ký hiệu"
+      >×</button>
+    </div>`;
+}
+
+function renderAttendanceCalendar(days, ticketId = "", canEdit = false) {
   if (!days.length) {
     return `
       <div class="ts-empty">
@@ -160,25 +188,28 @@ function renderAttendanceCalendar(days) {
     const statusClass = attendanceCodeClass(day.code);
 
     return `
-      <button
-        type="button"
-        class="ts-calendar-day ${statusClass} ${isSelected ? "is-selected" : ""} ${isToday ? "is-today" : ""}"
-        data-ts-select-date="${escapeHtml(day.date)}"
-        aria-label="${WEEKDAYS[day.weekday]}, ngày ${formatShortDate(day.date)}, ${attendanceCodeLabel(day.code)}"
-        aria-pressed="${isSelected}"
-      >
-        <span class="ts-calendar-weekday">
-          ${WEEKDAYS[day.weekday]}
-        </span>
+      <div class="ts-calendar-day ${statusClass} ${isSelected ? "is-selected" : ""} ${isToday ? "is-today" : ""}">
+        <button
+          type="button"
+          class="ts-calendar-main"
+          data-ts-select-date="${escapeHtml(day.date)}"
+          aria-label="${WEEKDAYS[day.weekday]}, ngày ${formatShortDate(day.date)}, ${attendanceCodeLabel(day.code)}"
+          aria-pressed="${isSelected}"
+        >
+          <span class="ts-calendar-weekday">
+            ${WEEKDAYS[day.weekday]}
+          </span>
 
-        <strong class="ts-calendar-date">
-          ${formatShortDate(day.date)}
-        </strong>
+          <strong class="ts-calendar-date">
+            ${formatShortDate(day.date)}
+          </strong>
 
-        <span class="ts-calendar-status">
-          ${day.code ? escapeHtml(day.code) : "—"}
-        </span>
-      </button>
+          <span class="ts-calendar-status">
+            ${day.code ? escapeHtml(day.code) : "—"}
+          </span>
+        </button>
+        ${canEdit && ticketId ? renderQuickCodeRow(day, ticketId) : ""}
+      </div>
     `;
   }).join("");
 
@@ -372,7 +403,7 @@ function renderTimesheetDetail(ticket) {
         </div>
       </div>
 
-      ${renderAttendanceCalendar(days)}
+      ${renderAttendanceCalendar(days, ticket.id, canEdit)}
     </div>
 
     ${isHR() ? "" : renderAttendanceEditor(days, canEdit)}
@@ -556,6 +587,14 @@ function bindTimesheetEvents(root) {
       }
 
       fillTimesheetRows();
+      return;
+    }
+
+    // Chọn nhanh ký hiệu ngay trong ô ngày
+    const quick = target.closest("[data-ts-quick-code]");
+    if (quick) {
+      selectedAttendanceDate = quick.dataset.date;
+      saveAttendance(quick.dataset.ticket, quick.dataset.date, quick.dataset.tsQuickCode);
       return;
     }
 
