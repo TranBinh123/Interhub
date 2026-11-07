@@ -1047,11 +1047,10 @@ export function permissionsFor(ticket, actor) {
   return { ...p, print, attendance: attendanceAllowed(ticket, actor) };
 }
 
-// Chấm công là công việc hằng ngày, không phụ thuộc bước chấm điểm. Chỉ việc chốt phiếu
-// khóa chấm công các ngày trong kỳ của phiếu đó; các ngày thuộc kỳ sau nằm trong phiếu kỳ sau.
+// Chấm công là công việc hằng ngày, không khóa theo trạng thái chốt: Tổ CTSV có thể chốt
+// trước khi bộ phận chấm công xong. Quyền chấm công theo vai trò như trước.
 function attendanceAllowed(ticket, actor) {
   if (!ticket || !actor) return false;
-  if (ticket.status === STATUS.FINALIZED) return false;
   if (isSelfAssignedSupervisor(ticket, actor)) return true;
   // Xét quyền chấm điểm như thể phiếu đang mở, để chấm công không bị khóa theo trạng thái
   return rolePermissions({ ...ticket, status: STATUS.IN_PROGRESS }, actor).scores;
@@ -1463,11 +1462,7 @@ export function setAttendance(ticketId, actor, date, code) {
   const state = read();
   const ticket = state.tickets[ticketId];
   if (!ticket) return fail("Phiếu không tồn tại.");
-  if (!permissionsFor(ticket, actor).attendance) {
-    return fail(ticket.status === STATUS.FINALIZED
-      ? "Kỳ đánh giá này đã chốt nên không sửa được chấm công các ngày trong kỳ. Chấm công các ngày thuộc kỳ sau vẫn mở."
-      : "Bạn không có quyền chấm công phiếu này.");
-  }
+  if (!permissionsFor(ticket, actor).attendance) return fail("Bạn không có quyền chấm công phiếu này.");
   if (code && !ATTENDANCE_CODES.includes(code)) return fail("Ký hiệu chấm công: X (đi làm), X/2 (nửa buổi), O (off), V (vắng).");
   const span = ticketSpan(state, ticket);
   if (!span || date < span.start || date > span.end) return fail("Ngày không thuộc thời gian thực tập của SVTT trong kỳ này.");
