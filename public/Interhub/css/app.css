@@ -1421,6 +1421,53 @@ tbody tr:hover { background: #f3f9fa; }
   transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
 }
 
+.ts-calendar-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ts-code-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.ts-code-chip {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid #d5e0ea;
+  border-radius: 6px;
+  background: #fff;
+  color: #4a6078;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.ts-code-chip:hover { border-color: #087c78; color: #087c78; }
+.ts-code-chip.is-on { background: #087c78; border-color: #087c78; color: #fff; }
+.ts-code-chip.ts-code-clear { color: #8a9aab; }
+.ts-code-chip.ts-code-clear:hover { border-color: #c34436; color: #c34436; }
+
+@media (max-width: 768px) {
+  .ts-code-chip { min-width: 18px; height: 18px; padding: 0 2px; font-size: 9px; }
+  .ts-code-row { gap: 2px; }
+}
+
 .ts-calendar-day:hover {
   border-color: #75b9b7;
   background: #f1f9f8;
