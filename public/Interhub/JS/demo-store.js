@@ -1192,6 +1192,62 @@ export function assignCommitteeToSchool(school, actor, committeeUid) {
   return ok({ updated });
 }
 
+// Giao nhiều Trường cho một Tổ CTSV trong một lần ghi
+export function assignCommitteeToSchools(schools, actor, committeeUid) {
+  if (!actor || actor.role !== "hr") return fail("Chỉ Phòng Nhân sự mới được phân công Tổ Công tác sinh viên.");
+  const keys = [...new Set((schools || []).map(x => String(x ?? "")))];
+  if (!keys.length) return fail("Chưa chọn Trường nào.");
+  const state = read();
+  const member = state.members[committeeUid];
+  if (!member || member.role !== "committee") return fail("Hãy chọn một tài khoản Tổ Công tác sinh viên.");
+
+  let updated = 0;
+  for (const key of keys) state.schoolCommittee[key] = committeeUid;
+  for (const t of Object.values(state.tickets)) {
+    const key = t.school || "";
+    if (!keys.includes(key) || t.status === STATUS.FINALIZED) continue;
+    t.committeeUid = committeeUid;
+    t.committeeName = member.fullName;
+    addHistory(t, actor, "Phân công Tổ CTSV", `Giao cho ${member.fullName} (theo Trường ${key || "chưa có"})`);
+    updated++;
+  }
+  write(state);
+  return ok({ updated, schools: keys.length });
+}
+
+// Danh sách SVTT trong phạm vi người xem, không phụ thuộc kỳ đang mở.
+// HR: tất cả; Trưởng bộ phận: SVTT của bộ phận; Người hướng dẫn: SVTT được giao cho mình.
+// Có periodId thì chỉ lấy SVTT có thực tập trong tháng của kỳ và gắn kèm trạng thái phiếu của kỳ đó.
+export function rosterFor(actor, periodId = null) {
+  if (!actor) return [];
+  const state = read();
+  const month = periodId ? String(periodId).replace(/^EV-/, "") : null;
+  return Object.values(state.interns)
+    .filter(i => {
+      if (actor.role === "hr") return true;
+      if (actor.role === "supervisor") return i.department === actor.department;
+      if (actor.role === "mentor") return !!i.evaluatorUid && i.evaluatorUid === actor.uid;
+      return false;
+    })
+    .filter(i => !month || internSpanFor(i, month))
+    .sort((a, b) => a.internId.localeCompare(b.internId))
+    .map(i => {
+      const ticket = periodId ? state.tickets[`${periodId}-${i.internId}`] : null;
+      return {
+        internId: i.internId,
+        fullName: i.fullName,
+        department: i.department,
+        school: i.school || "",
+        startDate: i.startDate,
+        endDate: i.endDate,
+        evaluatorAssigned: !!i.evaluatorAssigned,
+        evaluatorUid: i.evaluatorUid || null,
+        evaluatorName: i.evaluatorName || "",
+        ticketStatus: ticket ? ticket.status : null
+      };
+    });
+}
+
 // Các Trường trong kỳ: số SVTT/phiếu, số phiếu đang chờ Tổ CTSV, số đã có điểm Tổ CTSV, người phụ trách
 export function listCommitteeSchools(periodId = null) {
   const state = read();
@@ -1923,6 +1979,8 @@ export const DemoStore = {
   assignEvaluator,
   assignEvaluatorBulk,
   assignCommitteeToSchool,
+  assignCommitteeToSchools,
+  rosterFor,
   listCommitteeSchools,
   assignInternEvaluators,
   unassignedInterns,
