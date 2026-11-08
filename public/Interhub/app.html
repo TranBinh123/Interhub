@@ -159,34 +159,16 @@
             <div class="assign-toolbar">
               <input type="search" id="assignSearch" placeholder="Tìm theo tên hoặc mã SV" class="search-input">
               <select id="assignDeptFilter" hidden></select>
-              <select id="assignStatusFilter">
-                <option value="all">Tất cả phiếu</option>
-                <option value="unassigned">Chưa giao</option>
-                <option value="assigned">Đã giao</option>
-              </select>
-            </div>
-
-            <div class="assign-bulk">
-              <label style="display:flex;align-items:center;gap:6px;">
-                <input type="checkbox" id="assignSelectAll"> Chọn tất cả đang hiển thị
-              </label>
-              <span id="assignSelectedCount" class="count-badge">Đã chọn 0 phiếu</span>
-              <select id="assignBulkMentor"></select>
-              <button type="button" class="btn btn-primary btn-sm" id="assignBulkApply" data-action="assign-bulk">Gán cho các phiếu đã chọn</button>
-              <button type="button" class="btn btn-secondary btn-sm" id="assignBulkClear" data-action="assign-clear">Bỏ chọn</button>
             </div>
 
             <div class="table-wrap">
               <table class="assign-table table-cards">
                 <thead>
                   <tr>
-                    <th style="width:44px;"></th>
                     <th>Sinh viên</th>
                     <th>Trạng thái</th>
-                    <th>Người đánh giá hiện tại</th>
-                    <th>Giao cho</th>
+                    <th>Người đánh giá</th>
                     <th>Tổ CTSV</th>
-                    <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody id="assignTable"></tbody>
