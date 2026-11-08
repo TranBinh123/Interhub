@@ -17,16 +17,16 @@ const SIGNATURE_FIRST_ROW = 13; // dòng trống ngay sau khối dữ liệu m�
 const TEMPLATE_LAST_ROW = 840;
 const WEEKDAY = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
-const pad = n => String(n).padStart(2, "0");
-const isoOf = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+export const pad = n => String(n).padStart(2, "0");
+export const isoOf = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
 
-function addDaysIso(iso, n) {
+export function addDaysIso(iso, n) {
   const [y, m, d] = iso.split("-").map(Number);
   const t = new Date(Date.UTC(y, m - 1, d + n));
   return isoOf(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
 }
 
-function weekdayOf(iso) {
+export function weekdayOf(iso) {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
@@ -40,14 +40,14 @@ export function periodBounds(month) {
 }
 
 // Nhóm công: 0 = 26→05 (cột AH), 1 = 06→15 (AI), 2 = 16→25 (AJ)
-function segmentOf(iso) {
+export function segmentOf(iso) {
   const d = Number(iso.slice(8));
   if (d >= 6 && d <= 15) return 1;
   if (d >= 16 && d <= 25) return 2;
   return 0;
 }
 
-function colName(n) {
+export function colName(n) {
   let s = "";
   while (n > 0) {
     s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
@@ -56,28 +56,28 @@ function colName(n) {
   return s;
 }
 
-function colIndex(name) {
+export function colIndex(name) {
   let n = 0;
   for (const ch of name) n = n * 26 + (ch.charCodeAt(0) - 64);
   return n;
 }
 
-function splitRef(ref) {
+export function splitRef(ref) {
   const m = ref.match(/^([A-Z]+)(\d+)$/);
   return { col: m[1], row: Number(m[2]) };
 }
 
 // ----- Thao tác XML của sheet -----
-function elements(parent) {
+export function elements(parent) {
   return [...parent.childNodes].filter(n => n.nodeType === 1);
 }
 
-function setRowNumber(rowEl, n) {
+export function setRowNumber(rowEl, n) {
   rowEl.setAttribute("r", String(n));
   elements(rowEl).forEach(c => c.setAttribute("r", splitRef(c.getAttribute("r")).col + n));
 }
 
-function findOrCreateCell(rowEl, col) {
+export function findOrCreateCell(rowEl, col) {
   const rowNo = rowEl.getAttribute("r");
   const ref = col + rowNo;
   const cells = elements(rowEl);
@@ -92,7 +92,7 @@ function findOrCreateCell(rowEl, col) {
 }
 
 // value: số (ghi số), chuỗi (ghi chữ), null/"" (để trống). Xóa công thức cũ nếu có.
-function writeCell(rowEl, col, value) {
+export function writeCell(rowEl, col, value) {
   const cell = findOrCreateCell(rowEl, col);
   while (cell.firstChild) cell.removeChild(cell.firstChild);
   cell.removeAttribute("t");
@@ -112,7 +112,7 @@ function writeCell(rowEl, col, value) {
   cell.appendChild(is);
 }
 
-function shiftRef(ref, delta) {
+export function shiftRef(ref, delta) {
   return ref.replace(/([A-Z]+)(\d+)/g, (_, col, row) => {
     const n = Number(row);
     return col + (n >= SIGNATURE_FIRST_ROW ? n + delta : n);
@@ -186,7 +186,7 @@ function buildSheetXml(xml, { bounds, dates, rows }) {
 
 // ----- Thư viện nén (tải khi cần) -----
 let jszipPromise = null;
-function loadJSZip() {
+export function loadJSZip() {
   if (window.JSZip) return Promise.resolve(window.JSZip);
   if (!jszipPromise) {
     jszipPromise = new Promise((resolve, reject) => {
@@ -203,7 +203,7 @@ function loadJSZip() {
   return jszipPromise;
 }
 
-function saveBlob(blob, filename) {
+export function saveBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
