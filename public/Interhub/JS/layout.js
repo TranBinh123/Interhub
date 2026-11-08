@@ -201,6 +201,8 @@ export async function refreshData() {
     admin.periods = DemoStore.listPeriods();
     admin.departments = DemoStore.listDepartments();
     admin.tickets = DemoStore.listAllTickets();
+    // Phòng Nhân sự mở app: tự mở kỳ đến ngày 11 và phiếu cho SVTT sắp về (trước 14 ngày)
+    if (state.userProfile?.role === "hr") DemoStore.runAutoOpen();
   } catch (error) {
     console.error("[InternHub Admin] Load error", error);
 

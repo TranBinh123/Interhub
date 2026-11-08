@@ -204,6 +204,7 @@ function read() {
         catalogV4: p.catalogV4 === true,
         catalogV5: p.catalogV5 === true
       };
+      migrateInternEvaluators(state);
       for (const t of Object.values(state.tickets)) {
         if (t.status === "cho_xac_nhan") t.status = STATUS.COMMITTEE;
         if (t.committeeScore === undefined) {
@@ -412,6 +413,7 @@ export function createPeriod({ month, name }) {
     month,
     name: String(name || "").trim() || periodLabel(month),
     status: "dang_mo",
+    openMode: "thu_cong",
     createdAt: now()
   };
   write(state);
@@ -493,6 +495,56 @@ export function classifyInterns(periodId) {
 //  - tạo phiếu còn thiếu cho SVTT thuộc kỳ;
 //  - gỡ phiếu chưa được làm gì (chưa chấm, chưa gửi) của SVTT không còn thuộc kỳ.
 // Phiếu đã có tiến độ không bị xóa.
+// Phiếu mới của một SVTT trong kỳ. Người đánh giá lấy từ phân công của SVTT (áp dụng cho mọi kỳ).
+function makeTicket(state, periodId, intern, extra = {}) {
+  const period = state.periods[periodId];
+  const reason = evaluationReason(intern, period.month);
+  const stamp = now();
+  const committeeUid = state.schoolCommittee[intern.school || ""] || null;
+  const assigned = !!intern.evaluatorAssigned;
+  return {
+    id: `${periodId}-${intern.internId}`,
+    periodId,
+    internId: intern.internId,
+    internName: intern.fullName,
+    school: intern.school || "",
+    department: intern.department,
+    evaluatorUid: assigned ? (intern.evaluatorUid || null) : null,
+    evaluatorName: assigned ? (intern.evaluatorName || "") : "",
+    evaluatorAssigned: assigned,
+    evaluationType: reason.type,
+    evaluationNote: reason.note,
+    status: STATUS.NOT_STARTED,
+    scores: Array(ITEMS.length).fill(null),
+    committeeUid,
+    committeeName: memberName(state, committeeUid),
+    committeeScore: null,
+    attendance: {},
+    strengths: "",
+    improvements: "",
+    sendCount: 0,
+    returnReason: "",
+    history: [],
+    openedEarly: !!extra.openedEarly,
+    openMode: extra.openMode || "",
+    createdAt: stamp,
+    updatedAt: stamp
+  };
+}
+
+// Phân công trên phiếu đang có phải khớp với SVTT (chỉ khi phiếu chưa được chấm)
+function syncTicketEvaluator(ticket, intern) {
+  const assigned = !!intern.evaluatorAssigned;
+  const uid = assigned ? (intern.evaluatorUid || null) : null;
+  const name = assigned ? (intern.evaluatorName || "") : "";
+  if (ticket.evaluatorAssigned === assigned && ticket.evaluatorUid === uid && ticket.evaluatorName === name) return false;
+  ticket.evaluatorAssigned = assigned;
+  ticket.evaluatorUid = uid;
+  ticket.evaluatorName = name;
+  ticket.updatedAt = now();
+  return true;
+}
+
 export function syncPeriodTickets(periodId) {
   const state = read();
   const period = state.periods[periodId];
@@ -507,35 +559,12 @@ export function syncPeriodTickets(periodId) {
 
   for (const intern of groups.eligible) {
     const id = `${periodId}-${intern.internId}`;
-    if (state.tickets[id]) { existing += 1; continue; }
-    const reason = evaluationReason(intern, period.month);
-    const stamp = now();
-    state.tickets[id] = {
-      id,
-      periodId,
-      internId: intern.internId,
-      internName: intern.fullName,
-      school: intern.school || "",
-      department: intern.department,
-      evaluatorUid: null,
-      evaluatorName: "",
-      evaluatorAssigned: false,
-      evaluationType: reason.type,
-      evaluationNote: reason.note,
-      status: STATUS.NOT_STARTED,
-      scores: Array(ITEMS.length).fill(null),
-      committeeUid: state.schoolCommittee[intern.school || ""] || null,
-      committeeName: memberName(state, state.schoolCommittee[intern.school || ""]),
-      committeeScore: null,
-      attendance: {},
-      strengths: "",
-      improvements: "",
-      sendCount: 0,
-      returnReason: "",
-      history: [],
-      createdAt: stamp,
-      updatedAt: stamp
-    };
+    if (state.tickets[id]) {
+      existing += 1;
+      if (state.tickets[id].status === STATUS.NOT_STARTED) syncTicketEvaluator(state.tickets[id], intern);
+      continue;
+    }
+    state.tickets[id] = makeTicket(state, periodId, intern);
     created += 1;
   }
 
@@ -607,7 +636,7 @@ export function followUp(today = todayIso()) {
     if (!intern.endDate) continue;
 
     const daysLeft = diffDays(today, intern.endDate);
-    const month = intern.endDate.slice(0, 7);
+    const month = periodMonthOf(intern.endDate);
     const periodId = `EV-${month}`;
     const periodExists = !!state.periods[periodId];
     const hasTicket = !!state.tickets[`${periodId}-${intern.internId}`];
@@ -668,7 +697,7 @@ export function followUpFor(actor, today = todayIso()) {
 // Đồng bộ mọi kỳ đang mở; gọi khi SVTT thay đổi
 export function syncOpenPeriods() {
   for (const period of Object.values(read().periods)) {
-    if (period.status === "dang_mo") syncPeriodTickets(period.id);
+    if (period.status === "dang_mo" && isFullyOpen(period)) syncPeriodTickets(period.id);
   }
 }
 
@@ -747,6 +776,7 @@ export function updateIntern(internId, input) {
   }
 
   state.interns[internId] = { ...existing, ...next, updatedAt: now() };
+  if (deptChanged) setInternEvaluator(state, internId, { uid: null, name: "", assigned: false, by: "Admin" });
   write(state);
   syncOpenPeriods();
   return ok({ intern: state.interns[internId] });
@@ -1084,6 +1114,7 @@ export function assignEvaluator(ticketId, actor, mentorUid) {
     ticket.evaluatorName = actor.name || defaultEvaluatorName(ticket.department);
     ticket.evaluatorAssigned = true;
     addHistory(ticket, actor, "Phân công", "Trưởng bộ phận tự đánh giá");
+    setInternEvaluator(state, ticket.internId, { uid: null, name: ticket.evaluatorName, by: actor.name });
   } else {
     const mentor = state.members[mentorUid];
     if (!mentor || mentor.role !== "mentor" || mentor.department !== ticket.department) {
@@ -1093,6 +1124,7 @@ export function assignEvaluator(ticketId, actor, mentorUid) {
     ticket.evaluatorName = mentor.fullName;
     ticket.evaluatorAssigned = true;
     addHistory(ticket, actor, "Phân công", `Giao cho ${mentor.fullName}`);
+    setInternEvaluator(state, ticket.internId, { uid: mentorUid, name: mentor.fullName, by: actor.name });
   }
 
   write(state);
@@ -1126,11 +1158,13 @@ export function assignEvaluatorBulk(ticketIds, actor, mentorUid) {
       ticket.evaluatorName = mentor.fullName;
       ticket.evaluatorAssigned = true;
       addHistory(ticket, actor, "Phân công", `Giao cho ${mentor.fullName} (gán hàng loạt)`);
+      setInternEvaluator(state, ticket.internId, { uid: mentorUid, name: mentor.fullName, by: actor.name });
     } else {
       ticket.evaluatorUid = null;
       ticket.evaluatorName = actor.name || defaultEvaluatorName(ticket.department);
       ticket.evaluatorAssigned = true;
       addHistory(ticket, actor, "Phân công", "Trưởng bộ phận tự đánh giá (gán hàng loạt)");
+      setInternEvaluator(state, ticket.internId, { uid: null, name: ticket.evaluatorName, by: actor.name });
     }
     updated++;
   }
@@ -1333,8 +1367,13 @@ export function submit(id, actor) {
   const blockers = submitBlockers({ scores: ticket.scores, strengths: ticket.strengths, improvements: ticket.improvements });
   if (blockers.length) return fail("Chưa thể gửi: " + blockers.join("; ") + ".");
 
+  // Phòng Nhân sự tự chấm SVTT của PNS: phải qua Trưởng bộ phận Nhân sự duyệt
+  const hrOwn = actor.role === "hr" && ticket.department === HR_DEPARTMENT;
+  if (hrOwn && !hasSupervisorOf(all, HR_DEPARTMENT)) {
+    return fail("Chưa có Trưởng bộ phận Nhân sự. Phòng Nhân sự cần duyệt tài khoản Trưởng bộ phận thuộc bộ phận PNS trước khi gửi phiếu.");
+  }
   // Người hướng dẫn gửi thì phải qua Trưởng bộ phận duyệt; Trưởng bộ phận tự chấm (hoặc tự gửi) thì gửi thẳng Tổ Công tác sinh viên
-  const viaMentor = actor.role === "mentor" && !!ticket.evaluatorUid && ticket.evaluatorUid === actor.uid;
+  const viaMentor = hrOwn || (actor.role === "mentor" && !!ticket.evaluatorUid && ticket.evaluatorUid === actor.uid);
   ticket.status = viaMentor ? STATUS.SUP_REVIEW : STATUS.COMMITTEE;
   ticket.sendCount += viaMentor ? 0 : 1;
   ticket.returnReason = "";
@@ -1473,6 +1512,179 @@ export function setAttendance(ticketId, actor, date, code) {
   ticket.updatedAt = now();
   write(state);
   return ok({ ticket: { ...ticket } });
+}
+
+// ============================================
+// Phân công theo SVTT và mở kỳ đánh giá
+// ============================================
+// Kỳ tháng M: từ ngày 26 tháng M-1 đến ngày 25 tháng M. Kỳ tự động mở vào ngày 11 của tháng M.
+export const PERIOD_OPEN_DAY = 11;
+
+function shiftMonth(month, n) {
+  const [y, m] = month.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// Kỳ chứa một ngày: từ ngày 26 trở đi thuộc kỳ của tháng sau
+export function periodMonthOf(iso) {
+  const day = Number(iso.slice(8));
+  return day >= 26 ? shiftMonth(iso.slice(0, 7), 1) : iso.slice(0, 7);
+}
+
+export function periodOpenDate(month) {
+  return `${month}-${String(PERIOD_OPEN_DAY).padStart(2, "0")}`;
+}
+
+// Kỳ đã mở cho tất cả SVTT: mở thủ công, kỳ cũ (chưa có openMode) hoặc đã đến ngày 11.
+// Kỳ tự tạo sớm chỉ cho SVTT sắp về thì chưa mở cho cả kỳ.
+function isFullyOpen(period, today = todayIso()) {
+  return period.openMode !== "tu_dong" || periodOpenDate(period.month) <= today;
+}
+
+function hasSupervisorOf(state, department) {
+  return Object.values(state.members).some(m => m.role === "supervisor" && m.department === department);
+}
+
+function setInternEvaluator(state, internId, { uid = null, name = "", assigned = true, by = "" }) {
+  const intern = state.interns[internId];
+  if (!intern) return;
+  intern.evaluatorUid = uid;
+  intern.evaluatorName = name;
+  intern.evaluatorAssigned = assigned;
+  intern.evaluatorBy = by;
+  intern.evaluatorAt = now();
+}
+
+// Dữ liệu cũ chưa có phân công theo SVTT: lấy từ phiếu gần nhất đã được phân công
+function migrateInternEvaluators(state) {
+  const missing = Object.values(state.interns).filter(i => typeof i.evaluatorAssigned !== "boolean");
+  if (!missing.length) return;
+  const latest = new Map();
+  for (const t of Object.values(state.tickets)) {
+    if (!t.evaluatorAssigned) continue;
+    const prev = latest.get(t.internId);
+    if (!prev || (t.updatedAt || "") > (prev.updatedAt || "")) latest.set(t.internId, t);
+  }
+  for (const intern of missing) {
+    const t = latest.get(intern.internId);
+    intern.evaluatorUid = t ? t.evaluatorUid : null;
+    intern.evaluatorName = t ? t.evaluatorName : "";
+    intern.evaluatorAssigned = !!t;
+  }
+}
+
+// SVTT chưa có người đánh giá (trong bộ phận nếu có)
+export function unassignedInterns(department = "") {
+  return listInterns().filter(i => !i.evaluatorAssigned && (!department || i.department === department));
+}
+
+// Giao người đánh giá cho nhiều SVTT. Ghi vào SVTT và vào phiếu của mọi kỳ chưa chốt.
+// Phiếu đã bắt đầu chấm: chỉ Phòng Nhân sự đổi được, và phải có lý do.
+export function assignInternEvaluators(internIds, actor, mentorUid, reason = "") {
+  const state = read();
+  const ids = [...new Set(internIds || [])];
+  if (!ids.length) return fail("Chưa chọn SVTT nào.");
+  if (!mentorUid) return fail("Hãy chọn người đánh giá hoặc \"Trưởng bộ phận tự đánh giá\" trước khi gán.");
+  const isSelf = mentorUid === SELF_EVALUATOR;
+  let mentor = null;
+  if (!isSelf) {
+    mentor = state.members[mentorUid];
+    if (!mentor || mentor.role !== "mentor") return fail("Người hướng dẫn không hợp lệ.");
+  }
+
+  const allowed = intern => {
+    if (actor.role === "hr") return isSelf ? intern.department === HR_DEPARTMENT : mentor.department === intern.department;
+    if (actor.role !== "supervisor" || actor.department !== intern.department) return false;
+    return isSelf ? true : mentor.department === intern.department;
+  };
+  const targets = ids.map(id => state.interns[id]).filter(Boolean).filter(allowed);
+  if (!targets.length) return fail("Không gán được SVTT nào: ngoài quyền của bạn hoặc người hướng dẫn khác bộ phận.");
+
+  const started = targets.filter(i => Object.values(state.tickets).some(t =>
+    t.internId === i.internId && t.status !== STATUS.NOT_STARTED && t.status !== STATUS.FINALIZED));
+  if (started.length && actor.role === "hr" && !String(reason).trim()) {
+    return fail(`${started.length} SVTT đã có phiếu đang chấm hoặc đã gửi: nhập lý do đổi phân công.`);
+  }
+
+  let tickets = 0;
+  let locked = 0;
+  for (const intern of targets) {
+    const value = isSelf
+      ? { uid: null, name: actor.name || defaultEvaluatorName(intern.department) }
+      : { uid: mentorUid, name: mentor.fullName };
+    for (const t of Object.values(state.tickets)) {
+      if (t.internId !== intern.internId || t.status === STATUS.FINALIZED) continue;
+      if (t.status !== STATUS.NOT_STARTED && actor.role !== "hr") { locked += 1; continue; }
+      t.evaluatorUid = value.uid;
+      t.evaluatorName = value.name;
+      t.evaluatorAssigned = true;
+      addHistory(t, actor, "Phân công", `${isSelf ? "Trưởng bộ phận tự đánh giá" : `Giao cho ${value.name}`}${t.status !== STATUS.NOT_STARTED ? ` — lý do: ${String(reason).trim()}` : ""}`);
+      tickets += 1;
+    }
+    setInternEvaluator(state, intern.internId, { uid: value.uid, name: value.name, by: actor.name });
+  }
+  write(state);
+  return ok({ updated: targets.length, tickets, locked, skipped: ids.length - targets.length });
+}
+
+// Tạo phiếu sớm cho một SVTT sắp về (ghi kỳ nếu chưa có, không mở cả kỳ)
+function openEarlyFor(state, intern, mode, actorName) {
+  const month = periodMonthOf(intern.endDate);
+  const period = ensurePeriodRecord(state, month, mode);
+  const id = `${period.id}-${intern.internId}`;
+  if (state.tickets[id]) return false;
+  if (!internshipInPeriod(intern, month)) return false;
+  const ticket = makeTicket(state, period.id, intern, { openedEarly: true, openMode: mode });
+  ticket.history.push({ at: now(), by: actorName, action: "Mở đánh giá sớm", note: mode === "thu_cong" ? "Phòng Nhân sự mở thủ công" : "Tự động trước ngày về 14 ngày" });
+  state.tickets[id] = ticket;
+  return true;
+}
+
+function ensurePeriodRecord(state, month, mode) {
+  const id = `EV-${month}`;
+  if (!state.periods[id]) {
+    state.periods[id] = { id, month, name: periodLabel(month), status: "dang_mo", openMode: mode, openedAt: now(), createdAt: now() };
+  }
+  return state.periods[id];
+}
+
+// Mở sớm thủ công cho một SVTT sắp về. Chỉ Phòng Nhân sự.
+export function openInternEarly(internId, actor) {
+  if (actor?.role !== "hr") return fail("Chỉ Phòng Nhân sự được mở đánh giá thủ công.");
+  const state = read();
+  const intern = state.interns[internId];
+  if (!intern) return fail("SVTT không tồn tại.");
+  if (!intern.endDate) return fail("SVTT chưa có ngày kết thúc thực tập.");
+  const created = openEarlyFor(state, intern, "thu_cong", actor.name);
+  if (!created) return fail("SVTT này đã có phiếu trong kỳ, hoặc không thuộc kỳ của ngày về.");
+  write(state);
+  return ok();
+}
+
+// Chạy khi HR mở app: mở kỳ đến ngày 11 và mở phiếu cho SVTT sắp về (trước 14 ngày). Chạy lặp lại không tạo trùng.
+export function runAutoOpen(today = todayIso()) {
+  const state = read();
+  const opened = [];
+  const current = today.slice(0, 7);
+  for (const month of [shiftMonth(current, -1), current]) {
+    if (periodOpenDate(month) <= today && !state.periods[`EV-${month}`]) {
+      ensurePeriodRecord(state, month, "tu_dong");
+      opened.push(month);
+    }
+  }
+  let early = 0;
+  for (const intern of Object.values(state.interns)) {
+    if (!intern.endDate) continue;
+    if (intern.endDate < today) continue;
+    if (addDays(intern.endDate, -FOLLOW_UP_DAYS) > today) continue;
+    if (openEarlyFor(state, intern, "tu_dong", "Hệ thống")) early += 1;
+  }
+  write(state);
+  for (const period of listPeriods()) {
+    if (period.status === "dang_mo" && isFullyOpen(period, today)) syncPeriodTickets(period.id);
+  }
+  return ok({ opened, early });
 }
 
 // Dữ liệu mẫu (chỉ khi Admin chủ động nạp)
@@ -1642,6 +1854,13 @@ export const DemoStore = {
   assignEvaluatorBulk,
   assignCommitteeToSchool,
   listCommitteeSchools,
+  assignInternEvaluators,
+  unassignedInterns,
+  openInternEarly,
+  runAutoOpen,
+  periodMonthOf,
+  periodOpenDate,
+  PERIOD_OPEN_DAY,
   saveDraft,
   submit,
   finalize,
