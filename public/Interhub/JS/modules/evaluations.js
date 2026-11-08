@@ -212,6 +212,64 @@ function isCommitteeView() {
   return state.userProfile?.role === "committee";
 }
 
+// Biểu đồ tròn: số SVTT theo người đánh giá trong bộ phận (để cân nhắc phân chia).
+// Bảng màu phân loại đã kiểm tra bằng validate_palette (thứ tự cố định); "Chưa giao" dùng xám trung tính.
+const EV_PIE_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
+const EV_PIE_NEUTRAL = "#8a8985";
+
+function evDistributionHtml() {
+  const roster = DemoStore.rosterFor(actorInfo());
+  if (!roster.length) return "";
+  const byKey = new Map();
+  for (const r of roster) {
+    const key = !r.evaluatorAssigned ? "__none__" : (r.evaluatorUid ? r.evaluatorUid : "__self__");
+    const label = key === "__none__" ? "Chưa giao" : (key === "__self__" ? "Tự đánh giá" : (r.evaluatorName || "—"));
+    if (!byKey.has(key)) byKey.set(key, { key, label, count: 0 });
+    byKey.get(key).count += 1;
+  }
+  // Người hướng dẫn và tự đánh giá theo tên, "Chưa giao" luôn cuối
+  const items = [...byKey.values()].sort((a, b) => {
+    if (a.key === "__none__") return 1;
+    if (b.key === "__none__") return -1;
+    return a.label.localeCompare(b.label, "vi");
+  });
+  let colorIndex = 0;
+  items.forEach(it => { it.color = it.key === "__none__" ? EV_PIE_NEUTRAL : EV_PIE_COLORS[colorIndex++ % EV_PIE_COLORS.length]; });
+
+  const total = roster.length;
+  const cx = 80, cy = 80, r = 72;
+  let angle = -Math.PI / 2;
+  const slices = items.map(it => {
+    const frac = it.count / total;
+    const pct = Math.round(frac * 100);
+    const title = `${it.label}: ${it.count} SVTT (${pct}%)`;
+    if (items.length === 1) {
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${it.color}"><title>${escapeHtml(title)}</title></circle>`;
+    }
+    const a0 = angle, a1 = angle + frac * 2 * Math.PI;
+    angle = a1;
+    const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    return `<path d="M${cx},${cy} L${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z" fill="${it.color}" stroke="#fcfcfb" stroke-width="2"><title>${escapeHtml(title)}</title></path>`;
+  }).join("");
+
+  const legend = items.map(it => `
+      <li><span class="ev-pie__swatch" style="display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px;background:${it.color}"></span>
+        <span class="ev-pie__label">${escapeHtml(it.label)}</span>
+        <b>${it.count}</b> SVTT · ${Math.round(it.count / total * 100)}%</li>`).join("");
+
+  return `
+    <section class="card ev-distribution" style="margin-bottom:16px;">
+      <h3 style="margin:0 0 8px;">Phân công người đánh giá trong bộ phận</h3>
+      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+        <svg viewBox="0 0 160 160" width="160" height="160" role="img"
+          aria-label="Biểu đồ tròn: ${escapeHtml(items.map(it => `${it.label} ${it.count}`).join(", "))}">${slices}</svg>
+        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px;">${legend}</ul>
+      </div>
+    </section>`;
+}
+
 export function renderEvFilters() {
   const box = document.getElementById("evFilters");
   if (!box) return;
@@ -223,6 +281,7 @@ export function renderEvFilters() {
   const evaluators = evEvaluators(evTickets());
 
   box.innerHTML = `
+    ${isSup ? evDistributionHtml() : ""}
     <div class="filter-bar">
       <div class="filter-field filter-grow">
         <label for="evQ">Tìm theo tên hoặc mã SV</label>
