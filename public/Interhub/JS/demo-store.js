@@ -205,6 +205,7 @@ function read() {
         catalogV5: p.catalogV5 === true
       };
       migrateInternEvaluators(state);
+      migrateAttendance(state);
       for (const t of Object.values(state.tickets)) {
         if (t.status === "cho_xac_nhan") t.status = STATUS.COMMITTEE;
         if (t.committeeScore === undefined) {
@@ -213,11 +214,6 @@ function read() {
           t.committeeScore = done ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
         }
         delete t.committeeScores;
-        if (!t.attendance) t.attendance = {};
-        // Chuyển ký hiệu cũ (o, v, Off) sang ký hiệu mới (X, V, O)
-        for (const d of Object.keys(t.attendance)) {
-          if (LEGACY_ATTENDANCE[t.attendance[d]]) t.attendance[d] = LEGACY_ATTENDANCE[t.attendance[d]];
-        }
         if (t.committeeUid === undefined) t.committeeUid = null;
         if (typeof t.committeeName !== "string") t.committeeName = "";
         if (typeof t.strengths !== "string") t.strengths = t.textPart4 || "";
@@ -519,7 +515,6 @@ function makeTicket(state, periodId, intern, extra = {}) {
     committeeUid,
     committeeName: memberName(state, committeeUid),
     committeeScore: null,
-    attendance: {},
     strengths: "",
     improvements: "",
     sendCount: 0,
@@ -1473,18 +1468,88 @@ function weekdayOf(iso) {
 }
 
 // Danh sách ngày chấm công: o (đi làm), v (vắng), Off (nghỉ trong tuần) do người hướng dẫn chọn. Chưa ghi thì để trống.
-export function attendanceDays(ticketId) {
-  const state = read();
-  const ticket = state.tickets[ticketId];
-  const span = ticket ? ticketSpan(state, ticket) : null;
+// Chấm công gắn với SVTT theo từng ngày (intern.attendance). Không phụ thuộc phiếu hay kỳ đang mở.
+function internSpanFor(intern, month) {
+  if (!intern?.startDate || !intern?.endDate) return null;
+  const { start, end } = monthBounds(month);
+  const from = intern.startDate > start ? intern.startDate : start;
+  const to = intern.endDate < end ? intern.endDate : end;
+  return from <= to ? { start: from, end: to } : null;
+}
+
+function daysOfIntern(intern, month) {
+  const span = internSpanFor(intern, month);
   if (!span) return [];
   const days = [];
   for (let d = span.start; d <= span.end; d = addDays(d, 1)) {
-    const wd = weekdayOf(d);
-    const recorded = !!ticket.attendance?.[d];
-    days.push({ date: d, weekday: wd, code: recorded ? ticket.attendance[d] : "", recorded });
+    const recorded = !!intern.attendance?.[d];
+    days.push({ date: d, weekday: weekdayOf(d), code: recorded ? intern.attendance[d] : "", recorded });
   }
   return days;
+}
+
+// Chuyển chấm công cũ lưu trên phiếu sang SVTT (mỗi ngày chỉ thuộc một kỳ nên không trùng)
+function migrateAttendance(state) {
+  for (const t of Object.values(state.tickets)) {
+    if (!t.attendance) continue;
+    const intern = state.interns[t.internId];
+    if (intern) {
+      intern.attendance = { ...(intern.attendance || {}), ...t.attendance };
+    }
+    delete t.attendance;
+  }
+  for (const intern of Object.values(state.interns)) {
+    if (!intern.attendance) continue;
+    for (const d of Object.keys(intern.attendance)) {
+      if (LEGACY_ATTENDANCE[intern.attendance[d]]) intern.attendance[d] = LEGACY_ATTENDANCE[intern.attendance[d]];
+    }
+  }
+}
+
+// Tương thích: lấy ngày chấm công của một phiếu (qua SVTT và kỳ của phiếu)
+export function attendanceDays(ticketId) {
+  const state = read();
+  const ticket = state.tickets[ticketId];
+  const period = ticket && state.periods[ticket.periodId];
+  const intern = ticket && state.interns[ticket.internId];
+  if (!period || !intern) return [];
+  return daysOfIntern(intern, period.month);
+}
+
+// Chấm công theo SVTT trong một kỳ (month = "YYYY-MM" của kỳ)
+export function internAttendanceDays(internId, month) {
+  const intern = read().interns[internId];
+  return intern ? daysOfIntern(intern, month) : [];
+}
+
+// Quyền chấm công: HR mọi SVTT; Trưởng bộ phận chỉ SVTT tự đánh giá; người hướng dẫn chỉ SVTT được giao cho mình
+export function internAttendanceAllowed(internId, actor) {
+  const intern = read().interns[internId];
+  if (!intern || !actor) return false;
+  if (actor.role === "hr") return true;
+  if (actor.department !== intern.department) return false;
+  // Trưởng bộ phận chấm công mọi SVTT của bộ phận, không cần chờ phân công đánh giá
+  if (actor.role === "supervisor") return true;
+  if (actor.role === "mentor") return !!intern.evaluatorUid && intern.evaluatorUid === actor.uid;
+  return false;
+}
+
+// Danh sách chấm công của một kỳ: mọi SVTT thuộc phạm vi xem và có ngày trong kỳ, kể cả chưa có phiếu
+export function timesheetInterns(actor, month) {
+  const state = read();
+  return Object.values(state.interns)
+    .filter(i => actor?.role === "hr" || (actor && i.department === actor.department))
+    .filter(i => internSpanFor(i, month))
+    .sort((a, b) => a.internId.localeCompare(b.internId))
+    .map(intern => {
+      const ticket = state.tickets[`EV-${month}-${intern.internId}`] || null;
+      return {
+        intern: { ...intern },
+        ticket: ticket ? { ...ticket } : null,
+        days: daysOfIntern(intern, month),
+        canEdit: internAttendanceAllowed(intern.internId, actor)
+      };
+    });
 }
 
 // Ký hiệu chấm công: X = đi làm (1 công), X/2 = nửa buổi (0,5 công), O = ngày off, V = vắng
@@ -1497,21 +1562,20 @@ export function workDaysOf(code) {
   return 0;
 }
 
-export function setAttendance(ticketId, actor, date, code) {
+export function setInternAttendance(internId, actor, date, code) {
   const state = read();
-  const ticket = state.tickets[ticketId];
-  if (!ticket) return fail("Phiếu không tồn tại.");
-  if (!permissionsFor(ticket, actor).attendance) return fail("Bạn không có quyền chấm công phiếu này.");
+  const intern = state.interns[internId];
+  if (!intern) return fail("SVTT không tồn tại.");
+  if (!internAttendanceAllowed(internId, actor)) return fail("Bạn không có quyền chấm công SVTT này.");
   if (code && !ATTENDANCE_CODES.includes(code)) return fail("Ký hiệu chấm công: X (đi làm), X/2 (nửa buổi), O (off), V (vắng).");
-  const span = ticketSpan(state, ticket);
-  if (!span || date < span.start || date > span.end) return fail("Ngày không thuộc thời gian thực tập của SVTT trong kỳ này.");
+  const span = internSpanFor(intern, periodMonthOf(date));
+  if (!span || date < span.start || date > span.end) return fail("Ngày không thuộc thời gian thực tập của SVTT.");
 
-  ticket.attendance = { ...(ticket.attendance || {}) };
-  if (code) ticket.attendance[date] = code;
-  else delete ticket.attendance[date];
-  ticket.updatedAt = now();
+  intern.attendance = { ...(intern.attendance || {}) };
+  if (code) intern.attendance[date] = code;
+  else delete intern.attendance[date];
   write(state);
-  return ok({ ticket: { ...ticket } });
+  return ok({ intern: { ...intern } });
 }
 
 // ============================================
@@ -1540,6 +1604,12 @@ export function periodOpenDate(month) {
 // Kỳ tự tạo sớm chỉ cho SVTT sắp về thì chưa mở cho cả kỳ.
 function isFullyOpen(period, today = todayIso()) {
   return period.openMode !== "tu_dong" || periodOpenDate(period.month) <= today;
+}
+
+// Kỳ đang mở đầy đủ cho mọi SVTT (không tính kỳ chỉ mở sớm)
+export function fullyOpenPeriod(today = todayIso()) {
+  const p = activePeriod();
+  return p && isFullyOpen(p, today) ? p : null;
 }
 
 function hasSupervisorOf(state, department) {
@@ -1868,7 +1938,11 @@ export const DemoStore = {
   stats,
   scoreSummary,
   attendanceDays,
-  setAttendance,
+  internAttendanceDays,
+  internAttendanceAllowed,
+  setInternAttendance,
+  timesheetInterns,
+  fullyOpenPeriod,
   ATTENDANCE_CODES,
   workDaysOf,
   COMMITTEE_PARTS,
