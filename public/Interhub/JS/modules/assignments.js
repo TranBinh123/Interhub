@@ -39,17 +39,16 @@ function renderMore(box, total, shown, moreAction, lessAction) {
     : (total > PAGE ? `<button type="button" class="btn btn-secondary btn-sm" data-action="${lessAction}">Thu gọn</button>` : "");
 }
 
-// Phòng Nhân sự: giao Tổ Công tác sinh viên theo Trường (chỉ khi kỳ đã mở đầy đủ)
+// Phòng Nhân sự: giao Tổ Công tác sinh viên theo Trường. Hiện ngay từ đầu (theo SVTT); số phiếu theo kỳ đang mở nếu có.
 export function renderCommitteeSchools() {
   const card = document.getElementById("committeeSchoolCard");
   if (!card) return;
-  const period = DemoStore.fullyOpenPeriod();
-  const show = isHR() && !!period;
+  const show = isHR();
   card.classList.toggle("hidden", !show);
   if (!show) return;
 
   const members = DemoStore.listMembers().filter(m => m.role === "committee");
-  const rows = DemoStore.listCommitteeSchools(period.id);
+  const rows = DemoStore.listCommitteeSchools(DemoStore.activePeriod()?.id || null);
   const schools = new Set(rows.map(g => g.school));
   for (const key of [...committeeSelected]) if (!schools.has(key)) committeeSelected.delete(key);
 
