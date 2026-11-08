@@ -9,11 +9,8 @@ import { DemoStore, STATUS_LABEL } from "../db.js";
 import { state } from "../state.js";
 import {
   actorInfo,
-  byInternId,
   escapeHtml,
-  isHR,
-  periodOptions,
-  resolvePeriodId
+  isHR
 } from "../utils.js";
 
 // ============================================
@@ -72,12 +69,19 @@ function getSelectedDay(days) {
 // DỮ LIỆU TỔNG HỢP
 // ============================================
 
+// Tháng của kỳ theo mã kỳ "EV-YYYY-MM"; không có kỳ nào thì dùng kỳ hiện tại theo ngày hôm nay
+function monthOfPeriodId(periodId) {
+  return String(periodId || "").startsWith("EV-")
+    ? periodId.slice(3)
+    : DemoStore.periodMonthOf(DemoStore.todayIso());
+}
+
+// Danh sách chấm công lấy từ SVTT, nên hiển thị cả khi chưa có kỳ đánh giá nào mở
 export function timesheetRows(actor, periodId) {
   const today = DemoStore.todayIso();
+  const month = monthOfPeriodId(periodId);
 
-  return byInternId(DemoStore.listTickets(actor, periodId)).map(ticket => {
-    const days = DemoStore.attendanceDays(ticket.id);
-
+  return DemoStore.timesheetInterns(actor, month).map(({ intern, ticket, days, canEdit }) => {
     const counts = {
       X: 0,
       "X/2": 0,
@@ -92,13 +96,21 @@ export function timesheetRows(actor, periodId) {
     });
 
     return {
-      ticket,
+      // "ticket" giữ tên cũ để các phần giao diện dùng chung; id chính là mã SVTT
+      ticket: {
+        id: intern.internId,
+        internId: intern.internId,
+        internName: intern.fullName,
+        department: intern.department,
+        status: ticket ? ticket.status : "",
+        ticketId: ticket ? ticket.id : ""
+      },
       counts,
       workDays: counts.X + counts["X/2"] * 0.5,
       total: days.length,
       recorded: days.filter(day => day.recorded).length,
       today: days.find(day => day.date === today) || null,
-      canEdit: DemoStore.permissionsFor(ticket, actor).attendance
+      canEdit
     };
   });
 }
@@ -246,8 +258,8 @@ function renderTimesheetDetail(ticket) {
     return;
   }
 
-  const days = DemoStore.attendanceDays(ticket.id);
-  const canEdit = DemoStore.permissionsFor(ticket, actorInfo()).attendance;
+  const days = DemoStore.internAttendanceDays(ticket.id, monthOfPeriodId(state.timesheet.periodId));
+  const canEdit = DemoStore.internAttendanceAllowed(ticket.id, actorInfo());
 
   if (!days.some(day => day.date === selectedAttendanceDate)) {
     selectedAttendanceDate = days[0]?.date || "";
@@ -379,7 +391,9 @@ export function fillTimesheetRows() {
           </td>
 
           <td data-label="Bộ phận">${escapeHtml(row.ticket.department)}</td>
-          <td data-label="Trạng thái">${escapeHtml(STATUS_LABEL[row.ticket.status] || row.ticket.status)}</td>
+          <td data-label="Trạng thái">${row.ticket.status
+            ? escapeHtml(STATUS_LABEL[row.ticket.status] || row.ticket.status)
+            : "<em>Chưa có phiếu</em>"}</td>
 
           <td class="r" data-label="Ngày công">${row.workDays}</td>
           <td class="r" data-label="V · Vắng">${row.counts.V}</td>
@@ -486,7 +500,7 @@ function bindTimesheetEvents(root) {
       } else {
         expandedTicketId = ticketId;
 
-        const days = DemoStore.attendanceDays(ticketId);
+        const days = DemoStore.internAttendanceDays(ticketId, monthOfPeriodId(state.timesheet.periodId));
         selectedAttendanceDate = days[0]?.date || "";
       }
 
@@ -564,10 +578,9 @@ function bindTimesheetEvents(root) {
 function getExpandedTicket() {
   if (!expandedTicketId) return null;
 
-  return DemoStore.listTickets(
-    actorInfo(),
-    state.timesheet.periodId
-  ).find(ticket => ticket.id === expandedTicketId) || null;
+  return timesheetRows(actorInfo(), state.timesheet.periodId)
+    .map(row => row.ticket)
+    .find(ticket => ticket.id === expandedTicketId) || null;
 }
 
 // ============================================
@@ -577,7 +590,7 @@ function getExpandedTicket() {
 function saveAttendance(ticketId, date, code) {
   if (!ticketId || !date) return;
 
-  const result = DemoStore.setAttendance(
+  const result = DemoStore.setInternAttendance(
     ticketId,
     actorInfo(),
     date,
@@ -597,13 +610,28 @@ function saveAttendance(ticketId, date, code) {
 // RENDER MODULE CHẤM CÔNG
 // ============================================
 
+// Danh sách kỳ; luôn có kỳ hiện tại, kể cả khi chưa mở đánh giá
+function tsPeriodOptions() {
+  const current = `EV-${DemoStore.periodMonthOf(DemoStore.todayIso())}`;
+  const items = new Map();
+  DemoStore.listPeriods().forEach(p => items.set(p.id, p.name || p.id));
+  if (!items.has(current)) {
+    const m = current.slice(3);
+    items.set(current, `Kỳ ${m.slice(5)}/${m.slice(0, 4)} (chưa mở đánh giá)`);
+  }
+  return [...items.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([id, label]) => `<option value="${escapeHtml(id)}" ${id === state.timesheet.periodId ? "selected" : ""}>${escapeHtml(label)}</option>`)
+    .join("");
+}
+
 export function renderTimesheetView() {
   const root = document.getElementById("timesheetRoot");
   if (!root) return;
 
-  state.timesheet.periodId = resolvePeriodId(
-    state.timesheet.periodId
-  );
+  if (!state.timesheet.periodId) {
+    state.timesheet.periodId = `EV-${DemoStore.periodMonthOf(DemoStore.todayIso())}`;
+  }
 
   bindTimesheetEvents(root);
 
@@ -621,7 +649,7 @@ export function renderTimesheetView() {
         data-ts-period
         aria-label="Chọn kỳ chấm công"
       >
-        ${periodOptions(state.timesheet.periodId)}
+        ${tsPeriodOptions()}
       </select>
 
       <select
