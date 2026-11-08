@@ -133,33 +133,43 @@
         <div id="assignments" class="view hidden">
           <div class="card hidden" id="committeeSchoolCard">
             <h2>Phân công Tổ Công tác sinh viên theo Trường</h2>
-            <p>Mỗi Trường giao cho một thành viên Tổ Công tác sinh viên. Mọi phiếu chưa chốt của SVTT thuộc Trường đó được giao theo, kể cả phiếu tạo sau này.</p>
+            <p>Chọn một hoặc nhiều Trường, rồi giao cho một thành viên Tổ Công tác sinh viên. Mọi phiếu chưa chốt của SVTT thuộc các Trường đó được giao theo, kể cả phiếu tạo sau này.</p>
+            <div class="assign-bulk">
+              <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="committeeSelectAll"> Chọn tất cả đang hiển thị
+              </label>
+              <span id="committeeSelectedCount" class="count-badge">Đã chọn 0 Trường</span>
+              <select id="committeeBulkMember" aria-label="Tổ CTSV phụ trách"></select>
+              <button type="button" class="btn btn-primary btn-sm" data-action="committee-bulk">Giao cho các Trường đã chọn</button>
+            </div>
             <div class="table-wrap">
               <table class="assign-table table-cards">
                 <thead>
                   <tr>
+                    <th style="width:44px;"></th>
                     <th>Trường</th>
                     <th class="r">SVTT</th>
                     <th class="r">Chờ Tổ CTSV</th>
                     <th class="r">Đã có điểm Tổ CTSV</th>
                     <th>Tổ CTSV phụ trách</th>
-                    <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody id="committeeSchoolTable"></tbody>
               </table>
             </div>
+            <div class="more-row" id="committeeMore"></div>
           </div>
 
           <div class="card">
             <h2>Phân công đánh giá</h2>
             <p id="assignSummary" class="assign-summary"></p>
-            <div id="assignUnassigned"></div>
-
             <div class="assign-toolbar">
               <input type="search" id="assignSearch" placeholder="Tìm theo tên hoặc mã SV" class="search-input">
               <select id="assignDeptFilter" hidden></select>
+              <select id="assignEvaluatorFilter" aria-label="Lọc theo người đánh giá"></select>
             </div>
+            <div id="assignUnassigned"></div>
+
 
             <div class="table-wrap">
               <table class="assign-table table-cards">
