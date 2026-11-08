@@ -8,16 +8,24 @@ import { HR_COLOR, state } from "../state.js";
 import { showMessage } from "../components/messages.js";
 import { actorInfo, average, departmentOptions, escapeHtml, formatDate, formatScore, isHR, periodOptions, resolvePeriodId } from "../utils.js";
 import { exportAttendanceXlsx, periodBounds } from "./attendance-export.js";
+import { exportEvaluationList } from "./evaluation-list-export.js";
 
 // ===== Mục "Báo cáo": số liệu theo kỳ, theo bộ phận và bảng kết quả (xuất CSV) =====
-let attOff = new Set(); // SVTT đang bỏ tick khi xuất ngày công (mặc định: tất cả được chọn)
-let attListIds = [];
+// ===== Xuất danh sách: tick chọn, lọc theo trường, mặc định chọn tất cả =====
+// att: báo cáo ngày công (BM 07), mọi phiếu trong kỳ. ev: danh sách đánh giá (BM 03), chỉ phiếu đã chốt.
+const EXPORTS = {
+  att: { title: "Báo cáo ngày công (BM 07)", schoolKey: "attSchool", finalizedOnly: false },
+  ev: { title: "Danh sách đánh giá SVTT (BM 03)", schoolKey: "evSchool", finalizedOnly: true }
+};
+const exportOff = { att: new Set(), ev: new Set() }; // SVTT đang bỏ tick
+const exportListIds = { att: [], ev: [] };
 
-// ===== Báo cáo ngày công (BM 07): HR, Trưởng bộ phận, Người hướng dẫn (không có Tổ CTSV) =====
-function attendanceCandidates() {
+// Phạm vi: HR theo bộ phận đã chọn (hoặc tất cả); Trưởng bộ phận/Người hướng dẫn theo bộ phận của mình. Không có Tổ CTSV.
+function exportCandidates(kind) {
+  const cfg = EXPORTS[kind];
   const periodId = state.reports.periodId;
   const period = DemoStore.listPeriods().find(p => p.id === periodId) || null;
-  if (!period) return { period: null, list: [], schools: [], interns: new Map() };
+  if (!period) return { period: null, list: [], schools: [], interns: new Map(), school: "" };
   const bounds = periodBounds(period.month);
   const interns = new Map(DemoStore.listInterns().map(i => [i.internId, i]));
   const dept = isHR() ? state.reports.dept : (state.userProfile?.department || "");
@@ -26,26 +34,29 @@ function attendanceCandidates() {
   // Bỏ SVTT đã về trước đầu kỳ (không còn đưa vào danh sách)
   const base = DemoStore.listAllTickets(periodId).filter(t => {
     const intern = interns.get(t.internId);
-    return inDept(t) && !(intern?.endDate && intern.endDate < bounds.start);
+    return inDept(t)
+      && !(intern?.endDate && intern.endDate < bounds.start)
+      && (!cfg.finalizedOnly || t.status === STATUS.FINALIZED);
   });
   const schools = [...new Set(base.map(t => t.school || "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
-  const school = schools.includes(state.reports.attSchool) ? state.reports.attSchool : "";
+  const school = schools.includes(state.reports[cfg.schoolKey]) ? state.reports[cfg.schoolKey] : "";
   const list = base
     .filter(t => !school || (t.school || "") === school)
     .sort((a, b) => (a.school || "").localeCompare(b.school || "", "vi") || a.internName.localeCompare(b.internName, "vi"));
-  return { period, list, schools, interns };
+  return { period, list, schools, interns, school };
 }
 
-function attendanceExportHtml() {
-  const { period, list, schools, interns } = attendanceCandidates();
-  const school = schools.includes(state.reports.attSchool) ? state.reports.attSchool : "";
-  attListIds = list.map(t => t.id);
-  const chosen = list.filter(t => !attOff.has(t.id)).length;
+function exportSectionHtml(kind) {
+  const cfg = EXPORTS[kind];
+  const { period, list, schools, interns, school } = exportCandidates(kind);
+  exportListIds[kind] = list.map(t => t.id);
+  const off = exportOff[kind];
+  const chosen = list.filter(t => !off.has(t.id)).length;
   const rowsHtml = list.length ? list.map(t => {
     const intern = interns.get(t.internId) || {};
     return `
       <tr>
-        <td class="print-cell" data-label="Chọn"><input type="checkbox" class="print-check" data-att-check="${escapeHtml(t.id)}" aria-label="Chọn ${escapeHtml(t.internName)}" ${attOff.has(t.id) ? "" : "checked"}></td>
+        <td class="print-cell" data-label="Chọn"><input type="checkbox" class="print-check" data-${kind}-check="${escapeHtml(t.id)}" aria-label="Chọn ${escapeHtml(t.internName)}" ${off.has(t.id) ? "" : "checked"}></td>
         <td data-label="Sinh viên">${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
         <td data-label="Trường">${escapeHtml(t.school || "—")}</td>
         <td data-label="Bộ phận">${escapeHtml(t.department)}</td>
@@ -55,9 +66,9 @@ function attendanceExportHtml() {
   }).join("") : `<tr class="empty-state"><td colspan="6">Không có SVTT nào trong bộ lọc đang chọn</td></tr>`;
 
   return `
-    <h3>Báo cáo ngày công (BM 07)</h3>
+    <h3>${escapeHtml(cfg.title)}</h3>
     <div class="assign-toolbar">
-      <select data-att-school aria-label="Trường (báo cáo ngày công)">
+      <select data-${kind}-school aria-label="Trường (${escapeHtml(cfg.title)})">
         <option value="">Tất cả trường</option>
         ${schools.map(sc => `<option value="${escapeHtml(sc)}" ${school === sc ? "selected" : ""}>${escapeHtml(sc)}</option>`).join("")}
       </select>
@@ -65,9 +76,9 @@ function attendanceExportHtml() {
     <div class="print-bar">
       <span class="print-bar__info"><strong>${list.length}</strong> SVTT · đã chọn <strong>${chosen}</strong></span>
       <div class="print-bar__actions">
-        <button type="button" class="print-btn print-btn--ghost" data-att-all ${list.length ? "" : "disabled"}>Chọn tất cả</button>
-        <button type="button" class="print-btn print-btn--ghost" data-att-clear ${list.length ? "" : "disabled"}>Bỏ chọn</button>
-        <button type="button" class="print-btn print-btn--primary" data-att-export ${period && chosen ? "" : "disabled"}>Xuất .xlsx</button>
+        <button type="button" class="print-btn print-btn--ghost" data-${kind}-all ${list.length ? "" : "disabled"}>Chọn tất cả</button>
+        <button type="button" class="print-btn print-btn--ghost" data-${kind}-clear ${list.length ? "" : "disabled"}>Bỏ chọn</button>
+        <button type="button" class="print-btn print-btn--primary" data-${kind}-export ${period && chosen ? "" : "disabled"}>Xuất .xlsx</button>
       </div>
     </div>
     <div class="table-wrap">
@@ -78,19 +89,34 @@ function attendanceExportHtml() {
     </div>`;
 }
 
-async function exportAttendance() {
-  const { period, list } = attendanceCandidates();
-  const chosen = list.filter(t => !attOff.has(t.id));
+function exportSectionsHtml() {
+  return exportSectionHtml("att") + exportSectionHtml("ev");
+}
+
+async function exportList(kind) {
+  const { period, list } = exportCandidates(kind);
+  const chosen = list.filter(t => !exportOff[kind].has(t.id));
   if (!period || !chosen.length) return;
   try {
-    await exportAttendanceXlsx({
-      periodMonth: period.month,
-      rows: chosen.map(t => ({ name: t.internName, days: DemoStore.attendanceDays(t.id) })),
-      filename: `BM07-cham-cong-${period.month}.xlsx`
-    });
-    showMessage("success", `Đã xuất báo cáo ngày công cho ${chosen.length} SVTT.`);
+    if (kind === "att") {
+      await exportAttendanceXlsx({
+        periodMonth: period.month,
+        rows: chosen.map(t => ({ name: t.internName, days: DemoStore.attendanceDays(t.id) })),
+        filename: `BM07-cham-cong-${period.month}.xlsx`
+      });
+    } else {
+      const deptLabel = [...new Set(chosen.map(t => t.department))]
+        .map(code => `${code} - ${DemoStore.departmentName(code) || code}`).join("; ");
+      await exportEvaluationList({
+        periodMonth: period.month,
+        tickets: chosen,
+        deptLabel,
+        filename: `BM03-danh-sach-danh-gia-${period.month}.xlsx`
+      });
+    }
+    showMessage("success", `Đã xuất ${kind === "att" ? "báo cáo ngày công" : "danh sách đánh giá"} cho ${chosen.length} SVTT.`);
   } catch (error) {
-    showMessage("error", "❌ " + (error.message || "Không xuất được báo cáo."));
+    showMessage("error", "❌ " + (error.message || "Không xuất được file."));
   }
 }
 // HR: tất cả SVTT (lọc theo bộ phận nếu chọn). Trưởng bộ phận/Người hướng dẫn: chỉ bộ phận của mình.
@@ -273,32 +299,49 @@ export function renderReportsView() {
   if (!root.dataset.bound) {
     root.dataset.bound = "1";
     root.addEventListener("change", event => {
-      if (event.target.matches("[data-att-check]")) {
-        const id = event.target.dataset.attCheck;
-        if (event.target.checked) attOff.delete(id);
-        else attOff.add(id);
-        renderReportsView();
-        return;
+      for (const kind of Object.keys(EXPORTS)) {
+        if (event.target.matches(`[data-${kind}-check]`)) {
+          const id = event.target.dataset[`${kind}Check`];
+          if (event.target.checked) exportOff[kind].delete(id);
+          else exportOff[kind].add(id);
+          renderReportsView();
+          return;
+        }
+        if (event.target.matches(`[data-${kind}-school]`)) {
+          state.reports[EXPORTS[kind].schoolKey] = event.target.value;
+          exportOff[kind] = new Set();
+          renderReportsView();
+          return;
+        }
       }
       if (event.target.matches("[data-rp-period]")) state.reports.periodId = event.target.value;
       else if (event.target.matches("[data-rp-dept]")) state.reports.dept = event.target.value;
       else if (event.target.matches("[data-rp-school]")) state.reports.school = event.target.value;
-      else if (event.target.matches("[data-att-school]")) state.reports.attSchool = event.target.value;
       else return;
-      attOff = new Set();
+      exportOff.att = new Set();
+      exportOff.ev = new Set();
       state.reports.limit = 5;
       state.reports.schoolLimit = 5;
       renderReportsView();
     });
     root.addEventListener("click", event => {
-      if (event.target.closest("[data-att-export]")) exportAttendance();
-      else if (event.target.closest("[data-att-all]")) {
-        attOff = new Set();
-        renderReportsView();
-      } else if (event.target.closest("[data-att-clear]")) {
-        attOff = new Set(attListIds);
-        renderReportsView();
-      } else if (event.target.closest("[data-rp-school-more]")) {
+      for (const kind of Object.keys(EXPORTS)) {
+        if (event.target.closest(`[data-${kind}-export]`)) {
+          exportList(kind);
+          return;
+        }
+        if (event.target.closest(`[data-${kind}-all]`)) {
+          exportOff[kind] = new Set();
+          renderReportsView();
+          return;
+        }
+        if (event.target.closest(`[data-${kind}-clear]`)) {
+          exportOff[kind] = new Set(exportListIds[kind]);
+          renderReportsView();
+          return;
+        }
+      }
+      if (event.target.closest("[data-rp-school-more]")) {
         state.reports.schoolLimit = (state.reports.schoolLimit || 5) + 5;
         renderReportsView();
       } else if (event.target.closest("[data-rp-school-less]")) {
@@ -390,7 +433,7 @@ export function renderReportsView() {
         </table>
       </div>
       ${moreHtml}
-      ${attendanceExportHtml()}`;
+      ${exportSectionsHtml()}`;
     return;
   }
 
@@ -429,6 +472,6 @@ export function renderReportsView() {
       </table>
     </div>
     ${moreHtml}
-    ${attendanceExportHtml()}`;
+    ${exportSectionsHtml()}`;
 }
 
