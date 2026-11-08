@@ -1252,17 +1252,20 @@ export function rosterFor(actor, periodId = null) {
 export function listCommitteeSchools(periodId = null) {
   const state = read();
   const groups = new Map();
-  for (const t of Object.values(state.tickets)) {
-    if (periodId && t.periodId !== periodId) continue;
-    const key = t.school || "";
+  const group = key => {
     if (!groups.has(key)) {
       groups.set(key, {
         school: key, total: 0, open: 0, finalized: 0, toCommittee: 0, scored: 0,
         committeeUid: state.schoolCommittee[key] || null, committeeName: ""
       });
     }
-    const g = groups.get(key);
-    g.total += 1;
+    return groups.get(key);
+  };
+  // Mọi Trường có SVTT, kể cả khi chưa có kỳ mở
+  for (const i of Object.values(state.interns)) group(i.school || "").total += 1;
+  for (const t of Object.values(state.tickets)) {
+    if (periodId && t.periodId !== periodId) continue;
+    const g = group(t.school || "");
     if (t.status === STATUS.FINALIZED) g.finalized += 1; else g.open += 1;
     if (t.status === STATUS.COMMITTEE) g.toCommittee += 1;
     if (typeof t.committeeScore === "number") g.scored += 1;
@@ -1594,7 +1597,9 @@ export function internAttendanceAllowed(internId, actor) {
 export function timesheetInterns(actor, month) {
   const state = read();
   return Object.values(state.interns)
-    .filter(i => actor?.role === "hr" || (actor && i.department === actor.department))
+    .filter(i => actor?.role === "hr"
+      || (actor?.role === "supervisor" && i.department === actor.department)
+      || (actor?.role === "mentor" && !!i.evaluatorUid && i.evaluatorUid === actor.uid))
     .filter(i => internSpanFor(i, month))
     .sort((a, b) => a.internId.localeCompare(b.internId))
     .map(intern => {
