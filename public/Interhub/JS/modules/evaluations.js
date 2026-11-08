@@ -10,7 +10,7 @@ import { hrDeptOptions, renderHrDashboard } from "./dashboard.js";
 import {
   GROUP_MORE_STEP, GROUP_PREVIEW, HR_COLOR, HR_DEPT, HR_GROUPS, HR_ORDER, hrPrintSel, hrState, evState, state
 } from "../state.js";
-import { actorInfo, escapeHtml, isHR } from "../utils.js";
+import { actorInfo, escapeHtml, isHR, viewDate } from "../utils.js";
 
 // ===== Dùng chung =====
 export function hrEnsurePeriod() {
@@ -253,6 +253,28 @@ export function renderEvFilters() {
     </div>`;
 }
 
+// Danh sách SVTT trong phạm vi người xem, hiện cả khi kỳ chưa mở để biết mình sẽ quản lý ai
+function evRosterHtml() {
+  const roster = DemoStore.rosterFor(actorInfo(), evState.periodId);
+  if (!roster.length) return "";
+  const rows = roster.map(r => `
+      <tr>
+        <td data-label="Sinh viên">${escapeHtml(r.fullName)}<br><small>${escapeHtml(r.internId)}</small></td>
+        <td data-label="Bộ phận">${escapeHtml(r.department)}</td>
+        <td data-label="Thời gian thực tập">${escapeHtml(viewDate(r.startDate) || "—")} → ${escapeHtml(viewDate(r.endDate) || "—")}</td>
+        <td data-label="Người đánh giá">${r.evaluatorAssigned ? escapeHtml(r.evaluatorName || "—") : "<em>Chưa giao</em>"}</td>
+        <td data-label="Phiếu">${r.ticketStatus ? escapeHtml(STATUS_LABEL[r.ticketStatus] || r.ticketStatus) : "<em>Chưa có phiếu (kỳ chưa mở)</em>"}</td>
+      </tr>`).join("");
+  return `
+    <h3 style="margin:16px 0 8px;">SVTT thuộc phạm vi của bạn (${roster.length})</h3>
+    <div class="table-wrap">
+      <table class="assign-table table-cards">
+        <thead><tr><th>Sinh viên</th><th>Bộ phận</th><th>Thời gian thực tập</th><th>Người đánh giá</th><th>Phiếu</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 export function renderEvGroups() {
   const box = document.getElementById("evGroups");
   if (!box) return;
@@ -268,7 +290,8 @@ export function renderEvGroups() {
 
   const list = evDisplayed();
   if (!base.length) {
-    box.innerHTML = `${chips}<div class="hr-empty-box"><strong>Chưa có phiếu nào</strong>Thử đổi kỳ hoặc bỏ bớt bộ lọc.</div>`;
+    const roster = isHR() ? "" : evRosterHtml();
+    box.innerHTML = `${chips}<div class="hr-empty-box"><strong>Chưa có phiếu nào</strong>Thử đổi kỳ hoặc bỏ bớt bộ lọc. Phiếu được tạo khi kỳ đánh giá mở.</div>${roster}`;
     return;
   }
   if (!list.length) {
