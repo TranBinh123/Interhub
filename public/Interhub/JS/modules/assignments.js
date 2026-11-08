@@ -78,13 +78,65 @@ export function renderCommitteeSchools() {
   renderMore(document.getElementById("committeeMore"), rows.length, shown.length, "committee-more", "committee-less");
 }
 
+// Biểu đồ tròn cho Trưởng bộ phận: số SVTT theo người đánh giá trong bộ phận.
+// Màu theo bảng phân loại đã kiểm tra bằng validate_palette (thứ tự cố định); "Chưa giao" dùng xám trung tính.
+const PIE_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
+const PIE_NEUTRAL = "#8a8985";
+
+function distributionHtml(roster) {
+  if (!roster.length) return "";
+  const byKey = new Map();
+  for (const r of roster) {
+    const key = !r.evaluatorAssigned ? NONE : (r.evaluatorUid ? r.evaluatorUid : SELF);
+    const label = key === NONE ? "Chưa giao" : (key === SELF ? "Tự đánh giá" : (r.evaluatorName || "—"));
+    if (!byKey.has(key)) byKey.set(key, { key, label, count: 0 });
+    byKey.get(key).count += 1;
+  }
+  // Người hướng dẫn và tự đánh giá theo tên, "Chưa giao" luôn cuối
+  const items = [...byKey.values()].sort((a, b) => {
+    if (a.key === NONE) return 1;
+    if (b.key === NONE) return -1;
+    return a.label.localeCompare(b.label, "vi");
+  });
+  let colorIndex = 0;
+  items.forEach(it => { it.color = it.key === NONE ? PIE_NEUTRAL : PIE_COLORS[colorIndex++ % PIE_COLORS.length]; });
+
+  const total = roster.length;
+  const cx = 80, cy = 80, r = 72;
+  let angle = -Math.PI / 2;
+  const slices = items.map(it => {
+    const frac = it.count / total;
+    const title = `${it.label}: ${it.count} SVTT (${Math.round(frac * 100)}%)`;
+    if (items.length === 1) {
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${it.color}"><title>${escapeHtml(title)}</title></circle>`;
+    }
+    const a0 = angle, a1 = angle + frac * 2 * Math.PI;
+    angle = a1;
+    const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    return `<path d="M${cx},${cy} L${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z" fill="${it.color}" stroke="#fcfcfb" stroke-width="2"><title>${escapeHtml(title)}</title></path>`;
+  }).join("");
+
+  const legend = items.map(it => `
+      <li><span style="display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px;background:${it.color}"></span>
+        ${escapeHtml(it.label)} — <b>${it.count}</b> SVTT · ${Math.round(it.count / total * 100)}%</li>`).join("");
+
+  return `
+    <section class="card ev-distribution" style="margin-bottom:16px;">
+      <h3 style="margin:0 0 8px;">Phân công người đánh giá trong bộ phận</h3>
+      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+        <svg viewBox="0 0 160 160" width="160" height="160" role="img"
+          aria-label="Biểu đồ tròn: ${escapeHtml(items.map(it => `${it.label} ${it.count}`).join(", "))}">${slices}</svg>
+        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px;">${legend}</ul>
+      </div>
+    </section>`;
+}
+
 export function renderAssignments() {
-  const box = document.getElementById("assignTable");
-  if (!box) return;
   renderCommitteeSchools();
 
   const actor = actorInfo();
-  const period = DemoStore.activePeriod();
   const deptFilter = document.getElementById("assignDeptFilter");
   deptFilter.hidden = !isHR();
   if (isHR()) {
@@ -92,11 +144,11 @@ export function renderAssignments() {
       `<option value="${escapeHtml(d.code)}" ${d.code === state.assignDept ? "selected" : ""}>${escapeHtml(d.code)} — ${escapeHtml(d.name)}</option>`).join("");
   }
   const dept = isHR() ? state.assignDept : actor.department;
-
-  // Bộ lọc người đánh giá dùng chung cho danh sách SVTT và bảng phiếu
-  const evalSelect = document.getElementById("assignEvaluatorFilter");
   const mentors = DemoStore.mentorsOf(dept);
   const selfAllowed = !isHR() || dept === HR_DEPT;
+
+  // Bộ lọc người đánh giá cho danh sách SVTT
+  const evalSelect = document.getElementById("assignEvaluatorFilter");
   evalSelect.innerHTML = [
     `<option value="">Tất cả người đánh giá</option>`,
     `<option value="${NONE}">Chưa giao</option>`,
@@ -106,50 +158,15 @@ export function renderAssignments() {
   if (![...evalSelect.options].some(o => o.value === evaluatorFilter)) evaluatorFilter = "";
   evalSelect.value = evaluatorFilter;
 
+  const roster = DemoStore.rosterFor(actor).filter(i => i.department === dept);
+  const summary = document.getElementById("assignSummary");
+  if (summary) summary.textContent =
+    `Bộ phận ${dept || "—"}: ${roster.length} SVTT · ${mentors.length} người hướng dẫn`;
+
+  const distribution = document.getElementById("assignDistribution");
+  if (distribution) distribution.innerHTML = isHR() ? "" : distributionHtml(roster);
+
   renderRoster(dept);
-
-  if (!period) {
-    box.innerHTML = `<tr class="empty-state"><td colspan="4">Chưa có kỳ đánh giá đang mở. Phiếu sẽ hiện khi kỳ được mở.</td></tr>`;
-    return;
-  }
-
-  const all = DemoStore.listTickets(actor, period.id).filter(t => t.department === dept);
-  const pendingCommittee = all.filter(t => !t.committeeUid).length;
-  document.getElementById("assignSummary").textContent =
-    `Bộ phận ${dept || "—"}: ${all.length} phiếu · ${mentors.length} người hướng dẫn` +
-    (isHR() ? ` · ${pendingCommittee} phiếu chưa có Tổ CTSV` : "") + ".";
-
-  const q = searchValue();
-  const list = all.filter(t => matchesEvaluator(t) && (!q || `${t.internName} ${t.internId}`.toLowerCase().includes(q)));
-  const shown = list.slice(0, state.assignLimit || PAGE);
-
-  if (!DemoStore.departmentKnown(dept)) {
-    box.innerHTML = `<tr class="empty-state"><td colspan="4">Bộ phận của bạn (${escapeHtml(dept || "chưa có")}) chưa có trong danh mục. Liên hệ Admin.</td></tr>`;
-    return;
-  }
-  if (!all.length) {
-    box.innerHTML = `<tr class="empty-state"><td colspan="4">Chưa có phiếu nào thuộc bộ phận ${escapeHtml(dept)}.</td></tr>`;
-    return;
-  }
-  if (!list.length) {
-    box.innerHTML = `<tr class="empty-state"><td colspan="4">Không có phiếu nào khớp bộ lọc.</td></tr>`;
-    return;
-  }
-
-  const mentorNotice = !mentors.length
-    ? `<tr><td colspan="4" class="empty-state">Bộ phận chưa có người hướng dẫn nào. Admin cần duyệt tài khoản người hướng dẫn, chọn đúng bộ phận ở tab "Tài khoản", rồi bấm "Làm mới".</td></tr>`
-    : "";
-
-  box.innerHTML = mentorNotice + shown.map(t => `
-      <tr>
-        <td data-label="Sinh viên">${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
-        <td data-label="Trạng thái">${escapeHtml(STATUS_LABEL[t.status] || t.status)}</td>
-        <td data-label="Người đánh giá">${t.evaluatorAssigned
-          ? escapeHtml(t.evaluatorName || "—")
-          : "<em>Chưa giao: giao ở danh sách SVTT phía trên</em>"}</td>
-        <td data-label="Tổ CTSV">${escapeHtml(t.committeeName || "—")}</td>
-      </tr>`).join("");
-  renderMore(document.getElementById("assignMore"), list.length, shown.length, "assign-more", "assign-less");
 }
 
 // Danh sách SVTT của bộ phận: luôn hiện, không phụ thuộc kỳ đang mở. Giao người đánh giá hàng loạt tại đây.
@@ -223,7 +240,6 @@ export function handleAssignChange(event) {
 
   if (target.id === "assignEvaluatorFilter") {
     evaluatorFilter = target.value;
-    state.assignLimit = PAGE;
     internLimit = PAGE;
     renderAssignments();
     return;
@@ -231,7 +247,6 @@ export function handleAssignChange(event) {
 
   if (target.id === "assignDeptFilter") {
     state.assignDept = target.value;
-    state.assignLimit = PAGE;
     internLimit = PAGE;
     internSelected.clear();
     renderAssignments();
@@ -276,18 +291,6 @@ export function handleAssignClick(event) {
 
   const action = button.dataset.action;
   const actor = actorInfo();
-
-  if (action === "assign-more") {
-    state.assignLimit = (state.assignLimit || PAGE) + PAGE;
-    renderAssignments();
-    return;
-  }
-
-  if (action === "assign-less") {
-    state.assignLimit = PAGE;
-    renderAssignments();
-    return;
-  }
 
   if (action === "intern-more") {
     internLimit += PAGE;

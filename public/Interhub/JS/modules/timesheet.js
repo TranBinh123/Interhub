@@ -652,13 +652,13 @@ export function renderTimesheetView() {
         ${tsPeriodOptions()}
       </select>
 
-      <select
+      ${isHR() ? `<select
         data-ts-dept
         aria-label="Lọc theo bộ phận"
       >
         <option value="">Tất cả bộ phận</option>
         ${DemoStore.listDepartments().map(d => `<option value="${escapeHtml(d.code)}" ${state.timesheet.dept === d.code ? "selected" : ""}>${escapeHtml(d.code)} — ${escapeHtml(d.name)}</option>`).join("")}
-      </select>
+      </select>` : ""}
 
       <input
         type="search"
