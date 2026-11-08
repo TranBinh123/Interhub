@@ -6,7 +6,10 @@
 import { showMessage } from "../components/messages.js";
 import { DemoStore, STATUS_LABEL } from "../db.js";
 import { HR_DEPT, assignSelected, state } from "../state.js";
-import { actorInfo, escapeHtml, isHR } from "../utils.js";
+import { actorInfo, escapeHtml, isHR, viewDate } from "../utils.js";
+
+// SVTT được chọn để giao người đánh giá (theo SVTT, không theo phiếu)
+const internSelected = new Set();
 
 // Phòng Nhân sự: giao Tổ Công tác sinh viên theo Trường (mỗi Trường một người phụ trách)
 export function renderCommitteeSchools() {
@@ -52,6 +55,7 @@ export function renderAssignments() {
       `<option value="${escapeHtml(d.code)}" ${d.code === state.assignDept ? "selected" : ""}>${escapeHtml(d.code)} — ${escapeHtml(d.name)}</option>`).join("");
   }
   const dept = isHR() ? state.assignDept : actor.department;
+  renderUnassigned(dept);
 
   if (!period) {
     box.innerHTML = `<tr class="empty-state"><td colspan="7">Chưa có kỳ đánh giá đang mở.</td></tr>`;
@@ -140,6 +144,68 @@ export function renderAssignments() {
   renderAssignMore(list.length, shown.length);
 }
 
+// Thẻ SVTT chưa có người đánh giá: người phụ trách giao ngay khi SVTT được upload
+function renderUnassigned(dept) {
+  const box = document.getElementById("assignUnassigned");
+  if (!box) return;
+  if (!dept || !DemoStore.departmentKnown(dept)) { box.innerHTML = ""; return; }
+
+  const interns = DemoStore.unassignedInterns(dept);
+  const ids = new Set(interns.map(i => i.internId));
+  for (const id of [...internSelected]) if (!ids.has(id)) internSelected.delete(id);
+
+  if (!interns.length) {
+    box.innerHTML = `<p class="assign-summary">Tất cả SVTT của bộ phận ${escapeHtml(dept)} đã có người đánh giá.</p>`;
+    return;
+  }
+
+  const mentors = DemoStore.mentorsOf(dept);
+  const selfAllowed = !isHR() || dept === HR_DEPT;
+  const selfLabel = isHR() ? "Phòng Nhân sự tự đánh giá" : "Trưởng bộ phận tự đánh giá";
+  const canAssign = isHR() || actorInfo().role === "supervisor";
+  const bulkValue = document.getElementById("internBulkMentor")?.value || "";
+  const options = [
+    `<option value="">— Chọn người đánh giá —</option>`,
+    selfAllowed ? `<option value="__self__">${selfLabel}</option>` : "",
+    ...mentors.map(m => `<option value="${escapeHtml(m.uid)}">${escapeHtml(m.fullName)}</option>`)
+  ].join("");
+  const allChecked = interns.every(i => internSelected.has(i.internId));
+
+  box.innerHTML = `
+    <div class="assign-unassigned">
+      <h3>SVTT chưa có người đánh giá (${interns.length})</h3>
+      <div class="assign-bulk">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="internSelectAll" ${allChecked ? "checked" : ""} ${canAssign ? "" : "disabled"}> Chọn tất cả
+        </label>
+        <span class="count-badge">Đã chọn ${internSelected.size} SVTT</span>
+        <select id="internBulkMentor" ${canAssign ? "" : "disabled"}>${options}</select>
+        <button type="button" class="btn btn-primary btn-sm" data-action="intern-assign"
+          ${canAssign ? "" : "disabled"}>Giao cho SVTT đã chọn</button>
+      </div>
+      <div class="table-wrap">
+        <table class="assign-table table-cards">
+          <thead>
+            <tr><th style="width:44px;"></th><th>Sinh viên</th><th>Trường</th><th>Thời gian thực tập</th></tr>
+          </thead>
+          <tbody>
+            ${interns.map(i => `
+              <tr>
+                <td data-label="Chọn"><input type="checkbox" data-intern-select="${escapeHtml(i.internId)}"
+                  ${internSelected.has(i.internId) ? "checked" : ""} ${canAssign ? "" : "disabled"}></td>
+                <td data-label="Sinh viên">${escapeHtml(i.fullName)}<br><small>${escapeHtml(i.internId)}</small></td>
+                <td data-label="Trường">${escapeHtml(i.school || "—")}</td>
+                <td data-label="Thời gian thực tập">${escapeHtml(viewDate(i.startDate) || "—")} → ${escapeHtml(viewDate(i.endDate) || "—")}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  if ([...document.getElementById("internBulkMentor").options].some(o => o.value === bulkValue)) {
+    document.getElementById("internBulkMentor").value = bulkValue;
+  }
+}
+
 function renderAssignMore(total, shown) {
   const box = document.getElementById("assignMore");
   if (!box) return;
@@ -173,6 +239,23 @@ export function handleAssignChange(event) {
     state.assignDept = target.value;
     state.assignLimit = 6;
     assignSelected.clear();
+    internSelected.clear();
+    renderAssignments();
+    return;
+  }
+
+  if (target.id === "internSelectAll") {
+    document.querySelectorAll("[data-intern-select]:not([disabled])").forEach(row => {
+      if (target.checked) internSelected.add(row.dataset.internSelect);
+      else internSelected.delete(row.dataset.internSelect);
+    });
+    renderAssignments();
+    return;
+  }
+
+  if (target.dataset.internSelect) {
+    if (target.checked) internSelected.add(target.dataset.internSelect);
+    else internSelected.delete(target.dataset.internSelect);
     renderAssignments();
     return;
   }
@@ -225,6 +308,30 @@ export function handleAssignClick(event) {
       assignSelected.clear();
       const note = result.skipped ? ` (bỏ qua ${result.skipped} phiếu không đủ điều kiện)` : "";
       showMessage("success", `Đã gán ${result.updated} phiếu${note}. (dữ liệu mô phỏng)`);
+    } else {
+      showMessage("error", result.error);
+    }
+    renderAssignments();
+    return;
+  }
+
+  if (action === "intern-assign") {
+    const ids = [...internSelected];
+    const mentorUid = document.getElementById("internBulkMentor")?.value || "";
+    let result = DemoStore.assignInternEvaluators(ids, actor, mentorUid);
+    // Phòng Nhân sự đổi phân công khi đã có phiếu đang chấm: bắt buộc lý do
+    if (!result.ok && isHR() && /lý do/.test(result.error)) {
+      const reason = window.prompt(`${result.error}\n\nNhập lý do đổi phân công:`);
+      if (!reason?.trim()) return showMessage("error", "Chưa nhập lý do, chưa đổi phân công.");
+      result = DemoStore.assignInternEvaluators(ids, actor, mentorUid, reason);
+    }
+    if (result.ok) {
+      internSelected.clear();
+      const notes = [];
+      if (result.skipped) notes.push(`bỏ qua ${result.skipped} SVTT ngoài quyền`);
+      if (result.locked) notes.push(`${result.locked} phiếu đã bắt đầu nên giữ nguyên`);
+      showMessage("success", `Đã giao ${result.updated} SVTT, cập nhật ${result.tickets} phiếu` +
+        (notes.length ? ` (${notes.join("; ")})` : "") + ". (dữ liệu mô phỏng)");
     } else {
       showMessage("error", result.error);
     }

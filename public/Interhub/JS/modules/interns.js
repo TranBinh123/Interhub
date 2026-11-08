@@ -318,7 +318,9 @@ export function renderFollowUp() {
           <td>${html(r.endDate.split("-").reverse().join("/"))}</td>
           <td>${r.daysLeft < 0 ? `Đã về ${-r.daysLeft} ngày trước` : `còn ${r.daysLeft} ngày`}</td>
           <td>${r.leavingSoon ? `<span class="ih-status ih-status--pending">Sắp về</span>` : "—"}</td>
-          <td>${r.hasTicket ? "Đã có phiếu" : "Chưa có phiếu"}</td>
+          <td>${r.hasTicket ? "Đã có phiếu" : `Chưa có phiếu${isHR() && r.daysLeft >= 0
+            ? ` <button type="button" class="ih-btn ih-btn--secondary" data-action="open-early" data-intern-id="${html(r.internId)}">Mở đánh giá</button>`
+            : ""}`}</td>
           <td class="${r.level === "alert" ? "ih-error" : ""}">${html(r.message)}</td>
         </tr>`).join("")
     : `<tr><td colspan="7" class="ih-empty">Không có SVTT cần theo dõi vào ngày này.</td></tr>`;
@@ -425,7 +427,7 @@ export async function handleDemoAction(action, button) {
     "create-department", "delete-department", "save-department",
     "edit-department", "cancel-department-edit",
     "submit-intern", "edit-intern", "cancel-intern-edit", "delete-intern",
-    "save-member"
+    "save-member", "open-early"
   ];
   if (!demoActions.includes(action)) return false;
 
@@ -453,6 +455,9 @@ export async function handleDemoAction(action, button) {
         : created.error,
       created.ok ? "success" : "error"
     );
+
+  } else if (action === "open-early") {
+    report(DemoStore.openInternEarly(button.dataset.internId, actorInfo()), "Đã mở đánh giá sớm cho SVTT sắp về.");
 
   } else if (action === "generate-tickets") {
     const result = DemoStore.generateTickets(button.dataset.periodId);
