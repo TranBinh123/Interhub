@@ -1479,6 +1479,12 @@ tbody tr:hover { background: #f3f9fa; }
   box-shadow: 0 10px 24px rgba(16, 32, 46, .14);
 }
 
+/* Cột đầu tiên của lịch (sát mép trái): mở bảng sang phải để không bị cắt khi neo phải */
+.ts-calendar > :nth-child(7n+1) .ts-code-menu {
+  right: auto;
+  left: 4px;
+}
+
 .ts-code-option {
   padding: 7px 10px;
   border: 0;
