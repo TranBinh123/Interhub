@@ -131,8 +131,9 @@ export function renderHrTicketRows() {
   const schools = hrSchoolMap();
   const bar = printBarHtml(list.filter(t => t.status === STATUS.FINALIZED));
 
-  // Phòng Nhân sự theo dõi nhóm "Chờ Tổ Công tác sinh viên" và "Đã chốt" (nơi chọn phiếu để in)
-  box.innerHTML = bar + HR_GROUPS.filter(g => g.key === "waiting_committee" || g.key === "finalized").map(g => {
+  // Phòng Nhân sự theo dõi nhóm "Phòng Nhân sự đánh giá" (SVTT PNS tự chấm), "Chờ Tổ Công tác sinh viên" và "Đã chốt" (nơi chọn phiếu để in)
+  const shownGroups = ["pns", "waiting_committee", "finalized"];
+  box.innerHTML = bar + HR_GROUPS.filter(g => shownGroups.includes(g.key)).map(g => {
     const items = list.filter(t => hrGroupOf(t) === g.key);
     if (!items.length) return "";
     const limit = hrState.limits[g.key] || GROUP_PREVIEW;
