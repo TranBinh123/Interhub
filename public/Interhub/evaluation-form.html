@@ -704,7 +704,7 @@
     });
 
     // Điểm bộ phận = trung bình ba phần (README mục 2.4)
-    // Điểm đánh giá trung bình = (điểm trung bình Phần I–III + điểm Tổ CTSV) / 2
+    // Điểm đánh giá trung bình = cột Y của BM03: (tổng 3 phần + điểm Tổ CTSV) / 4
     // Nút "Gửi phê duyệt" chỉ bật khi đủ điều kiện; phần còn thiếu được liệt kê ngay dưới nút
     function updateSubmitState() {
       const p = DemoStore.permissionsFor(currentTicket, actor);
@@ -742,8 +742,10 @@
       $("resultDept").textContent = fmt(summary.dept);
       $("resultCommittee").textContent = fmt(summary.committee);
       $("committeeTotal").textContent = summary.committee === null ? "—" : String(summary.committee);
-      $("resultFinal").textContent = fmt(summary.final);
-      $("resultGrade").textContent = DemoStore.ratingOf(summary.final);
+      // Điểm đánh giá trung bình = cột Y của BM03 (cần có ngày công; chưa có thì để trống)
+      const avg = DemoStore.monthlyAverage({ id: currentTicket.id, scores: currentScores, committeeScore: currentCommittee });
+      $("resultFinal").textContent = fmt(avg);
+      $("resultGrade").textContent = DemoStore.monthlyRating(avg);
     }
 
     // ============================================

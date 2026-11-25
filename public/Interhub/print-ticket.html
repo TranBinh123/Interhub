@@ -271,6 +271,8 @@
 
       const summary = scoreSummary(t);
       const deptParts = summary.parts;
+      // Điểm đánh giá trung bình = cột Y của BM03 (theo ngày công)
+      const avg = DemoStore.monthlyAverage(t);
 
       const itemRows = PARTS.map((part, pIndex) => {
         const rows = ITEMS
@@ -333,8 +335,8 @@
             <td>${fmt(deptParts[2])}</td>
             <td>${fmt(summary.dept)}</td>
             <td>${fmt(summary.committee)}</td>
-            <td><strong>${fmt(summary.final)}</strong></td>
-            <td>${esc(DemoStore.ratingOf(summary.final))}</td>
+            <td><strong>${fmt(avg)}</strong></td>
+            <td>${esc(DemoStore.monthlyRating(avg))}</td>
           </tr>
         </table>
 
@@ -346,16 +348,12 @@
 
         <div class="signatures">
           <div>
-            <div class="title">Người đánh giá</div>
-            <div class="hint">(Ký, ghi rõ họ tên)</div>
+            <div class="title">Người lập phiếu</div>
             <div class="space"></div>
-            <div>${esc(t.evaluatorName || "")}</div>
           </div>
           <div>
-            <div class="title">Tổ Công tác sinh viên</div>
-            <div class="hint">(Ký, ghi rõ họ tên)</div>
+            <div class="title">Trưởng bộ phận</div>
             <div class="space"></div>
-            <div>${esc(t.committeeName || "")}</div>
           </div>
         </div>
       `;
