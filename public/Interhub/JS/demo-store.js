@@ -120,7 +120,7 @@ export function partScore(scores, partIndex) {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-// Điểm cuối = (điểm trung bình Phần I–III của bộ phận + điểm Tổ Công tác sinh viên) / 2
+// Điểm đánh giá trung bình = cột Y của BM03 (xem monthlyAverage); chỉ có khi đã chấm công xong
 // Tổ CTSV chấm hai ô điểm, tổng hai ô là Điểm Tổ CTSV
 export const COMMITTEE_PARTS = [
   { key: "rules", label: "Chấp hành nội quy, quy định", max: 7 },
@@ -156,23 +156,28 @@ export function ratingOf(score) {
   return "Kém";
 }
 
+// Điểm đánh giá trung bình tháng = cột Y của BM03: (tổng điểm 3 phần + điểm Tổ CTSV) / 4.
+// Chỉ hiển thị khi đã chấm công xong hết (attendanceComplete) và có ít nhất một ngày công;
+// nếu chưa đủ thì trả về null để mọi nơi (phiếu in, form, báo cáo) hiện "—".
+// Nhận {id, scores, committeeScore} để dùng được cả với điểm đang nhập trên form.
+export function monthlyAverage(ticket) {
+  const parts = PARTS.map((p, i) => partScore(ticket.scores || [], i));
+  const committee = typeof ticket.committeeScore === "number" ? ticket.committeeScore : null;
+  if (parts.some(v => v === null) || committee === null) return null;
+  if (!attendanceComplete(ticket.id)) return null;
+  const workDays = attendanceDays(ticket.id).reduce((sum, d) => sum + (d.code ? workDaysOf(d.code) : 0), 0);
+  if (workDays <= 0) return null;
+  return (parts.reduce((a, b) => a + b, 0) + committee) / 4;
+}
+
+// Tóm tắt điểm của phiếu. final = điểm đánh giá trung bình tháng (monthlyAverage),
+// dùng chung cho báo cáo, phiếu in và form để không còn hai công thức khác nhau.
 export function scoreSummary(ticket) {
   const parts = PARTS.map((p, i) => partScore(ticket.scores || [], i));
   const dept = parts.every(v => v !== null) ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
   const committee = typeof ticket.committeeScore === "number" ? ticket.committeeScore : null;
-  const final = dept !== null && committee !== null ? (dept + committee) / 2 : null;
+  const final = monthlyAverage(ticket);
   return { parts, dept, committee, final };
-}
-
-// Điểm đánh giá trung bình tháng = cột Y của BM03: (tổng điểm 3 phần + điểm Tổ CTSV) / 4.
-// Cột Y để trống khi SVTT chưa có ngày công trong kỳ, nên trả về null trong trường hợp đó.
-// Nhận {id, scores, committeeScore} để dùng được cả với điểm đang nhập trên form.
-export function monthlyAverage(ticket) {
-  const { parts, committee } = scoreSummary(ticket);
-  if (parts.some(v => v === null) || committee === null) return null;
-  const workDays = attendanceDays(ticket.id).reduce((sum, d) => sum + (d.code ? workDaysOf(d.code) : 0), 0);
-  if (workDays <= 0) return null;
-  return (parts.reduce((a, b) => a + b, 0) + committee) / 4;
 }
 
 // Xếp loại theo điểm trung bình tháng (cùng ngưỡng với cột Z của BM03)
@@ -1597,6 +1602,17 @@ export function attendanceDays(ticketId) {
   return daysOfIntern(intern, period.month);
 }
 
+// Đã chấm công xong: mọi ngày trong khoảng thực tập của kỳ đều đã có ký hiệu (khớp với "Đã ghi X/N")
+export function attendanceComplete(ticketId) {
+  const state = read();
+  const ticket = state.tickets[ticketId];
+  const period = ticket && state.periods[ticket.periodId];
+  const intern = ticket && state.interns[ticket.internId];
+  if (!period || !intern) return false;
+  const days = daysOfIntern(intern, period.month);
+  return days.length > 0 && days.every(d => d.recorded);
+}
+
 // Chấm công theo SVTT trong một kỳ (month = "YYYY-MM" của kỳ)
 export function internAttendanceDays(internId, month) {
   const intern = read().interns[internId];
@@ -2035,6 +2051,7 @@ export const DemoStore = {
   ratingOf,
   monthlyAverage,
   monthlyRating,
+  attendanceComplete,
   submitBlockers,
   MIN_NOTE,
   formatDateTime
