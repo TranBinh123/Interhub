@@ -169,7 +169,7 @@ export function reportDepartmentRows(list) {
     <tr>
       <td data-label="Bộ phận">${escapeHtml(r.department)}<br><small>${escapeHtml(DemoStore.departmentName(r.department))}</small></td>
       <td class="r" data-label="Tổng phiếu">${r.total}</td><td class="r" data-label="Đã chốt">${r.finalized}</td>
-      <td class="r" data-label="Điểm bộ phận">${formatScore(r.dept)}</td><td class="r" data-label="Điểm Tổ CTSV">${formatScore(r.committee)}</td><td class="r" data-label="Điểm cuối">${formatScore(r.final)}</td>
+      <td class="r" data-label="Điểm bộ phận">${formatScore(r.dept)}</td><td class="r" data-label="Điểm Tổ CTSV">${formatScore(r.committee)}</td><td class="r" data-label="Điểm đánh giá trung bình">${formatScore(r.final)}</td>
     </tr>`).join("");
 }
 
@@ -179,7 +179,7 @@ export function reportResultRows(results) {
     <tr>
       <td data-label="Sinh viên">${escapeHtml(t.internName)}<br><small>${escapeHtml(t.internId)}</small></td>
       <td data-label="Trường">${escapeHtml(t.school || "—")}</td><td data-label="Bộ phận">${escapeHtml(t.department)}</td>
-      <td class="r" data-label="Điểm bộ phận">${formatScore(s.dept)}</td><td class="r" data-label="Điểm Tổ CTSV">${formatScore(s.committee)}</td><td class="r" data-label="Điểm cuối"><b>${formatScore(s.final)}</b></td>
+      <td class="r" data-label="Điểm bộ phận">${formatScore(s.dept)}</td><td class="r" data-label="Điểm Tổ CTSV">${formatScore(s.committee)}</td><td class="r" data-label="Điểm đánh giá trung bình"><b>${formatScore(s.final)}</b></td>
     </tr>`).join("");
 }
 
@@ -453,21 +453,21 @@ export function renderReportsView() {
     <div class="stats-grid" style="margin:16px 0;">
       <div class="stat-card"><div class="stat-label">Tổng phiếu</div><div class="stat-value">${list.length}</div></div>
       <div class="stat-card"><div class="stat-label">Đã chốt</div><div class="stat-value">${finalized} <small>(${pct}%)</small></div></div>
-      <div class="stat-card"><div class="stat-label">Điểm cuối trung bình</div><div class="stat-value">${formatScore(avgFinal)}</div></div>
+      <div class="stat-card"><div class="stat-label">Điểm đánh giá trung bình</div><div class="stat-value">${formatScore(avgFinal)}</div></div>
     </div>
     <h3>Theo trạng thái</h3>
     <div class="card" style="padding:16px;">${reportStatusDonut(list)}</div>
     <h3>Theo bộ phận</h3>
     <div class="table-wrap">
       <table class="table-cards">
-        <thead><tr><th>Bộ phận</th><th class="r">Tổng phiếu</th><th class="r">Đã chốt</th><th class="r">Điểm bộ phận</th><th class="r">Điểm Tổ CTSV</th><th class="r">Điểm cuối</th></tr></thead>
+        <thead><tr><th>Bộ phận</th><th class="r">Tổng phiếu</th><th class="r">Đã chốt</th><th class="r">Điểm bộ phận</th><th class="r">Điểm Tổ CTSV</th><th class="r">Điểm đánh giá trung bình</th></tr></thead>
         <tbody>${reportDepartmentRows(list)}</tbody>
       </table>
     </div>
     <h3>Kết quả phiếu đã chốt</h3>
     <div class="table-wrap">
       <table class="table-cards">
-        <thead><tr><th>Sinh viên</th><th>Trường</th><th>Bộ phận</th><th class="r">Điểm bộ phận</th><th class="r">Điểm Tổ CTSV</th><th class="r">Điểm cuối</th></tr></thead>
+        <thead><tr><th>Sinh viên</th><th>Trường</th><th>Bộ phận</th><th class="r">Điểm bộ phận</th><th class="r">Điểm Tổ CTSV</th><th class="r">Điểm đánh giá trung bình</th></tr></thead>
         <tbody>${reportResultRows(shownResults)}</tbody>
       </table>
     </div>
