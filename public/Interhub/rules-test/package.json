@@ -1,0 +1,15 @@
+{
+  "name": "internhub-rules-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore \"node --test test/rules.test.mjs\""
+  },
+  "dependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.14.1"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.29.0"
+  }
+}
