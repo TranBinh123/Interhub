@@ -88,7 +88,7 @@ service cloud.firestore {
         && request.resource.data.uid == uid
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.status == 'pending'
-        && !('role' in request.resource.data)
+        && (!('role' in request.resource.data) || request.resource.data.role == null)
         && !('adminGranted' in request.resource.data);
 
       // Người dùng chỉ được sửa tên hiển thị và thời gian đăng nhập của mình
