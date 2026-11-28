@@ -8,6 +8,8 @@ import { announce, showDemoBanner, showLoading } from "./components/messages.js"
 import { setupSidebar } from "./components/sidebar.js";
 import { applyPageHeader, setupTopbar } from "./components/topbar.js";
 import { DemoStore, firestore } from "./db.js";
+import { applyRemoteInterns } from "./demo-store.js";
+import { loadInternsFromFirestore } from "./firestore-sync.js";
 import { COLLECTIONS } from "./firebase-config.js";
 import { collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 import { handleAssignChange, handleAssignClick, renderAssignments } from "./modules/assignments.js";
@@ -50,6 +52,9 @@ export async function initApp() {
     window.location.replace("./index.html");
     return;
   }
+
+  // Hồ sơ thật từ Firestore (dùng để đọc SVTT đúng quyền, không bị ảnh hưởng bởi chế độ mô phỏng)
+  state.authProfile = { ...profile, uid: user.uid };
 
   // Áp dụng vai trò/bộ phận Admin đã chỉnh (mô phỏng) lên hồ sơ Firestore
   profile = DemoStore.effectiveProfile(user.uid, profile);
@@ -197,7 +202,16 @@ export async function refreshData() {
       admin.users = [];
     }
 
-    // Kỳ, SVTT và phiếu hiện là dữ liệu mô phỏng (JS/demo-store.js)
+    // SVTT: đọc từ Firestore theo quyền của tài khoản thật (HR: tất cả; người hướng dẫn/TBP: phần được giao)
+    try {
+      const remoteInterns = await loadInternsFromFirestore(state.authProfile, state.currentUser?.uid);
+      if (remoteInterns) applyRemoteInterns(remoteInterns);
+    } catch (error) {
+      console.error("[InternHub] Không tải được SVTT từ Firestore:", error);
+      admin.loadError = "Không tải được danh sách SVTT từ Firestore. Đang hiển thị dữ liệu lưu trên trình duyệt này.";
+    }
+
+    // Kỳ, phiếu hiện là dữ liệu mô phỏng (JS/demo-store.js)
     admin.periods = DemoStore.listPeriods();
     admin.departments = DemoStore.listDepartments();
     admin.tickets = DemoStore.listAllTickets();

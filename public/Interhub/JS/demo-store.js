@@ -294,14 +294,49 @@ function read() {
   return fresh;
 }
 
-// Trả về false nếu trình duyệt không lưu được (bộ nhớ đầy, chế độ riêng tư hoặc đang chặn lưu trữ)
-function write(state) {
+// Hook đồng bộ (JS/firestore-sync.js) nhận bản trước và bản sau mỗi lần ghi để gửi phần thay đổi SVTT
+let persistHook = null;
+export function setPersistHook(fn) {
+  persistHook = fn;
+}
+
+function readRaw() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeLocal(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return true;
   } catch (error) {
     return false;
   }
+}
+
+// Trả về false nếu trình duyệt không lưu được (bộ nhớ đầy, chế độ riêng tư hoặc đang chặn lưu trữ)
+function write(state) {
+  const prev = readRaw();
+  const saved = writeLocal(state);
+  if (saved && persistHook) {
+    try {
+      persistHook(prev, state);
+    } catch (error) {
+      console.error("[InternHub] Lỗi đồng bộ:", error);
+    }
+  }
+  return saved;
+}
+
+// Thay danh sách SVTT trong trình duyệt bằng dữ liệu đọc từ Firestore (không gửi ngược lên)
+export function applyRemoteInterns(interns) {
+  const state = read();
+  state.interns = interns;
+  writeLocal(state);
 }
 
 const STORAGE_FAIL = "Không lưu được dữ liệu trên trình duyệt này (bộ nhớ đầy hoặc đang chặn lưu trữ), nên thao tác chưa được ghi nhận. Hãy mở lại bằng cửa sổ trình duyệt thông thường rồi thử lại.";
@@ -2009,6 +2044,7 @@ export function formatDateTime(iso) {
 }
 
 export const DemoStore = {
+  applyRemoteInterns,
   listDepartments,
   approveTicket,
   supervisorReturn,
