@@ -62,6 +62,7 @@ export async function initApp() {
   state.currentUser = user;
   state.userProfile = profile;
   setupUI();
+  await syncInternsFromServer();
   loadDashboardData();
 
   // Mở đúng mục khi đến từ trang khác, ví dụ ?view=evaluations từ nút "Quay lại" của phiếu in
@@ -106,8 +107,21 @@ export function renderActiveView(viewName) {
   if (viewName === "reports") renderReportsView();
 }
 
-export function refreshAll() {
+// Đọc SVTT từ Firestore cho mọi vai trò được xem (không dùng refreshData vì hàm đó chỉ dành cho bảng quản trị)
+export async function syncInternsFromServer() {
+  try {
+    const remoteInterns = await loadInternsFromFirestore(state.authProfile, state.currentUser?.uid);
+    if (remoteInterns) applyRemoteInterns(remoteInterns);
+    return true;
+  } catch (error) {
+    console.error("[InternHub] Không tải được SVTT từ Firestore:", error);
+    return false;
+  }
+}
+
+export async function refreshAll() {
   if (!state.currentUser) return;
+  await syncInternsFromServer();
   loadDashboardData();
   const active = document.querySelector(".nav-link.active")?.dataset.view;
   if (["interns", "timesheet", "reports"].includes(active)) renderActiveView(active);
@@ -202,16 +216,7 @@ export async function refreshData() {
       admin.users = [];
     }
 
-    // SVTT: đọc từ Firestore theo quyền của tài khoản thật (HR: tất cả; người hướng dẫn/TBP: phần được giao)
-    try {
-      const remoteInterns = await loadInternsFromFirestore(state.authProfile, state.currentUser?.uid);
-      if (remoteInterns) applyRemoteInterns(remoteInterns);
-    } catch (error) {
-      console.error("[InternHub] Không tải được SVTT từ Firestore:", error);
-      admin.loadError = "Không tải được danh sách SVTT từ Firestore. Đang hiển thị dữ liệu lưu trên trình duyệt này.";
-    }
-
-    // Kỳ, phiếu hiện là dữ liệu mô phỏng (JS/demo-store.js)
+    // SVTT đã được đọc từ Firestore (syncInternsFromServer); kỳ và phiếu hiện là dữ liệu mô phỏng
     admin.periods = DemoStore.listPeriods();
     admin.departments = DemoStore.listDepartments();
     admin.tickets = DemoStore.listAllTickets();
