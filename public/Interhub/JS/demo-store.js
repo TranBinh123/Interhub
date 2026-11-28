@@ -1027,13 +1027,17 @@ export function effectiveProfile(uid, profile) {
 // ============================================
 function isEvaluatorOf(ticket, actor) {
   if (ticket.evaluatorUid) return ticket.evaluatorUid === actor.uid;
-  return actor.role === "supervisor" && actor.department === ticket.department;
+  return isSelfAssignedSupervisor(ticket, actor);
 }
 
 export function canView(ticket, actor) {
   if (!ticket || !actor) return false;
   if (actor.role === "hr") return true;
-  if (actor.role === "supervisor") return actor.department === ticket.department;
+  // Trưởng bộ phận: chỉ phiếu tự đánh giá của mình hoặc phiếu người hướng dẫn gửi lên chờ duyệt
+  if (actor.role === "supervisor") {
+    return actor.department === ticket.department
+      && (isSelfAssignedSupervisor(ticket, actor) || ticket.status === STATUS.SUP_REVIEW);
+  }
   if (actor.role === "mentor") return ticket.evaluatorUid === actor.uid;
   if (actor.role === "committee") return ticket.committeeUid === actor.uid;
   return false;
@@ -1082,10 +1086,6 @@ function rolePermissions(ticket, actor) {
   if (isEvaluatorOf(ticket, actor)) {
     return { ...base, scores: editable, strengths: editable, improvements: editable, submit: editable };
   }
-  // Trưởng bộ phận được sửa điểm/nhận xét do người hướng dẫn nhập (khi phiếu còn mở)
-  if (actor.role === "supervisor" && editable) {
-    return { ...base, scores: true, strengths: true, improvements: true, submit: true };
-  }
   return base;
 }
 
@@ -1096,7 +1096,8 @@ export function permissionsFor(ticket, actor) {
   const print = ticket?.status === STATUS.FINALIZED
     && ["hr", "supervisor", "mentor"].includes(actor?.role)
     && canView(ticket, actor);
-  return { ...p, print, attendance: attendanceAllowed(ticket, actor) };
+  const month = read().periods[ticket?.periodId]?.month || "";
+  return { ...p, print, attendance: attendanceAllowed(ticket, actor) && attendanceWindowOpen(month, actor) };
 }
 
 // Chấm công là công việc hằng ngày, không khóa theo trạng thái chốt: Tổ CTSV có thể chốt
@@ -1112,6 +1113,7 @@ function attendanceAllowed(ticket, actor) {
 function isSelfAssignedSupervisor(ticket, actor) {
   return actor?.role === "supervisor"
     && actor.department === ticket.department
+    && ticket.department !== HR_DEPARTMENT
     && !!ticket.evaluatorAssigned && !ticket.evaluatorUid;
 }
 
@@ -1331,6 +1333,12 @@ export function mentorProgress(actor, periodId = null) {
   return [...rows.values()].sort((a, b) => rank(a) - rank(b) || b.todo - a.todo || a.name.localeCompare(b.name, "vi"));
 }
 
+// Thống kê: Trưởng bộ phận xem toàn bộ phiếu của bộ phận (không giới hạn phiếu được thao tác)
+export function listDeptTickets(actor, periodId = null) {
+  if (actor?.role !== "supervisor") return listTickets(actor, periodId);
+  return listAllTickets(periodId).filter(t => t.department === actor.department);
+}
+
 export function activePeriod() {
   return listPeriods().find(p => p.status === "dang_mo") || null;
 }
@@ -1377,7 +1385,7 @@ export function todoFor(actor, periodId = null) {
 // Thao tác (mô phỏng)
 // ============================================
 // Lưu nháp: điểm và nhận xét. Chỉ ghi phần người dùng được phép sửa.
-export function saveDraft(id, actor, { scores, committeeScore, committeeParts, notes = {} }) {
+export function saveDraft(id, actor, { scores, committeeScore, committeeParts, committeeReason, notes = {} }) {
   const all = read();
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
@@ -1394,6 +1402,11 @@ export function saveDraft(id, actor, { scores, committeeScore, committeeParts, n
     ticket.scores = [...scores];
     if (ticket.status === STATUS.NOT_STARTED) ticket.status = STATUS.IN_PROGRESS;
     addHistory(ticket, actor, "Lưu điểm");
+  }
+
+  if (committeeReason !== undefined) {
+    if (!p.committeeScores) return fail("Bạn không có quyền nhập lý do chấm điểm Tổ Công tác sinh viên.");
+    ticket.committeeReason = String(committeeReason ?? "").trim();
   }
 
   if (committeeParts !== undefined) {
@@ -1426,6 +1439,7 @@ export function saveDraft(id, actor, { scores, committeeScore, committeeParts, n
 }
 
 export const MIN_NOTE = 30;
+export const MIN_COMMITTEE_REASON = 30;
 
 // Các điều kiện còn thiếu trước khi gửi phê duyệt (rỗng nếu đã đủ)
 export function submitBlockers({ scores = [], strengths = "", improvements = "" } = {}) {
@@ -1510,11 +1524,16 @@ export function reopen(id, actor, reason) {
 }
 
 // Tổ Công tác sinh viên: nhập điểm và xác nhận chốt trong cùng một bước
-export function finalize(id, actor, committeeParts) {
+export function finalize(id, actor, committeeParts, committeeReason) {
   const all = read();
   const ticket = all.tickets[id];
   if (!ticket) return fail("Phiếu không tồn tại.");
   if (!permissionsFor(ticket, actor).finalize) return fail("Chỉ Tổ Công tác sinh viên được chốt phiếu đang chờ chấm điểm.");
+  if (committeeReason !== undefined) ticket.committeeReason = String(committeeReason ?? "").trim();
+  const reasonLen = String(ticket.committeeReason || "").trim().length;
+  if (reasonLen < MIN_COMMITTEE_REASON) {
+    return fail(`Lý do được điểm phải có ít nhất ${MIN_COMMITTEE_REASON} ký tự (hiện ${reasonLen}).`);
+  }
 
   if (Array.isArray(committeeParts)) {
     const err = checkCommitteeParts(committeeParts);
@@ -1619,14 +1638,19 @@ export function internAttendanceDays(internId, month) {
   return intern ? daysOfIntern(intern, month) : [];
 }
 
+// SVTT chưa có người hướng dẫn: người đánh giá là chính Trưởng bộ phận
+function isSelfIntern(intern) {
+  return !!intern?.evaluatorAssigned && !intern.evaluatorUid;
+}
+
 // Quyền chấm công: HR mọi SVTT; Trưởng bộ phận chỉ SVTT tự đánh giá; người hướng dẫn chỉ SVTT được giao cho mình
 export function internAttendanceAllowed(internId, actor) {
   const intern = read().interns[internId];
   if (!intern || !actor) return false;
   if (actor.role === "hr") return true;
   if (actor.department !== intern.department) return false;
-  // Trưởng bộ phận chấm công mọi SVTT của bộ phận, không cần chờ phân công đánh giá
-  if (actor.role === "supervisor") return true;
+  // Trưởng bộ phận chỉ chấm công SVTT do chính mình tự đánh giá (không áp dụng cho bộ phận PNS)
+  if (actor.role === "supervisor") return isSelfIntern(intern) && intern.department !== HR_DEPARTMENT;
   if (actor.role === "mentor") return !!intern.evaluatorUid && intern.evaluatorUid === actor.uid;
   return false;
 }
@@ -1636,7 +1660,7 @@ export function timesheetInterns(actor, month) {
   const state = read();
   return Object.values(state.interns)
     .filter(i => actor?.role === "hr"
-      || (actor?.role === "supervisor" && i.department === actor.department)
+      || (actor?.role === "supervisor" && i.department === actor.department && i.department !== HR_DEPARTMENT && isSelfIntern(i))
       || (actor?.role === "mentor" && !!i.evaluatorUid && i.evaluatorUid === actor.uid))
     .filter(i => internSpanFor(i, month))
     .sort((a, b) => a.internId.localeCompare(b.internId))
@@ -1646,7 +1670,7 @@ export function timesheetInterns(actor, month) {
         intern: { ...intern },
         ticket: ticket ? { ...ticket } : null,
         days: daysOfIntern(intern, month),
-        canEdit: internAttendanceAllowed(intern.internId, actor)
+        canEdit: internAttendanceAllowed(intern.internId, actor) && attendanceWindowOpen(month, actor)
       };
     });
 }
@@ -1661,6 +1685,14 @@ export function workDaysOf(code) {
   return 0;
 }
 
+// Thời hạn chỉnh sửa chấm công: đến hết 5 ngày sau ngày kết thúc kỳ; sau đó chỉ xem. HR không bị giới hạn.
+export const ATTENDANCE_GRACE_DAYS = 5;
+export function attendanceWindowOpen(month, actor, today = todayIso()) {
+  if (actor?.role === "hr") return true;
+  if (!/^\d{4}-\d{2}$/.test(month || "")) return false;
+  return today <= addDays(monthBounds(month).end, ATTENDANCE_GRACE_DAYS);
+}
+
 export function setInternAttendance(internId, actor, date, code) {
   const state = read();
   const intern = state.interns[internId];
@@ -1669,6 +1701,7 @@ export function setInternAttendance(internId, actor, date, code) {
   if (code && !ATTENDANCE_CODES.includes(code)) return fail("Ký hiệu chấm công: X (đi làm), X/2 (nửa buổi), O (off), V (vắng).");
   const span = internSpanFor(intern, periodMonthOf(date));
   if (!span || date < span.start || date > span.end) return fail("Ngày không thuộc thời gian thực tập của SVTT.");
+  if (!attendanceWindowOpen(periodMonthOf(date), actor)) return fail("Đã quá thời hạn chỉnh sửa chấm công (5 ngày sau ngày kết thúc kỳ). Chỉ còn xem.");
 
   intern.attendance = { ...(intern.attendance || {}) };
   if (code) intern.attendance[date] = code;
@@ -2038,6 +2071,9 @@ export const DemoStore = {
   reopen,
   stats,
   scoreSummary,
+  listDeptTickets,
+  attendanceWindowOpen,
+  MIN_COMMITTEE_REASON,
   attendanceDays,
   internAttendanceDays,
   internAttendanceAllowed,
