@@ -36,9 +36,9 @@ import {
 
 const ADMIN_EMAIL = "dptbinh193@gmail.com";
 
-// BẬT (true) khi demo: bỏ qua xác minh email, đăng ký bằng email nào cũng được.
-// Đặt false để bật lại xác minh email khi triển khai thật.
-const SKIP_EMAIL_VERIFICATION = true;
+// TẮT (false) khi triển khai thật: người dùng phải xác minh email trước khi vào ứng dụng.
+// Chỉ bật true khi cần thử nghiệm nội bộ không gửi email.
+const SKIP_EMAIL_VERIFICATION = true; // Tạm tắt cho pilot. Bật lại khi đưa vào các đơn vị (xem rules: signedIn)
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
