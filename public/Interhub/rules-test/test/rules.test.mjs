@@ -70,6 +70,11 @@ test("đăng ký mới: tạo hồ sơ chờ duyệt không có vai trò đượ
   await assertSucceeds(setDoc(ref(db, "users/newuser"), { uid: "newuser", email: "newuser@test.vn", status: "pending", isActive: false }));
 });
 
+test("đăng ký mới đúng như app hiện tại (role: null, isActive: false)", async () => {
+  const db = as("newuser3");
+  await assertSucceeds(setDoc(ref(db, "users/newuser3"), { uid: "newuser3", email: "newuser3@test.vn", fullName: "Mới", department: "HD", role: null, status: "pending", isActive: false, approvedAt: null }));
+});
+
 test("đăng ký mới: không tự gán được vai trò hr", async () => {
   const db = as("newuser2");
   await assertFails(setDoc(ref(db, "users/newuser2"), { uid: "newuser2", email: "newuser2@test.vn", status: "pending", role: "hr" }));
