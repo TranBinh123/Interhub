@@ -242,10 +242,6 @@ export function renderInterns() {
       </label>
       ${importResultHtml()}
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
-        <button type="button" class="ih-btn ih-btn--secondary" data-action="load-sample">Nạp dữ liệu mẫu (520 SVTT)</button>
-        <button type="button" class="ih-btn ih-btn--secondary" data-action="reset-demo">Xóa toàn bộ dữ liệu mô phỏng</button>
-      </div>
 
       <div data-intern-form class="ih-form">
         <h3>${edit ? `Sửa SVTT ${html(edit.internId)}` : "Thêm SVTT thủ công"}</h3>
