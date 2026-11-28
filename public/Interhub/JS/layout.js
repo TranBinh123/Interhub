@@ -475,6 +475,14 @@ export async function initAdminPanel(target = "adminPanelRoot", options = {}) {
     );
   }
 
+  // Trang quản trị cũng phải đọc SVTT từ Firestore (trước đây chỉ app chính làm việc này)
+  const profile = await Auth.getProfile(user.uid).catch(() => null);
+  state.currentUser = user;
+  state.authProfile = profile
+    ? { ...profile, uid: user.uid }
+    : { role: "admin", uid: user.uid }; // Admin kỹ thuật (email quản trị) có thể chưa có hồ sơ users
+  await syncInternsFromServer();
+
   shell();
   if (admin.currentRole === "hr") {
     // Phòng Nhân sự không quản lý tài khoản: ẩn tab Tổng quan và Tài khoản
