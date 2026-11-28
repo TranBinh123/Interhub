@@ -116,7 +116,7 @@ test("TBP đọc được phiếu tự đánh giá của bộ phận mình", asy
 
 test("Tổ CTSV đọc được phiếu được giao, không đọc được phiếu khác", async () => {
   await assertSucceeds(getDoc(ref(as("com1"), "tickets/EV-2026-11-I4")));
-  await assertFails(getDoc(ref(as("mentor1"), "tickets/EV-2026-11-I4")));
+  await assertFails(getDoc(ref(as("mentor2"), "tickets/EV-2026-11-I4")));
 });
 
 // ---------- Phiếu: ghi ----------
