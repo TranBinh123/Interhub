@@ -8,6 +8,7 @@ on:
 jobs:
   rules:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: public/Interhub/rules-test
@@ -22,5 +23,7 @@ jobs:
           java-version: 17
       - name: Cài gói
         run: npm install
+      - name: Sao chép Rules để Emulator đọc
+        run: cp ../data/firestore.rules firestore.rules
       - name: Chạy test Firestore Rules
         run: npm test
