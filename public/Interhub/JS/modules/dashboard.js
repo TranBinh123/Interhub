@@ -217,7 +217,7 @@ export function loadDashboardData() {
   }
   const actor = actorInfo();
   const period = DemoStore.activePeriod();
-  state.tickets = period ? DemoStore.listTickets(actor, period.id) : [];
+  state.tickets = period ? DemoStore.listDeptTickets(actor, period.id) : [];
   updateDashboardStats();
   renderFollow(actor);
   renderMentorProgress(actor, period);
@@ -371,7 +371,7 @@ export function renderTodo(period, actor) {
     ${hint ? `<div class="message show" style="background:#fff7ed;color:#9a3412;">${escapeHtml(hint)}</div>` : ""}
     ${actor.role === "supervisor" ? `
     <p>Bộ phận <strong>${escapeHtml(actor.department || "—")}</strong>:
-       <strong>${DemoStore.listTickets(actor, period.id).length}</strong> phiếu ·
+       <strong>${DemoStore.listDeptTickets(actor, period.id).length}</strong> phiếu ·
        <strong>${DemoStore.mentorsOf(actor.department).length}</strong> người hướng dẫn ·
        <button type="button" class="btn btn-secondary btn-sm" data-go-assign>Mở phân công đánh giá</button></p>` : ""}
     <p><strong>${todo.length}</strong> phiếu cần xử lý.</p>

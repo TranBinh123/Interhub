@@ -258,8 +258,11 @@ function renderTimesheetDetail(ticket) {
     return;
   }
 
-  const days = DemoStore.internAttendanceDays(ticket.id, monthOfPeriodId(state.timesheet.periodId));
-  const canEdit = DemoStore.internAttendanceAllowed(ticket.id, actorInfo());
+  const monthId = monthOfPeriodId(state.timesheet.periodId);
+  const days = DemoStore.internAttendanceDays(ticket.internId, monthId);
+  const allowed = DemoStore.internAttendanceAllowed(ticket.internId, actorInfo());
+  const windowOpen = DemoStore.attendanceWindowOpen(monthId, actorInfo());
+  const canEdit = allowed && windowOpen;
 
   if (!days.some(day => day.date === selectedAttendanceDate)) {
     selectedAttendanceDate = days[0]?.date || "";
@@ -339,7 +342,8 @@ function renderTimesheetDetail(ticket) {
         </div>
       </div>
 
-      ${renderAttendanceCalendar(days, ticket.id, canEdit)}
+      ${allowed && !windowOpen ? `<p style="margin:0 0 8px;color:#9a3412;">Đã quá thời hạn chỉnh sửa chấm công (5 ngày sau ngày kết thúc kỳ). Chỉ còn xem.</p>` : ""}
+      ${renderAttendanceCalendar(days, ticket.internId, canEdit)}
     </div>
 
 
@@ -500,7 +504,7 @@ function bindTimesheetEvents(root) {
       } else {
         expandedTicketId = ticketId;
 
-        const days = DemoStore.internAttendanceDays(ticketId, monthOfPeriodId(state.timesheet.periodId));
+        const days = DemoStore.internAttendanceDays(DemoStore.getTicket(ticketId)?.internId, monthOfPeriodId(state.timesheet.periodId));
         selectedAttendanceDate = days[0]?.date || "";
       }
 
