@@ -74,16 +74,14 @@ service cloud.firestore {
     // users — tài khoản và vai trò
     // ============================================
     match /users/{uid} {
-      // Chính người dùng, Admin, và TBP/HR (để chọn người hướng dẫn trong bộ phận)
-      allow read: if signedIn() && (
+      // Chính người dùng đọc hồ sơ của mình (kể cả chưa xác minh email); Admin, HR, TBP đọc theo phạm vi
+      allow read: if request.auth != null && (
         request.auth.uid == uid ||
-        isAdmin() ||
-        isHR() ||
-        isSupervisor()
+        (signedIn() && (isAdmin() || isHR() || isSupervisor()))
       );
 
-      // Đăng ký mới: chỉ tạo hồ sơ của chính mình, trạng thái chờ duyệt, không có vai trò
-      allow create: if signedIn()
+      // Đăng ký mới: tạo hồ sơ của chính mình (kể cả khi chưa xác minh email), trạng thái chờ duyệt, không có vai trò
+      allow create: if request.auth != null
         && request.auth.uid == uid
         && request.resource.data.uid == uid
         && request.resource.data.email == request.auth.token.email
@@ -92,12 +90,12 @@ service cloud.firestore {
         && !('adminGranted' in request.resource.data);
 
       // Người dùng chỉ được sửa tên hiển thị và thời gian đăng nhập của mình
-      allow update: if signedIn()
+      allow update: if request.auth != null
         && request.auth.uid == uid
         && changedKeys().hasOnly(['fullName', 'lastLogin']);
 
-      // Duyệt tài khoản, gán vai trò và bộ phận: Admin
-      // Chỉ Admin kỹ thuật được cấp/thu quyền adminGranted, đổi email hoặc vai trò quản trị
+      // Duyệt tài khoản, gán vai trò và bộ phận: Admin (đã xác minh)
+      // Chỉ Admin kỹ thuật được cấp/thu quyền adminGranted, đổi email hoặc uid
       allow update: if isSuperAdmin();
       allow update: if isAdmin()
         && !changedKeys().hasAny(['adminGranted', 'email', 'uid']);
