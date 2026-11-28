@@ -1,5 +1,5 @@
 // ============================================
-// Firestore Security Rules — InternHub (v2, khớp SCHEMA_FIRESTORE.md)
+// Firestore Security Rules — InternHub (v4, khớp SCHEMA_FIRESTORE.md; tạm tắt xác minh email)
 // Quy tắc nghiệp vụ (độ dài ghi chú, điểm, thời hạn 5 ngày) kiểm tra ở trình duyệt (phương án b).
 // Rules chỉ kiểm soát ai được đọc/ghi collection nào và các trường nào.
 // ============================================
@@ -10,8 +10,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---------- Hàm dùng chung ----------
+    // Tạm tắt xác minh email cho giai đoạn pilot.
+    // Khi bật lại: thay bằng  request.auth != null && request.auth.token.email_verified == true
     function signedIn() {
-      return request.auth != null && request.auth.token.email_verified == true;
+      return request.auth != null;
     }
 
     // Admin kỹ thuật: đúng email đã xác minh (không phụ thuộc document users)
