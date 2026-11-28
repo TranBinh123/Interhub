@@ -35,9 +35,13 @@
       align-items: center;
       gap: 12px;
       max-width: 820px;
-      margin: 16px auto 0;
-      padding: 0 16px;
+      margin: 0 auto;
+      padding: 12px 16px;
       flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--surface-2, #f4f6f8);
     }
     .toolbar a { color: var(--primary); text-decoration: none; font-weight: 600; }
     .btn {
@@ -156,7 +160,7 @@
 </head>
 <body>
   <div class="toolbar no-print" id="toolbar" hidden>
-    <a href="./app.html?view=evaluations" id="backLink">← Quay lại danh sách phiếu</a>
+    <a href="./app.html?view=evaluations" id="backLink">← Quay lại</a>
     <button type="button" class="btn" id="printBtn">🖨 In phiếu</button>
   </div>
 
@@ -372,6 +376,13 @@
     }
 
     $("printBtn").addEventListener("click", () => window.print());
+    // Quay lại: về trang trước trong lịch sử; không có lịch sử (mở tab mới) thì về danh sách phiếu
+    $("backLink").addEventListener("click", event => {
+      if (window.history.length > 1) {
+        event.preventDefault();
+        window.history.back();
+      }
+    });
 
     bootstrap();
   </script>

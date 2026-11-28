@@ -52,6 +52,11 @@
       margin-bottom: 24px;
       flex-wrap: wrap;
       gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--surface-2);
+      padding: 12px 0;
     }
 
     .page-header h1 {
@@ -342,7 +347,7 @@
     <!-- Header -->
     <div class="page-header">
       <h1>Phiếu đánh giá thực tập sinh</h1>
-      <button class="btn-back" id="backBtn" onclick="window.history.back()">← Quay lại</button>
+      <button class="btn-back" id="backBtn" type="button">← Quay lại</button>
     </div>
 
     <!-- Messages -->
@@ -410,6 +415,12 @@
             <label for="committeeSupport" style="white-space:nowrap;">Tích cực hỗ trợ CBQLSV, tham gia HĐ phong trào</label>
             <input type="number" id="committeeSupport" min="0" max="3" step="0.5" placeholder="Tối đa 3 điểm">
           </div>
+        </div>
+        <div class="form-group" style="max-width:560px;">
+          <label for="committeeReason">Lý do được điểm <span style="color:#a82e28;">*</span> (tối thiểu 30 ký tự)</label>
+          <textarea id="committeeReason" rows="3" placeholder="Nêu lý do cho điểm Tổ CTSV..."></textarea>
+          <small id="committeeReasonHint" style="color:var(--text-muted);"></small>
+          <div id="committeeReasonError" hidden style="margin-top:6px;color:#a82e28;font-weight:600;"></div>
         </div>
         <p style="margin:8px 0 0;">Điểm Tổ CTSV: <strong id="committeeTotal">—</strong></p>
       </div>
@@ -490,6 +501,7 @@
     let currentScores = Array(ITEMS.length).fill(null);
     let currentCommittee = null;
     let currentCommitteeParts = null;
+    const MIN_COMMITTEE_REASON = DemoStore.MIN_COMMITTEE_REASON;
 
     function esc(value) {
       return String(value ?? "")
@@ -681,6 +693,19 @@
     function writeCommitteeInputs() {
       $("committeeRules").value = currentCommitteeParts ? currentCommitteeParts[0] : "";
       $("committeeSupport").value = currentCommitteeParts ? currentCommitteeParts[1] : "";
+      $("committeeReason").value = currentTicket?.committeeReason ?? "";
+      updateReasonHint();
+    }
+
+    // Lý do được điểm: bắt buộc tối thiểu 30 ký tự khi Tổ CTSV chấm và chốt
+    function updateReasonHint() {
+      const len = $("committeeReason").value.trim().length;
+      const p = DemoStore.permissionsFor(currentTicket, actor);
+      $("committeeReasonHint").textContent = `${len}/${MIN_COMMITTEE_REASON} ký tự`;
+      const missing = MIN_COMMITTEE_REASON - len;
+      const err = $("committeeReasonError");
+      err.hidden = !(p.committeeScores && missing > 0);
+      err.textContent = `❌ Lý do được điểm còn thiếu ${missing} ký tự (tối thiểu ${MIN_COMMITTEE_REASON}).`;
     }
 
     function onCommitteeInput() {
@@ -697,6 +722,13 @@
 
     $("committeeRules").addEventListener("change", onCommitteeInput);
     $("committeeSupport").addEventListener("change", onCommitteeInput);
+    $("committeeReason").addEventListener("input", updateReasonHint);
+
+    // Nút Quay lại: về trang trước đó trong lịch sử; không có lịch sử thì về danh sách phiếu
+    $("backBtn").addEventListener("click", () => {
+      if (window.history.length > 1) window.history.back();
+      else window.location.href = "./app.html?view=evaluations";
+    });
 
     // Ô nhận xét được vẽ lại theo vai trò, nên lắng nghe ở phần tử cha
     document.addEventListener("input", event => {
@@ -759,6 +791,8 @@
       });
       $("committeeRules").disabled = !p.committeeScores;
       $("committeeSupport").disabled = !p.committeeScores;
+      $("committeeReason").disabled = !p.committeeScores;
+      updateReasonHint();
       $("strengths") && ($("strengths").disabled = !p.strengths);
       $("improvements") && ($("improvements").disabled = !p.improvements);
 
@@ -785,6 +819,7 @@
       const result = DemoStore.saveDraft(ticketId, actor, {
         scores: p.scores ? currentScores : null,
         committeeParts: p.committeeScores ? currentCommitteeParts : undefined,
+        committeeReason: p.committeeScores ? $("committeeReason").value : undefined,
         notes: collectNotes()
       });
       if (!result.ok) {
@@ -821,6 +856,7 @@
       currentScores = [...currentTicket.scores];
       currentCommittee = currentTicket.committeeScore ?? null;
       currentCommitteeParts = currentTicket.committeeParts ?? null;
+      writeCommitteeInputs();
       renderScoresTable();
       updateResults();
       applyPermissions();
@@ -907,10 +943,18 @@
           window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
+        const reason = $("committeeReason").value.trim();
+        if (reason.length < MIN_COMMITTEE_REASON) {
+          updateReasonHint();
+          showMessage("error", `❌ Lý do được điểm phải có ít nhất ${MIN_COMMITTEE_REASON} ký tự (hiện ${reason.length}).`);
+          $("committeeReason").focus();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         currentCommitteeParts = parts;
         currentCommittee = DemoStore.committeeTotal(parts);
         if (!confirm(`Xác nhận chốt phiếu với Điểm Tổ CTSV ${currentCommittee}? Sau khi chốt, chỉ Phòng Nhân sự mới mở lại được.`)) return;
-        const result = DemoStore.finalize(ticketId, actor, parts);
+        const result = DemoStore.finalize(ticketId, actor, parts, reason);
         // Thông báo hiển thị ở đầu trang, nên luôn cuộn lên để người dùng thấy kết quả
         window.scrollTo({ top: 0, behavior: "smooth" });
         if (!result.ok) {
