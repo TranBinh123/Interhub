@@ -80,6 +80,12 @@ test("đăng ký mới: không tự gán được vai trò hr", async () => {
   await assertFails(setDoc(ref(db, "users/newuser2"), { uid: "newuser2", email: "newuser2@test.vn", status: "pending", role: "hr" }));
 });
 
+test("đăng ký rồi chưa xác minh email: tạo và đọc được hồ sơ của chính mình", async () => {
+  const db = as("unverified1", "unverified1@test.vn", false);
+  await assertSucceeds(setDoc(ref(db, "users/unverified1"), { uid: "unverified1", email: "unverified1@test.vn", fullName: "Chờ xác minh", department: "HD", role: null, status: "pending", isActive: false }));
+  await assertSucceeds(getDoc(ref(db, "users/unverified1")));
+});
+
 test("tài khoản chưa xác minh email không đọc được dữ liệu", async () => {
   await assertFails(getDoc(ref(as("mentor1", "mentor1@test.vn", false), "departments/HD")));
 });
